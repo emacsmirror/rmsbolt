@@ -5,7 +5,7 @@
 ;; Version: 0.0.1
 ;; Keywords: compilation
 ;; URL: http://gitlab.com/jgkamat/rmsbolt
-;; Package-Requires: ((emacs "24.0"))
+;; Package-Requires: ((emacs "25.0"))
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -25,16 +25,129 @@
 
 ;;; Constants:
 
+(defconst +rmsbolt-compile-name+ "rmsbolt-compile")
 
 ;;; Code:
 ;;;; Variables:
+(defvar rmsbolt-temp-dir nil
+  "Temporary directory to use for compilation and other reasons.")
+(defvar rmsbolt-shell "bash"
+  "Shell rmsbolt will use to split paths.")
+(defvar rmsbolt-output-buffer "*rmsbolt-output*")
 
+(defvar rmsbolt-output-filename "rmsbolt.s")
+(defvar rmsbolt-hide-compile t)
+
+;;;; Macros
+
+(defmacro rmsbolt-with-display-buffer-no-window (&rest body)
+  ;; See http://debbugs.gnu.org/13594
+  `(let ((display-buffer-overriding-action
+          (if rmsbolt-hide-compile
+              (list #'display-buffer-no-window)
+            display-buffer-overriding-action)))
+     ,@body))
+
+
+;;;; Functions
+(defun rmsbolt--handle-finish-compile (buffer _str)
+  "Finish hook for compilations."
+  (let ((compilation-fail
+         (with-current-buffer buffer
+           (eq 'compilation-mode-line-fail
+               (get-text-property 0 'face (car mode-line-process)))))
+        (default-directory (buffer-local-value 'default-directory buffer)))
+
+    (with-current-buffer (get-buffer-create rmsbolt-output-buffer)
+      (cond ((not compilation-fail)
+             (delete-region (point-min) (point-max))
+             (insert-file-contents rmsbolt-output-filename)
+             (asm-mode)
+             (display-buffer (current-buffer)))
+            (t
+             ;; Display compilation output
+             (display-buffer buffer))))))
+
+(defun rmsbolt-compile ()
+  "Compile the current rmsbolt buffer."
+  (interactive)
+  (save-some-buffers nil (lambda () rmsbolt-mode))
+  (let* ((cmd "gcc -O0")
+         (cmd (mapconcat 'identity
+                         (list cmd
+                               "-S" (buffer-file-name)
+                               "-o" rmsbolt-output-filename)
+                         " ")))
+    (rmsbolt-with-display-buffer-no-window
+     (with-current-buffer (compilation-start cmd)
+       (add-hook 'compilation-finish-functions
+                 #'rmsbolt--handle-finish-compile nil t))))
+
+  ;; TODO
+  )
+
+;;;; Alda Keymap
+(defvar rmsbolt-mode-map nil "Keymap for `alda-mode'.")
+(when (not rmsbolt-mode-map) ; if it is not already defined
+
+  ;; assign command to keys
+  (setq rmsbolt-mode-map (make-sparse-keymap))
+  (define-key rmsbolt-mode-map (kbd "C-c C-c") #'rmsbolt-compile))
+
+;;;; Init commands
+
+(defun rmsbolt-c ()
+  (interactive)
+  (let* ((file-name (expand-file-name "rmsbolt.c" rmsbolt-temp-dir))
+         (exists (file-exists-p file-name)))
+    (find-file file-name)
+    (unless exists
+      (insert
+       "#include <stdio.h>
+
+// RMS: gcc -O0
+
+int isRMS(int a) {
+	 switch (a) {
+	 case 'R':
+		  return 1;
+	 case 'M':
+		  return 2;
+	 case 'S':
+		  return 3;
+	 default:
+		  return 0;
+	 }
+}
+
+int main() {
+		char a = 1 + 1;
+		if (isRMS(a))
+			 printf(\"%c\\n\", a);
+}
+")
+      (save-buffer))
+
+    (unless rmsbolt-mode
+      (rmsbolt-mode 1))
+    )
+  )
 
 ;;;; Mode Definition:
 
 ;;;###autoload
-(define-derived-mode rmsbolt-mode c-mode
+;; TODO handle more modes than c-mode
+(define-minor-mode rmsbolt-mode
   "RMSbolt"
+  nil "RMSBolt" rmsbolt-mode-map
+  (unless rmsbolt-temp-dir
+    (setq rmsbolt-temp-dir
+          (make-temp-file "rmsbolt-" t))
+    (add-hook 'kill-emacs-hook
+              (lambda ()
+                (delete-directory rmsbolt-temp-dir t)
+                (setq rmsbolt-temp-dir nil))))
+
   )
 
 (provide 'rmsbolt)
