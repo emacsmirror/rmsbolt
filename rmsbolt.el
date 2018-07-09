@@ -25,7 +25,13 @@
 
 ;;; Constants:
 
+(require 'cl-lib)
+
 (defconst +rmsbolt-compile-name+ "rmsbolt-compile")
+
+(defconst +rmsbolt-assembler-pattern+ (rx bol (1+ space)
+                                          "." (1+ (not (any ";")))
+                                          (0+ space) eol))
 
 ;;; Code:
 ;;;; Variables:
@@ -37,6 +43,8 @@
 
 (defvar rmsbolt-output-filename "rmsbolt.s")
 (defvar rmsbolt-hide-compile t)
+(defvar rmsbolt-intel-x86 t)
+(defvar rmsbolt-filter-asm-directives t)
 
 ;;;; Macros
 
@@ -50,6 +58,18 @@
 
 
 ;;;; Functions
+
+(defun rmsbolt--process-asm-lines (asm-lines)
+  "Process and filter a set of asm lines."
+  (when rmsbolt-filter-asm-directives
+    (setq asm-lines
+          (cl-remove-if
+           (apply-partially #'string-match-p +rmsbolt-assembler-pattern+)
+           asm-lines)))
+  (mapconcat 'identity
+             asm-lines
+             "\n"))
+
 (defun rmsbolt--handle-finish-compile (buffer _str)
   "Finish hook for compilations."
   (let ((compilation-fail
@@ -60,10 +80,16 @@
 
     (with-current-buffer (get-buffer-create rmsbolt-output-buffer)
       (cond ((not compilation-fail)
-             (delete-region (point-min) (point-max))
-             (insert-file-contents rmsbolt-output-filename)
-             (asm-mode)
-             (display-buffer (current-buffer)))
+             (if (not (file-exists-p rmsbolt-output-filename))
+                 (message "Error reading from output file.")
+               (delete-region (point-min) (point-max))
+               (insert
+                (rmsbolt--process-asm-lines
+                 (with-temp-buffer
+                   (insert-file-contents rmsbolt-output-filename)
+                   (split-string (buffer-string) "\n" t))))
+               (asm-mode)
+               (display-buffer (current-buffer))))
             (t
              ;; Display compilation output
              (display-buffer buffer))))))
@@ -76,8 +102,11 @@
          (cmd (mapconcat 'identity
                          (list cmd
                                "-S" (buffer-file-name)
-                               "-o" rmsbolt-output-filename)
+                               "-o" rmsbolt-output-filename
+                               (when rmsbolt-intel-x86
+                                 "-masm=intel"))
                          " ")))
+
     (rmsbolt-with-display-buffer-no-window
      (with-current-buffer (compilation-start cmd)
        (add-hook 'compilation-finish-functions
