@@ -9,3 +9,5 @@ A basic implementation of the [[https://github.com/mattgodbolt/compiler-explorer
 - Compilation runs entirely on your machine
 - Faster results
 - Infinitely hackable!
+- Write your code in your preferred editing environment
+- Runs entirely with 0 js

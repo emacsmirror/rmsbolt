@@ -41,10 +41,40 @@
   "Shell rmsbolt will use to split paths.")
 (defvar rmsbolt-output-buffer "*rmsbolt-output*")
 
-(defvar rmsbolt-output-filename "rmsbolt.s")
+(defun rmsbolt-output-filename ()
+  (expand-file-name "rmsbolt.s" rmsbolt-temp-dir))
 (defvar rmsbolt-hide-compile t)
 (defvar rmsbolt-intel-x86 t)
 (defvar rmsbolt-filter-asm-directives t)
+
+;;;; Classes
+
+(cl-defstruct (rmsbolt-options
+               (:conc-name rmsbolt-o-))
+  (compile-cmd
+   ""
+   :type string
+   :documentation "The command used to compile this file")
+  )
+
+(cl-defstruct (rmsbolt-lang
+               (:conc-name rmsbolt-l-))
+  (options
+   nil
+   :type 'rmsbolt-options
+   :documentation "The default options object to use.")
+  (mode
+   'fundamental-mode
+   :type 'symbol
+   :documentation "The mode to activate this language in."))
+
+(defvar rmsbolt-languages
+  `((c-mode .
+            ,(make-rmsbolt-lang :mode 'c-mode
+                                :options (make-rmsbolt-options
+                                          :compile-cmd "gcc -g -O0")) )
+    ))
+
 
 ;;;; Macros
 
@@ -80,13 +110,13 @@
 
     (with-current-buffer (get-buffer-create rmsbolt-output-buffer)
       (cond ((not compilation-fail)
-             (if (not (file-exists-p rmsbolt-output-filename))
+             (if (not (file-exists-p (rmsbolt-output-filename)))
                  (message "Error reading from output file.")
                (delete-region (point-min) (point-max))
                (insert
                 (rmsbolt--process-asm-lines
                  (with-temp-buffer
-                   (insert-file-contents rmsbolt-output-filename)
+                   (insert-file-contents (rmsbolt-output-filename))
                    (split-string (buffer-string) "\n" t))))
                (asm-mode)
                (display-buffer (current-buffer))))
@@ -94,15 +124,32 @@
              ;; Display compilation output
              (display-buffer buffer))))))
 
+(defun rmsbolt--get-cmd ()
+  "Gets the rms command from the buffer, if available."
+  (save-excursion
+    (goto-char (point-min))
+    (re-search-forward (rx "RMS:" (1+ space) (group (1+ (any "-" alnum space)))) nil t)
+    (match-string-no-properties 1)))
+(defun rmsbolt--parse-options ()
+  "Parse RMS options from file."
+  (let* ((lang (cdr-safe (assoc major-mode rmsbolt-languages)))
+         (options (copy-rmsbolt-options (rmsbolt-l-options lang)))
+         (cmd (rmsbolt--get-cmd)))
+    (when cmd
+      (setf (rmsbolt-ro-compile-cmd options) cmd))
+    options))
+
 (defun rmsbolt-compile ()
   "Compile the current rmsbolt buffer."
   (interactive)
   (save-some-buffers nil (lambda () rmsbolt-mode))
-  (let* ((cmd "gcc -O0")
+  (let* ((options (rmsbolt--parse-options))
+         (cmd (rmsbolt-o-compile-cmd options))
          (cmd (mapconcat 'identity
                          (list cmd
+                               "-g"
                                "-S" (buffer-file-name)
-                               "-o" rmsbolt-output-filename
+                               "-o" (rmsbolt-output-filename)
                                (when rmsbolt-intel-x86
                                  "-masm=intel"))
                          " ")))
