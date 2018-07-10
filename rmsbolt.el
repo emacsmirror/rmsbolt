@@ -138,6 +138,7 @@
         (setq pos (match-end 0)))
       matches)))
 
+;;;;; Filter Functions
 (defun rmsbolt--has-opcode-p (line)
   "Check if LINE has opcodes."
   (save-match-data
@@ -185,7 +186,6 @@
                          (rmsbolt--has-opcode-p line)))
             (dolist (l (rmsbolt-re-seq rmsbolt-label-find line))
               (cl-pushnew l (gethash current-label weak-usages) :test #'equal))))))
-
 
     (let* ((max-label-iter 10)
            (label-iter 0)
@@ -246,6 +246,7 @@
                (nreverse result)
                "\n")))
 
+;;;;; Handlers
 (defun rmsbolt--handle-finish-compile (buffer _str)
   "Finish hook for compilations."
   (let ((compilation-fail
@@ -270,6 +271,7 @@
              ;; Display compilation output
              (display-buffer buffer))))))
 
+;;;;; Parsing Options
 (defun rmsbolt--get-cmd ()
   "Gets the rms command from the buffer, if available."
   (save-excursion
@@ -285,6 +287,7 @@
       (setf (rmsbolt-ro-compile-cmd options) cmd))
     options))
 
+;;;;; UI Functions
 (defun rmsbolt-compile ()
   "Compile the current rmsbolt buffer."
   (interactive)
@@ -303,15 +306,11 @@
     (rmsbolt-with-display-buffer-no-window
      (with-current-buffer (compilation-start cmd)
        (add-hook 'compilation-finish-functions
-                 #'rmsbolt--handle-finish-compile nil t))))
+                 #'rmsbolt--handle-finish-compile nil t)))))
 
-  ;; TODO
-  )
-
-;;;; Alda Keymap
-(defvar rmsbolt-mode-map nil "Keymap for `alda-mode'.")
+;;;; Keymap
+(defvar rmsbolt-mode-map nil "Keymap for `rmsbolt-mode'.")
 (when (not rmsbolt-mode-map) ; if it is not already defined
-
   ;; assign command to keys
   (setq rmsbolt-mode-map (make-sparse-keymap))
   (define-key rmsbolt-mode-map (kbd "C-c C-c") #'rmsbolt-compile))

@@ -10,5 +10,6 @@ A basic implementation of the [[https://github.com/mattgodbolt/compiler-explorer
 - Better turnaround time from writing code to seeing disassembly
 - Infinitely hackable!
 - Write, compile, and view dissasembly entirely in Emacs
+  - Use compile.el to traverse errors like you would normally
 - Runs entirely without node, npm, or js.
   - No dependencies other than emacs 25 and your compiler ~:)~
