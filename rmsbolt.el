@@ -49,6 +49,7 @@
 (defvar rmsbolt-intel-x86 t)
 (defvar rmsbolt-filter-asm-directives t)
 (defvar rmsbolt-filter-unused-labels t)
+(defvar rmsbolt-filter-comment-only t)
 
 ;;;; Regexes
 
@@ -80,6 +81,9 @@
                                          "short" "word" "long" "quad" "value" "zero"))))
 (defvar rmsbolt-directive (rx bol (0+ space) "." (0+ any) eol))
 (defvar rmsbolt-endblock (rx "." (or "cfi_endproc" "data" "text" "section")))
+(defvar rmsbolt-comment-only (rx bol (0+ space) (or (and (or (any "#@;") "//"))
+                                                    (and "/*" (0+ any) "*/"))
+                                 (0+ any) eol))
 
 ;;;; Classes
 
@@ -88,8 +92,7 @@
   (compile-cmd
    ""
    :type string
-   :documentation "The command used to compile this file")
-  )
+   :documentation "The command used to compile this file"))
 
 (cl-defstruct (rmsbolt-lang
                (:conc-name rmsbolt-l-))
@@ -224,6 +227,10 @@
          (when (string-match-p rmsbolt-endblock line)
            (setq prev-label nil))
 
+         (when (and rmsbolt-filter-comment-only
+                    (string-match-p rmsbolt-comment-only line))
+           (go continue))
+
          ;; continue means we don't add to the ouptut
          (when match
            (if (not used-label)
@@ -284,7 +291,7 @@
          (options (copy-rmsbolt-options (rmsbolt-l-options lang)))
          (cmd (rmsbolt--get-cmd)))
     (when cmd
-      (setf (rmsbolt-ro-compile-cmd options) cmd))
+      (setf (rmsbolt-o-compile-cmd options) cmd))
     options))
 
 ;;;;; UI Functions
