@@ -1,13 +1,14 @@
 
 * RMSbolt
 
-A basic implementation of the [[https://github.com/mattgodbolt/compiler-explorer][godbolt compiler-exporter]] in emacs.
+A basic implementation of the [[https://github.com/mattgodbolt/compiler-explorer][godbolt compiler-exporter]] for Emacs.
 
 * Why RMSbolt over godbolt?
 
 - No sending your code to a third party server
 - Compilation runs entirely on your machine
-- Faster results
+- Better turnaround time from writing code to seeing disassembly
 - Infinitely hackable!
-- Write your code in your preferred editing environment
-- Runs entirely with 0 js
+- Write, compile, and view dissasembly entirely in Emacs
+- Runs entirely without node, npm, or js.
+  - No dependencies other than emacs 25 and your compiler ~:)~

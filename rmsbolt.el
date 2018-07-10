@@ -73,12 +73,13 @@
 (defvar rmsbolt-defines-function (rx bol (0+ space) ".type"
                                      (0+ any) "," (0+ space) (any "@%")
                                      "function" eol))
-
 (defvar rmsbolt-data-defn (rx bol (0+ space) "."
                               (group (or "string" "asciz" "ascii"
                                          (and
                                           (optional (any "1248")) "byte")
                                          "short" "word" "long" "quad" "value" "zero"))))
+(defvar rmsbolt-directive (rx bol (0+ space) "." (0+ any) eol))
+(defvar rmsbolt-endblock (rx "." (or "cfi_endproc" "data" "text" "section")))
 
 ;;;; Classes
 
@@ -102,14 +103,14 @@
    :documentation "The mode to activate this language in."))
 
 (defvar rmsbolt-languages
-  `((c-mode .
-            ,(make-rmsbolt-lang :mode 'c
-                                :options (make-rmsbolt-options
-                                          :compile-cmd "gcc -g -O0")) )
-    (c++-mode .
-              ,(make-rmsbolt-lang :mode 'c++-mode
-                                  :options (make-rmsbolt-options
-                                            :compile-cmd "g++ -g -O0")) )
+  `((c-mode
+     . ,(make-rmsbolt-lang :mode 'c
+                           :options (make-rmsbolt-options
+                                     :compile-cmd "gcc -g -O0")) )
+    (c++-mode
+     . ,(make-rmsbolt-lang :mode 'c++-mode
+                           :options (make-rmsbolt-options
+                                     :compile-cmd "g++ -g -O0")) )
     ))
 
 
@@ -125,6 +126,8 @@
 
 
 ;;;; Functions
+;; Functions to parse and lint assembly were lifted almost directly from the compiler-exporter
+
 (defun rmsbolt-re-seq (regexp string)
   "Get list of all REGEXP match in STRING."
   (save-match-data
@@ -162,7 +165,9 @@
                    (match-string 1 line)))
       (when match
         (setq current-label match))
-      (when (string-match-p rmsbolt-defines-global line)
+      (setq match (and (string-match rmsbolt-defines-global line)
+                       (match-string 1 line)))
+      (when match
         (cl-pushnew match labels-used :test #'equal))
       ;; When we have no line or a period started line, skip
       (unless (or (= 0 (length line))
@@ -205,18 +210,51 @@
 
 (defun rmsbolt--process-asm-lines (asm-lines)
   "Process and filter a set of asm lines."
-  (when rmsbot-filter-unused-labels
-    (let* ((used-labels (rmsbolt--find-used-labels asm-lines)))
+  (when rmsbolt-filter-unused-labels
+    (let ((used-labels (rmsbolt--find-used-labels asm-lines))
+          (result nil)
+          (prev-label nil))
+      (dolist (line asm-lines)
+        (let* ((raw-match (or (string-match rmsbolt-label-def line)
+                              (string-match rmsbolt-assignment-def line)))
+               (match (when raw-match
+                        (match-string 1 line)))
+               (used-label (cl-find match used-labels :test #'equal)))
+          (cl-tagbody
+           ;; End block, reset prev-label and source
+           (when (string-match-p rmsbolt-endblock line)
+             (setq prev-label nil))
 
+           ;; continue means we don't add to the ouptut
+           (when match
+             (if (not used-label)
+                 ;; Unused label
+                 (when rmsbolt-filter-unused-labels
+                   (go continue))
+               ;; Real label, set prev-label
+               (setq prev-label raw-match)))
+           (when (and rmsbolt-filter-asm-directives
+                      (not match))
+             (if  (and (string-match-p rmsbolt-data-defn line)
+                       prev-label)
+                 ;; data is being used
+                 nil
+               (when (string-match-p rmsbolt-directive line)
+                 (go continue))))
+           (push line result)
+           continue)))
+
+      (mapconcat 'identity
+                 (nreverse result)
+                 "\n")
       ))
-  (when rmsbolt-filter-asm-directives
-    (setq asm-lines
-          (cl-remove-if
-           (apply-partially #'string-match-p +rmsbolt-assembler-pattern+)
-           asm-lines)))
-  (mapconcat 'identity
-             asm-lines
-             "\n"))
+
+  ;; (when rmsbolt-filter-asm-directives
+  ;;   (setq asm-lines
+  ;;         (cl-remove-if
+  ;;          (apply-partially #'string-match-p +rmsbolt-assembler-pattern+)
+  ;;          asm-lines)))
+  )
 
 (defun rmsbolt--handle-finish-compile (buffer _str)
   "Finish hook for compilations."
