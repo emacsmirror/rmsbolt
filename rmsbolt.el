@@ -210,51 +210,41 @@
 
 (defun rmsbolt--process-asm-lines (asm-lines)
   "Process and filter a set of asm lines."
-  (when rmsbolt-filter-unused-labels
-    (let ((used-labels (rmsbolt--find-used-labels asm-lines))
-          (result nil)
-          (prev-label nil))
-      (dolist (line asm-lines)
-        (let* ((raw-match (or (string-match rmsbolt-label-def line)
-                              (string-match rmsbolt-assignment-def line)))
-               (match (when raw-match
-                        (match-string 1 line)))
-               (used-label (cl-find match used-labels :test #'equal)))
-          (cl-tagbody
-           ;; End block, reset prev-label and source
-           (when (string-match-p rmsbolt-endblock line)
-             (setq prev-label nil))
+  (let ((used-labels (rmsbolt--find-used-labels asm-lines))
+        (result nil)
+        (prev-label nil))
+    (dolist (line asm-lines)
+      (let* ((raw-match (or (string-match rmsbolt-label-def line)
+                            (string-match rmsbolt-assignment-def line)))
+             (match (when raw-match
+                      (match-string 1 line)))
+             (used-label (cl-find match used-labels :test #'equal)))
+        (cl-tagbody
+         ;; End block, reset prev-label and source
+         (when (string-match-p rmsbolt-endblock line)
+           (setq prev-label nil))
 
-           ;; continue means we don't add to the ouptut
-           (when match
-             (if (not used-label)
-                 ;; Unused label
-                 (when rmsbolt-filter-unused-labels
-                   (go continue))
-               ;; Real label, set prev-label
-               (setq prev-label raw-match)))
-           (when (and rmsbolt-filter-asm-directives
-                      (not match))
-             (if  (and (string-match-p rmsbolt-data-defn line)
-                       prev-label)
-                 ;; data is being used
-                 nil
-               (when (string-match-p rmsbolt-directive line)
-                 (go continue))))
-           (push line result)
-           continue)))
-
-      (mapconcat 'identity
-                 (nreverse result)
-                 "\n")
-      ))
-
-  ;; (when rmsbolt-filter-asm-directives
-  ;;   (setq asm-lines
-  ;;         (cl-remove-if
-  ;;          (apply-partially #'string-match-p +rmsbolt-assembler-pattern+)
-  ;;          asm-lines)))
-  )
+         ;; continue means we don't add to the ouptut
+         (when match
+           (if (not used-label)
+               ;; Unused label
+               (when rmsbolt-filter-unused-labels
+                 (go continue))
+             ;; Real label, set prev-label
+             (setq prev-label raw-match)))
+         (when (and rmsbolt-filter-asm-directives
+                    (not match))
+           (if  (and (string-match-p rmsbolt-data-defn line)
+                     prev-label)
+               ;; data is being used
+               nil
+             (when (string-match-p rmsbolt-directive line)
+               (go continue))))
+         (push line result)
+         continue)))
+    (mapconcat 'identity
+               (nreverse result)
+               "\n")))
 
 (defun rmsbolt--handle-finish-compile (buffer _str)
   "Finish hook for compilations."
@@ -361,9 +351,7 @@ int main() {
       (save-buffer))
 
     (unless rmsbolt-mode
-      (rmsbolt-mode 1))
-    )
-  )
+      (rmsbolt-mode 1))))
 
 ;;;; Mode Definition:
 
@@ -378,9 +366,7 @@ int main() {
     (add-hook 'kill-emacs-hook
               (lambda ()
                 (delete-directory rmsbolt-temp-dir t)
-                (setq rmsbolt-temp-dir nil))))
-
-  )
+                (setq rmsbolt-temp-dir nil)))))
 
 (provide 'rmsbolt)
 
