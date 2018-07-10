@@ -26,6 +26,8 @@
 ;;; Constants:
 
 (require 'cl-lib)
+(require 'subr-x)
+(require 'map)
 
 (defconst +rmsbolt-compile-name+ "rmsbolt-compile")
 
@@ -46,6 +48,37 @@
 (defvar rmsbolt-hide-compile t)
 (defvar rmsbolt-intel-x86 t)
 (defvar rmsbolt-filter-asm-directives t)
+(defvar rmsbolt-filter-unused-labels t)
+
+;;;; Regexes
+
+(defvar rmsbolt-label-def  (rx bol (group (any ".a-zA-Z_$@")
+                                          (0+ (any "a-zA-Z0-9$_@.")))
+                               ":"))
+(defvar rmsbolt-defines-global (rx bol (0+ space) ".glob"
+                                   (opt "a") "l" (0+ space)
+                                   (group (any ".a-zA-Z_")
+                                          (0+ (any "a-zA-Z0-9$_.")))))
+(defvar rmsbolt-label-find (rx (any ".a-zA-Z_")
+                               (0+
+                                (any "a-zA-Z0-9$_."))))
+(defvar rmsbolt-assignment-def (rx bol (0+ space)
+                                   (group
+                                    (any ".a-zA-Z_$")
+                                    (1+ (any "a-zA-Z0-9$_.")))
+                                   (0+ space) "="))
+(defvar rmsbolt-has-opcode (rx bol (0+ space)
+                               (any "a-zA-Z")))
+
+(defvar rmsbolt-defines-function (rx bol (0+ space) ".type"
+                                     (0+ any) "," (0+ space) (any "@%")
+                                     "function" eol))
+
+(defvar rmsbolt-data-defn (rx bol (0+ space) "."
+                              (group (or "string" "asciz" "ascii"
+                                         (and
+                                          (optional (any "1248")) "byte")
+                                         "short" "word" "long" "quad" "value" "zero"))))
 
 ;;;; Classes
 
@@ -70,9 +103,13 @@
 
 (defvar rmsbolt-languages
   `((c-mode .
-            ,(make-rmsbolt-lang :mode 'c-mode
+            ,(make-rmsbolt-lang :mode 'c
                                 :options (make-rmsbolt-options
                                           :compile-cmd "gcc -g -O0")) )
+    (c++-mode .
+              ,(make-rmsbolt-lang :mode 'c++-mode
+                                  :options (make-rmsbolt-options
+                                            :compile-cmd "g++ -g -O0")) )
     ))
 
 
@@ -88,9 +125,90 @@
 
 
 ;;;; Functions
+(defun rmsbolt-re-seq (regexp string)
+  "Get list of all REGEXP match in STRING."
+  (save-match-data
+    (let ((pos 0)
+          matches)
+      (while (string-match regexp string pos)
+        (push (match-string 0 string) matches)
+        (setq pos (match-end 0)))
+      matches)))
+
+(defun rmsbolt--has-opcode-p (line)
+  "Check if LINE has opcodes."
+  (save-match-data
+    (let* ((match (string-match rmsbolt-label-def line))
+           (line (if match
+                     (substring line (match-end 0))
+                   line))
+           (line (cl-first (split-string line (rx (1+ (any ";#")))))))
+      (if (string-match-p rmsbolt-assignment-def line)
+          nil
+        (string-match-p rmsbolt-has-opcode line)))))
+
+(defun rmsbolt--find-used-labels (asm-lines)
+  "Find used labels in asm-lines."
+  (let ((match nil)
+        (current-label nil)
+        (labels-used nil)
+        (trimmed-line nil)
+        (weak-usages (make-hash-table :test #'equal)))
+    (dolist (line asm-lines)
+      (setq trimmed-line (string-trim line))
+
+      (setq match (and
+                   (string-match rmsbolt-label-def line)
+                   (match-string 1 line)))
+      (when match
+        (setq current-label match))
+      (when (string-match-p rmsbolt-defines-global line)
+        (cl-pushnew match labels-used :test #'equal))
+      ;; When we have no line or a period started line, skip
+      (unless (or (= 0 (length line))
+                  (string-prefix-p "." line)
+                  (not (string-match-p rmsbolt-label-find line)))
+        (if (or (not rmsbolt-filter-asm-directives)
+                (rmsbolt--has-opcode-p line)
+                (string-match-p rmsbolt-defines-function line))
+            ;; Add labels indescriminantly
+            (dolist (l (rmsbolt-re-seq rmsbolt-label-find line))
+              (cl-pushnew l labels-used :test #'equal))
+
+          (when (and current-label
+                     (or (string-match-p rmsbolt-data-defn line)
+                         (rmsbolt--has-opcode-p line)))
+            (dolist (l (rmsbolt-re-seq rmsbolt-label-find line))
+              (cl-pushnew l (gethash current-label weak-usages) :test #'equal))))))
+
+
+    (let* ((max-label-iter 10)
+           (label-iter 0)
+           (completed nil))
+
+      (while (and (<= (incf label-iter)
+                      max-label-iter)
+                  (not completed))
+        (let ((to-add nil))
+          (mapc
+           (lambda (label)
+             (mapc
+              (lambda(now-used)
+                (when (not (cl-find now-used labels-used :test #'equal))
+                  (cl-pushnew now-used to-add :test #'equal)))
+              (gethash label weak-usages)))
+           labels-used)
+          (if to-add
+              (mapc (lambda (l) (cl-pushnew l labels-used :test #'equal)) to-add)
+            (setq completed t))))
+      labels-used)))
 
 (defun rmsbolt--process-asm-lines (asm-lines)
   "Process and filter a set of asm lines."
+  (when rmsbot-filter-unused-labels
+    (let* ((used-labels (rmsbolt--find-used-labels asm-lines)))
+
+      ))
   (when rmsbolt-filter-asm-directives
     (setq asm-lines
           (cl-remove-if
