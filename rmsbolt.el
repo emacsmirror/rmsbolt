@@ -91,8 +91,12 @@
                (:conc-name rmsbolt-o-))
   (compile-cmd
    ""
-   :type string
-   :documentation "The command used to compile this file"))
+   :type 'string
+   :documentation "The command used to compile this file")
+  (binary-compile
+   nil
+   :type 'bool
+   :documentation "Whether we should compile to binary and dissasemble that."))
 
 (cl-defstruct (rmsbolt-lang
                (:conc-name rmsbolt-l-))
@@ -104,6 +108,14 @@
    'fundamental-mode
    :type 'symbol
    :documentation "The mode to activate this language in.")
+  (supports-binary
+   nil
+   :type 'bool
+   :documentation "If we support binary dumping with this language.")
+  (objdumper
+   "objdump"
+   :type 'string
+   :documentation "The object dumper to use if dissasembling binary.")
   (starter-file
    nil
    :type 'string
@@ -113,16 +125,19 @@
    :type 'string
    :documentation "The starter filename to use"))
 
-(defvar rmsbolt-languages
-  `((c-mode
-     . ,(make-rmsbolt-lang :mode 'c
-                           :options (make-rmsbolt-options
-                                     :compile-cmd "gcc -O0")
-                           :starter-file-name "rmsbolt.c"
-                           :starter-file
-                           "#include <stdio.h>
+(defvar rmsbolt-languages)
+(setq
+ rmsbolt-languages
+ `((c-mode
+    . ,(make-rmsbolt-lang :mode 'c
+                          :options (make-rmsbolt-options
+                                    :compile-cmd "gcc")
+                          :supports-binary t
+                          :starter-file-name "rmsbolt.c"
+                          :starter-file
+                          "#include <stdio.h>
 
-// RMS: gcc -O0
+// RMS: gcc -O3
 
 int isRMS(int a) {
 	 switch (a) {
@@ -143,16 +158,17 @@ int main() {
 			 printf(\"%c\\n\", a);
 }
 "
-                           ))
-    (c++-mode
-     . ,(make-rmsbolt-lang :mode 'c++-mode
-                           :options (make-rmsbolt-options
-                                     :compile-cmd "g++ -O0")
-                           :starter-file-name "rmsbolt.cpp"
-                           :starter-file
-                           "#include <iostream>
+                          ))
+   (c++-mode
+    . ,(make-rmsbolt-lang :mode 'c++-mode
+                          :options (make-rmsbolt-options
+                                    :compile-cmd "g++")
+                          :supports-binary t
+                          :starter-file-name "rmsbolt.cpp"
+                          :starter-file
+                          "#include <iostream>
 
-// RMS: g++ -O0
+// RMS: g++ -O3
 
 int isRMS(int a) {
 	 switch (a) {
@@ -173,7 +189,7 @@ int main() {
 			 std::cout << a << std::endl;
 }
 "
-                           ))))
+                          ))))
 
 
 ;;;; Macros
