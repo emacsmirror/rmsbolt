@@ -103,18 +103,77 @@
   (mode
    'fundamental-mode
    :type 'symbol
-   :documentation "The mode to activate this language in."))
+   :documentation "The mode to activate this language in.")
+  (starter-file
+   nil
+   :type 'string
+   :documentation "Some starter code to jump off of, if not supplying your own.")
+  (starter-file-name
+   nil
+   :type 'string
+   :documentation "The starter filename to use"))
 
 (defvar rmsbolt-languages
   `((c-mode
      . ,(make-rmsbolt-lang :mode 'c
                            :options (make-rmsbolt-options
-                                     :compile-cmd "gcc -g -O0")) )
+                                     :compile-cmd "gcc -O0")
+                           :starter-file-name "rmsbolt.c"
+                           :starter-file
+                           "#include <stdio.h>
+
+// RMS: gcc -O0
+
+int isRMS(int a) {
+	 switch (a) {
+	 case 'R':
+		  return 1;
+	 case 'M':
+		  return 2;
+	 case 'S':
+		  return 3;
+	 default:
+		  return 0;
+	 }
+}
+
+int main() {
+		char a = 1 + 1;
+		if (isRMS(a))
+			 printf(\"%c\\n\", a);
+}
+"
+                           ))
     (c++-mode
      . ,(make-rmsbolt-lang :mode 'c++-mode
                            :options (make-rmsbolt-options
-                                     :compile-cmd "g++ -g -O0")) )
-    ))
+                                     :compile-cmd "g++ -O0")
+                           :starter-file-name "rmsbolt.cpp"
+                           :starter-file
+                           "#include <iostream>
+
+// RMS: g++ -O0
+
+int isRMS(int a) {
+	 switch (a) {
+	 case 'R':
+		  return 1;
+	 case 'M':
+		  return 2;
+	 case 'S':
+		  return 3;
+	 default:
+		  return 0;
+	 }
+}
+
+int main() {
+		char a = 1 + 1;
+		if (isRMS(a))
+			 std::cout << a << std::endl;
+}
+"
+                           ))))
 
 
 ;;;; Macros
@@ -283,7 +342,7 @@
   "Gets the rms command from the buffer, if available."
   (save-excursion
     (goto-char (point-min))
-    (re-search-forward (rx "RMS:" (1+ space) (group (1+ (any "-" alnum space)))) nil t)
+    (re-search-forward (rx "RMS:" (1+ space) (group (1+ (any "-" "+" alnum space)))) nil t)
     (match-string-no-properties 1)))
 (defun rmsbolt--parse-options ()
   "Parse RMS options from file."
@@ -324,40 +383,28 @@
 
 ;;;; Init commands
 
-(defun rmsbolt-c ()
-  (interactive)
-  (let* ((file-name (expand-file-name "rmsbolt.c" rmsbolt-temp-dir))
+
+(defun rmsbolt-starter (lang-mode)
+  "Code for "
+  (let* ((lang-def (cdr-safe (assoc lang-mode rmsbolt-languages)))
+         (file-name
+          (expand-file-name (rmsbolt-l-starter-file-name lang-def) rmsbolt-temp-dir))
          (exists (file-exists-p file-name)))
     (find-file file-name)
     (unless exists
       (insert
-       "#include <stdio.h>
-
-// RMS: gcc -O0
-
-int isRMS(int a) {
-	 switch (a) {
-	 case 'R':
-		  return 1;
-	 case 'M':
-		  return 2;
-	 case 'S':
-		  return 3;
-	 default:
-		  return 0;
-	 }
-}
-
-int main() {
-		char a = 1 + 1;
-		if (isRMS(a))
-			 printf(\"%c\\n\", a);
-}
-")
+       (rmsbolt-l-starter-file lang-def))
       (save-buffer))
 
     (unless rmsbolt-mode
-      (rmsbolt-mode 1))))
+      (rmsbolt-mode 1)))
+  )
+(defun rmsbolt-c ()
+  (interactive)
+  (rmsbolt-starter 'c-mode))
+(defun rmsbolt-c++ ()
+  (interactive)
+  (rmsbolt-starter 'c++-mode))
 
 ;;;; Mode Definition:
 
