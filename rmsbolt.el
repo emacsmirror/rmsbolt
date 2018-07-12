@@ -123,8 +123,25 @@
   (starter-file-name
    nil
    :type 'string
-   :documentation "The starter filename to use"))
+   :documentation "The starter filename to use")
+  (compile-cmd-function
+   nil
+   :type 'function
+   :documentation "A function which takes in a compile command (could be the default) and adds needed args to it."))
 
+
+(defun rmsbolt--c-compile-cmd (options)
+  "Process a compile command for gcc/clang."
+  (let* ((cmd (rmsbolt-o-compile-cmd options))
+         (cmd (mapconcat 'identity
+                         (list cmd
+                               "-g"
+                               "-S" (buffer-file-name)
+                               "-o" (rmsbolt-output-filename)
+                               (when rmsbolt-intel-x86
+                                 "-masm=intel"))
+                         " ")))
+    cmd))
 (defvar rmsbolt-languages)
 (setq
  rmsbolt-languages
@@ -134,6 +151,7 @@
                                     :compile-cmd "gcc")
                           :supports-binary t
                           :starter-file-name "rmsbolt.c"
+                          :compile-cmd-function #'rmsbolt--c-compile-cmd
                           :starter-file
                           "#include <stdio.h>
 
@@ -165,6 +183,7 @@ int main() {
                                     :compile-cmd "g++")
                           :supports-binary t
                           :starter-file-name "rmsbolt.cpp"
+                          :compile-cmd-function #'rmsbolt--c-compile-cmd
                           :starter-file
                           "#include <iostream>
 
@@ -354,6 +373,8 @@ int main() {
              (display-buffer buffer))))))
 
 ;;;;; Parsing Options
+(defun rmsbolt--get-lang ()
+  (cdr-safe (assoc major-mode rmsbolt-languages)))
 (defun rmsbolt--get-cmd ()
   "Gets the rms command from the buffer, if available."
   (save-excursion
@@ -362,7 +383,7 @@ int main() {
     (match-string-no-properties 1)))
 (defun rmsbolt--parse-options ()
   "Parse RMS options from file."
-  (let* ((lang (cdr-safe (assoc major-mode rmsbolt-languages)))
+  (let* ((lang (rmsbolt--get-lang))
          (options (copy-rmsbolt-options (rmsbolt-l-options lang)))
          (cmd (rmsbolt--get-cmd)))
     (when cmd
@@ -375,16 +396,8 @@ int main() {
   (interactive)
   (save-some-buffers nil (lambda () rmsbolt-mode))
   (let* ((options (rmsbolt--parse-options))
-         (cmd (rmsbolt-o-compile-cmd options))
-         (cmd (mapconcat 'identity
-                         (list cmd
-                               "-g"
-                               "-S" (buffer-file-name)
-                               "-o" (rmsbolt-output-filename)
-                               (when rmsbolt-intel-x86
-                                 "-masm=intel"))
-                         " ")))
-
+         (func (rmsbolt-l-compile-cmd-function (rmsbolt--get-lang)))
+         (cmd (funcall func options)))
     (rmsbolt-with-display-buffer-no-window
      (with-current-buffer (compilation-start cmd)
        (add-hook 'compilation-finish-functions
@@ -402,7 +415,7 @@ int main() {
 
 (defun rmsbolt-starter (lang-mode)
   "Code for "
-  (let* ((lang-def (cdr-safe (assoc lang-mode rmsbolt-languages)))
+  (let* ((lang-def (rmsbolt--get-lang))
          (file-name
           (expand-file-name (rmsbolt-l-starter-file-name lang-def) rmsbolt-temp-dir))
          (exists (file-exists-p file-name)))
