@@ -373,8 +373,8 @@ int main() {
              (display-buffer buffer))))))
 
 ;;;;; Parsing Options
-(defun rmsbolt--get-lang ()
-  (cdr-safe (assoc major-mode rmsbolt-languages)))
+(defun rmsbolt--get-lang (&optional language)
+  (cdr-safe (assoc (or language major-mode) rmsbolt-languages)))
 (defun rmsbolt--get-cmd ()
   "Gets the rms command from the buffer, if available."
   (save-excursion
@@ -414,8 +414,8 @@ int main() {
 
 
 (defun rmsbolt-starter (lang-mode)
-  "Code for "
-  (let* ((lang-def (rmsbolt--get-lang))
+  "Code for fully setting up a language from LANG-MODE."
+  (let* ((lang-def (rmsbolt--get-lang lang-mode))
          (file-name
           (expand-file-name (rmsbolt-l-starter-file-name lang-def) rmsbolt-temp-dir))
          (exists (file-exists-p file-name)))
