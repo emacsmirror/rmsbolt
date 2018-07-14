@@ -58,9 +58,9 @@
 (defvar rmsbolt-filter-unused-labels t)
 (defvar rmsbolt-filter-comment-only t)
 (defvar rmsbolt-binary-asm-limit 5000)
-(defun rmsbolt-output-filename (options &optional asm)
+(defun rmsbolt-output-filename (src-buffer &optional asm)
   (if (and (not asm)
-           (rmsbolt-o-dissasemble options))
+           (buffer-local-value 'rmsbolt-dissasemble src-buffer))
       (expand-file-name "rmsbolt.out" rmsbolt-temp-dir)
     (expand-file-name "rmsbolt.s" rmsbolt-temp-dir)))
 
@@ -120,28 +120,8 @@
 
 ;;;; Classes
 
-(cl-defstruct (rmsbolt-options
-               (:conc-name rmsbolt-o-))
-  (compile-cmd
-   ""
-   :type 'string
-   :documentation "The command used to compile this file")
-  (lang
-   nil
-   :type 'symbol
-   :documentation "The major mode language we are compiling in."
-   )
-  (dissasemble
-   nil
-   :type 'bool
-   :documentation "Whether we should compile to binary and dissasemble that."))
-
 (cl-defstruct (rmsbolt-lang
                (:conc-name rmsbolt-l-))
-  (options
-   nil
-   :type 'rmsbolt-options
-   :documentation "The default options object to use.")
   (mode
    'fundamental-mode
    :type 'symbol
@@ -166,23 +146,27 @@
    nil
    :type 'string
    :documentation "Functions that are hidden when dissasembling.")
+  (compile-cmd
+   nil
+   :type 'string
+   :documentation "Default compilation command to use if none is provided.")
   (compile-cmd-function
    nil
    :type 'function
    :documentation "A function which takes in a compile command (could be the default) and adds needed args to it."))
 
 
-(defun rmsbolt--c-compile-cmd (options)
+(defun rmsbolt--c-compile-cmd (src-buffer)
   "Process a compile command for gcc/clang."
-  (let* ((cmd (rmsbolt-o-compile-cmd options))
+  (let* ((cmd (buffer-local-value 'rmsbolt-command src-buffer))
          (cmd (mapconcat 'identity
                          (list cmd
                                "-g"
-                               (if (rmsbolt-o-dissasemble options)
+                               (if (buffer-local-value 'rmsbolt-dissasemble src-buffer)
                                    ""
                                  "-S")
                                (buffer-file-name)
-                               "-o" (rmsbolt-output-filename options)
+                               "-o" (rmsbolt-output-filename src-buffer)
                                (when rmsbolt-intel-x86
                                  "-masm=intel"))
                          " ")))
@@ -199,9 +183,7 @@
  rmsbolt-languages
  `((c-mode
     . ,(make-rmsbolt-lang :mode 'c
-                          :options (make-rmsbolt-options
-                                    :compile-cmd "gcc"
-                                    :lang 'c-mode)
+                          :compile-cmd "gcc"
                           :supports-asm t
                           :starter-file-name "rmsbolt.c"
                           :compile-cmd-function #'rmsbolt--c-compile-cmd
@@ -236,9 +218,7 @@ int main() {
                           ))
    (c++-mode
     . ,(make-rmsbolt-lang :mode 'c++-mode
-                          :options (make-rmsbolt-options
-                                    :compile-cmd "g++"
-                                    :lang 'c++-mode)
+                          :compile-cmd "g++"
                           :supports-asm t
                           :starter-file-name "rmsbolt.cpp"
                           :compile-cmd-function #'rmsbolt--c-compile-cmd
@@ -367,16 +347,17 @@ int main() {
             (setq completed t))))
       labels-used)))
 
-(defun rmsbolt--user-func-p (opts func)
+(defun rmsbolt--user-func-p (src-buffer func)
   "Return t if FUNC is a user function."
-  (let* ((lang (rmsbolt--get-lang (rmsbolt-o-lang opts)))
+  (let* ((lang (rmsbolt--get-lang
+                (buffer-local-value 'major-mode src-buffer)))
          (regexp (rmsbolt-l-dissas-hidden-funcs lang)))
     (if regexp
         (not (string-match-p regexp func))
       t)))
 
-(cl-defun rmsbolt--process-dissasembled-lines (opts asm-lines)
-  "Process and filter dissasembled ASM-LINES from OPTS."
+(cl-defun rmsbolt--process-dissasembled-lines (src-buffer asm-lines)
+  "Process and filter dissasembled ASM-LINES from SRC-BUFFER."
   (let* ((result nil)
          (func nil)
          (match nil))
@@ -388,11 +369,11 @@ int main() {
        ;; TODO process line numbers
        (when (string-match rmsbolt-dissas-label line)
          (setq func (match-string 2 line))
-         (when (rmsbolt--user-func-p opts func)
+         (when (rmsbolt--user-func-p src-buffer func)
            (push (concat func ":") result))
          (go continue))
        (unless (and func
-                    (rmsbolt--user-func-p opts func))
+                    (rmsbolt--user-func-p src-buffer func))
          (go continue))
        (when (string-match rmsbolt-dissas-opcode line)
          (push (concat "\t" (match-string 3 line)) result)
@@ -402,10 +383,10 @@ int main() {
                (nreverse result)
                "\n")))
 
-(cl-defun rmsbolt--process-asm-lines (opts asm-lines)
+(cl-defun rmsbolt--process-asm-lines (src-buffer asm-lines)
   "Process and filter a set of asm lines."
-  (if (rmsbolt-o-dissasemble opts)
-      (rmsbolt--process-dissasembled-lines opts asm-lines)
+  (if (buffer-local-value 'rmsbolt-dissasemble src-buffer)
+      (rmsbolt--process-dissasembled-lines src-buffer asm-lines)
     (let ((used-labels (rmsbolt--find-used-labels asm-lines))
           (result nil)
           (prev-label nil))
@@ -455,18 +436,18 @@ int main() {
            (eq 'compilation-mode-line-fail
                (get-text-property 0 'face (car mode-line-process)))))
         (default-directory (buffer-local-value 'default-directory buffer))
-        (opts (buffer-local-value 'rmsbolt-current-options buffer)))
+        (src-buffer (buffer-local-value 'rmsbolt-src-buffer buffer)))
 
     (with-current-buffer (get-buffer-create rmsbolt-output-buffer)
       (cond ((not compilation-fail)
-             (if (not (file-exists-p (rmsbolt-output-filename opts t)))
+             (if (not (file-exists-p (rmsbolt-output-filename src-buffer t)))
                  (message "Error reading from output file.")
                (delete-region (point-min) (point-max))
                (insert
                 (rmsbolt--process-asm-lines
-                 opts
+                 src-buffer
                  (with-temp-buffer
-                   (insert-file-contents (rmsbolt-output-filename opts t))
+                   (insert-file-contents (rmsbolt-output-filename src-buffer t))
                    (split-string (buffer-string) "\n" t))))
                (asm-mode)
                (display-buffer (current-buffer))))
@@ -479,31 +460,29 @@ int main() {
   (cdr-safe (assoc (or language major-mode) rmsbolt-languages)))
 (defun rmsbolt--parse-options ()
   "Parse RMS options from file."
+  (hack-local-variables)
   (let* ((lang (rmsbolt--get-lang))
-         (options (copy-rmsbolt-options
-                   (rmsbolt-l-options lang)))
+         (src-buffer (current-buffer))
          (cmd rmsbolt-command))
     (when cmd
-      (setf (rmsbolt-o-compile-cmd options) cmd))
-    (setf (rmsbolt-o-dissasemble options)
-          (or rmsbolt-dissasemble
-              (not (rmsbolt-l-supports-asm lang))))
-    (prin1 (rmsbolt-o-dissasemble options))
-    options))
+      (setq-local rmsbolt-command cmd))
+    (when (not (rmsbolt-l-supports-asm lang))
+      (setq-local rmsbolt-dissasemble t))
+    src-buffer))
 
 ;;;;; UI Functions
-(defvar-local rmsbolt-current-options nil)
+(defvar-local rmsbolt-src-buffer nil)
 (defun rmsbolt-compile ()
   "Compile the current rmsbolt buffer."
   (interactive)
   (save-some-buffers nil (lambda () rmsbolt-mode))
-  (hack-local-variables)
-  (let* ((options (rmsbolt--parse-options))
+  (rmsbolt--parse-options)
+  (let* ((src-buffer (current-buffer))
          (lang (rmsbolt--get-lang))
          (func (rmsbolt-l-compile-cmd-function lang))
-         (cmd (funcall func options)))
+         (cmd (funcall func src-buffer)))
 
-    (when (rmsbolt-o-dissasemble options)
+    (when (buffer-local-value 'rmsbolt-dissasemble src-buffer)
       (pcase
           (rmsbolt-l-objdumper lang)
         ('objdump
@@ -511,12 +490,12 @@ int main() {
                (mapconcat 'identity
                           (list cmd
                                 "&&"
-                                "objdump" "-d" (rmsbolt-output-filename options)
+                                "objdump" "-d" (rmsbolt-output-filename src-buffer)
                                 "-C" "--insn-width=16" "-l"
                                 "-M" (if rmsbolt-intel-x86
                                          "intel"
                                        "att")
-                                ">" (rmsbolt-output-filename options t))
+                                ">" (rmsbolt-output-filename src-buffer t))
                           " ")))
         (_
          (error "Objdumper not recognized"))))
@@ -524,7 +503,7 @@ int main() {
      (with-current-buffer (compilation-start cmd)
        (add-hook 'compilation-finish-functions
                  #'rmsbolt--handle-finish-compile nil t)
-       (setq-local rmsbolt-current-options options)))))
+       (setq-local rmsbolt-src-buffer src-buffer)))))
 
 ;;;; Keymap
 (defvar rmsbolt-mode-map nil "Keymap for `rmsbolt-mode'.")
