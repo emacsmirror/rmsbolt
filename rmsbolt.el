@@ -315,11 +315,8 @@ int main() {
   (let ((match nil)
         (current-label nil)
         (labels-used nil)
-        (trimmed-line nil)
         (weak-usages (make-hash-table :test #'equal)))
     (dolist (line asm-lines)
-      (setq trimmed-line (string-trim line))
-
       (setq match (and
                    (string-match rmsbolt-label-def line)
                    (match-string 1 line)))
@@ -350,7 +347,7 @@ int main() {
            (label-iter 0)
            (completed nil))
 
-      (while (and (<= (incf label-iter)
+      (while (and (<= (cl-incf label-iter)
                       max-label-iter)
                   (not completed))
         (let ((to-add nil))
@@ -379,12 +376,11 @@ int main() {
 (cl-defun rmsbolt--process-dissasembled-lines (src-buffer asm-lines)
   "Process and filter dissasembled ASM-LINES from SRC-BUFFER."
   (let* ((result nil)
-         (func nil)
-         (match nil))
+         (func nil))
     (dolist (line asm-lines)
       (cl-tagbody
        (when (> (length result) rmsbolt-binary-asm-limit)
-         (return-from rmsbolt--process-dissasembled-lines
+         (cl-return-from rmsbolt--process-dissasembled-lines
            '("Aborting processing due to exceeding the binary limit.")))
        ;; TODO process line numbers
        (when (string-match rmsbolt-dissas-label line)
