@@ -45,6 +45,7 @@
 (defvar rmsbolt-filter-unused-labels t)
 (defvar rmsbolt-filter-comment-only t)
 (defvar rmsbolt-dissasemble nil)
+(defvar rmsbolt-binary-asm-limit 5000)
 
 ;;;; Regexes
 
@@ -78,6 +79,24 @@
 (defvar rmsbolt-comment-only (rx bol (0+ space) (or (and (or (any "#@;") "//"))
                                                     (and "/*" (0+ any) "*/"))
                                  (0+ any) eol))
+(defvar rmsbolt-dissas-line (rx bol
+                                (group "/" (1+ (not (any ":")))) ":"
+                                (group (1+ num))
+                                (0+ any)))
+(defvar rmsbolt-dissas-label (rx bol (group (1+ (any digit "a-f")))
+                                 (1+ space) "<"
+                                 (group (1+ (not (any ">")))) ">:" eol))
+(defvar rmsbolt-dissas-dest (rx (0+ any) (group (1+ (any digit "a-f")))
+                                (1+ space) "<" (group (1+ (not (any ">")))) ">" eol))
+
+(defvar rmsbolt-dissas-opcode (rx bol (0+ space) (group (1+ (any digit "a-f")))
+                                  ":" (0+ space)
+                                  (group (1+
+                                          (repeat 2
+                                                  (any digit "a-f"))
+                                          (opt " ")))
+                                  (0+ space)
+                                  (group (0+ any))))
 
 ;;;; Classes
 
@@ -118,6 +137,10 @@
    nil
    :type 'string
    :documentation "The starter filename to use")
+  (dissas-hidden-funcs
+   nil
+   :type 'string
+   :documentation "Functions that are hidden when dissasembling.")
   (compile-cmd-function
    nil
    :type 'function
@@ -136,6 +159,13 @@
                                  "-masm=intel"))
                          " ")))
     cmd))
+(defvar rmsbolt--hidden-func-c (rx bol (or (and "__" (0+ any))
+                                           (and "_" (or "init" "start" "fini"))
+                                           (and (opt "de") "register_tm_clones")
+                                           "call_gmon_start"
+                                           "frame_dummy"
+                                           (and ".plt" (0+ any)))
+                                   eol))
 (defvar rmsbolt-languages)
 (setq
  rmsbolt-languages
@@ -146,6 +176,7 @@
                           :supports-binary t
                           :starter-file-name "rmsbolt.c"
                           :compile-cmd-function #'rmsbolt--c-compile-cmd
+                          :dissas-hidden-funcs rmsbolt--hidden-func-c
                           :starter-file
                           "#include <stdio.h>
 
@@ -178,6 +209,7 @@ int main() {
                           :supports-binary t
                           :starter-file-name "rmsbolt.cpp"
                           :compile-cmd-function #'rmsbolt--c-compile-cmd
+                          :dissas-hidden-funcs rmsbolt--hidden-func-c
                           :starter-file
                           "#include <iostream>
 
@@ -299,8 +331,39 @@ int main() {
             (setq completed t))))
       labels-used)))
 
-(defun rmsbolt--process-dissasembled-lines (asm-lines)
-  )
+(defun rmsbolt--user-func-p (func)
+  "Return t if FUNC is a user function."
+  (let* ((lang (rmsbolt--get-lang))
+         (regexp (rmsbolt-l-dissas-hidden-funcs lang)))
+    (if regexp
+        (not (string-match-p regexp func))
+      t)))
+
+(cl-defun rmsbolt--process-dissasembled-lines (asm-lines)
+  "Process and filter dissasembled lines."
+  (let* ((result nil)
+         (func nil)
+         (match nil))
+    (dolist (line asm-lines)
+      (cl-tagbody
+       (when (> (length result) rmsbolt-binary-asm-limit)
+         (return-from rmsbolt--process-dissasembled-lines
+           '("Aborting processing due to exceeding the binary limit.")))
+       ;; TODO process line numbers
+       (when (string-match rmsbolt-dissas-label line)
+         (setq func (match-string 2 line)))
+       (unless (and func
+                    (rmsbolt--user-func-p func))
+         (go continue))
+
+       (when (string-match rmsbolt-dissas-opcode line)
+         (push (match-string 3 line) result))
+
+
+       continue))
+    (mapconcat 'identity
+               (nreverse result)
+               "\n")))
 
 (cl-defun rmsbolt--process-asm-lines (asm-lines)
   "Process and filter a set of asm lines."
@@ -316,6 +379,7 @@ int main() {
                         (match-string 1 line)))
                (used-label (cl-find match used-labels :test #'equal)))
           (cl-tagbody
+           ;; TODO process line numbers
            ;; End block, reset prev-label and source
            (when (string-match-p rmsbolt-endblock line)
              (setq prev-label nil))
