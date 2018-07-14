@@ -546,16 +546,16 @@ int main() {
       (insert
        (rmsbolt-l-starter-file lang-def))
       (save-buffer))
-
     (unless rmsbolt-mode
-      (rmsbolt-mode 1)))
-  )
-(defun rmsbolt-c ()
-  (interactive)
-  (rmsbolt-starter 'c-mode))
-(defun rmsbolt-c++ ()
-  (interactive)
-  (rmsbolt-starter 'c++-mode))
+      (rmsbolt-mode 1))))
+(defmacro rmsbolt-defstarter (lang mode)
+  "Defines a starter for LANG and MODE."
+  `(defun ,(intern (concat "rmsbolt-" lang)) ()
+     ,(concat "Open a rmsbolt starter file for " lang ".")
+     (interactive)
+     (rmsbolt-starter ,mode)))
+(rmsbolt-defstarter "c" 'c-mode)
+(rmsbolt-defstarter "c++" 'c++-mode)
 
 ;;;; Mode Definition:
 
