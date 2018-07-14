@@ -38,11 +38,33 @@
 (defcustom rmsbolt-dissasemble nil
   "Whether we should dissasemble an output binary."
   :type 'boolean
-  :safe 'booleanp)
+  :safe 'booleanp
+  :group 'rmsbolt)
 (defcustom rmsbolt-command nil
   "The base command to run rmsbolt from."
   :type 'string
-  :safe (lambda (v) (or (booleanp v) (stringp v))))
+  :safe (lambda (v) (or (booleanp v) (stringp v)))
+  :group 'rmsbolt)
+(defcustom rmsbolt-intel-x86 t
+  "Whether to use intel x86 format or att."
+  :type 'boolean
+  :safe 'booleanp
+  :group 'rmsbolt)
+(defcustom rmsbolt-filter-directives t
+  "Whether to filter assembly directives."
+  :type 'boolean
+  :safe 'booleanp
+  :group 'rmsbolt)
+(defcustom rmsbolt-filter-labels t
+  "Whether to filter unused labels."
+  :type 'boolean
+  :safe 'booleanp
+  :group 'rmsbolt)
+(defcustom rmsbolt-filter-comment-only t
+  "Whether to filter comment-only lines."
+  :type 'boolean
+  :safe 'booleanp
+  :group 'rmsbolt)
 
 
 ;;;; Variables:
@@ -53,10 +75,6 @@
 (defvar rmsbolt-output-buffer "*rmsbolt-output*")
 
 (defvar rmsbolt-hide-compile t)
-(defvar rmsbolt-intel-x86 t)
-(defvar rmsbolt-filter-asm-directives t)
-(defvar rmsbolt-filter-unused-labels t)
-(defvar rmsbolt-filter-comment-only t)
 (defvar rmsbolt-binary-asm-limit 5000)
 (defun rmsbolt-output-filename (src-buffer &optional asm)
   (if (and (not asm)
@@ -167,7 +185,7 @@
                                  "-S")
                                (buffer-file-name)
                                "-o" (rmsbolt-output-filename src-buffer)
-                               (when rmsbolt-intel-x86
+                               (when (buffer-local-value 'rmsbolt-intel-x86 src-buffer)
                                  "-masm=intel"))
                          " ")))
     cmd))
@@ -290,7 +308,7 @@ int main() {
           nil
         (string-match-p rmsbolt-has-opcode line)))))
 
-(defun rmsbolt--find-used-labels (asm-lines)
+(defun rmsbolt--find-used-labels (src-buffer asm-lines)
   "Find used labels in asm-lines."
   (let ((match nil)
         (current-label nil)
@@ -313,7 +331,7 @@ int main() {
       (unless (or (= 0 (length line))
                   (string-prefix-p "." line)
                   (not (string-match-p rmsbolt-label-find line)))
-        (if (or (not rmsbolt-filter-asm-directives)
+        (if (or (not (buffer-local-value 'rmsbolt-filter-directives src-buffer))
                 (rmsbolt--has-opcode-p line)
                 (string-match-p rmsbolt-defines-function line))
             ;; Add labels indescriminantly
@@ -387,7 +405,7 @@ int main() {
   "Process and filter a set of asm lines."
   (if (buffer-local-value 'rmsbolt-dissasemble src-buffer)
       (rmsbolt--process-dissasembled-lines src-buffer asm-lines)
-    (let ((used-labels (rmsbolt--find-used-labels asm-lines))
+    (let ((used-labels (rmsbolt--find-used-labels src-buffer asm-lines))
           (result nil)
           (prev-label nil))
       (dolist (line asm-lines)
@@ -402,7 +420,7 @@ int main() {
            (when (string-match-p rmsbolt-endblock line)
              (setq prev-label nil))
 
-           (when (and rmsbolt-filter-comment-only
+           (when (and (buffer-local-value 'rmsbolt-filter-comment-only src-buffer)
                       (string-match-p rmsbolt-comment-only line))
              (go continue))
 
@@ -410,11 +428,11 @@ int main() {
            (when match
              (if (not used-label)
                  ;; Unused label
-                 (when rmsbolt-filter-unused-labels
+                 (when (buffer-local-value 'rmsbolt-filter-labels src-buffer)
                    (go continue))
                ;; Real label, set prev-label
                (setq prev-label raw-match)))
-           (when (and rmsbolt-filter-asm-directives
+           (when (and (buffer-local-value 'rmsbolt-filter-directives src-buffer)
                       (not match))
              (if  (and (string-match-p rmsbolt-data-defn line)
                        prev-label)
@@ -492,7 +510,7 @@ int main() {
                                 "&&"
                                 "objdump" "-d" (rmsbolt-output-filename src-buffer)
                                 "-C" "--insn-width=16" "-l"
-                                "-M" (if rmsbolt-intel-x86
+                                "-M" (if (buffer-local-value 'rmsbolt-intel-x86 src-buffer)
                                          "intel"
                                        "att")
                                 ">" (rmsbolt-output-filename src-buffer t))
