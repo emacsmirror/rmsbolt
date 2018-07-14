@@ -146,10 +146,10 @@
    'fundamental-mode
    :type 'symbol
    :documentation "The mode to activate this language in.")
-  (supports-binary
+  (supports-asm
    nil
    :type 'bool
-   :documentation "If we support binary dumping with this language.")
+   :documentation "If we support assembly directly. If nil, we must dissasemble.")
   (objdumper
    'objdump
    :type symbol
@@ -202,7 +202,7 @@
                           :options (make-rmsbolt-options
                                     :compile-cmd "gcc"
                                     :lang 'c-mode)
-                          :supports-binary t
+                          :supports-asm t
                           :starter-file-name "rmsbolt.c"
                           :compile-cmd-function #'rmsbolt--c-compile-cmd
                           :dissas-hidden-funcs rmsbolt--hidden-func-c
@@ -239,7 +239,7 @@ int main() {
                           :options (make-rmsbolt-options
                                     :compile-cmd "g++"
                                     :lang 'c++-mode)
-                          :supports-binary t
+                          :supports-asm t
                           :starter-file-name "rmsbolt.cpp"
                           :compile-cmd-function #'rmsbolt--c-compile-cmd
                           :dissas-hidden-funcs rmsbolt--hidden-func-c
@@ -486,7 +486,8 @@ int main() {
     (when cmd
       (setf (rmsbolt-o-compile-cmd options) cmd))
     (setf (rmsbolt-o-dissasemble options)
-          rmsbolt-dissasemble)
+          (or rmsbolt-dissasemble
+              (not (rmsbolt-l-supports-asm lang))))
     (prin1 (rmsbolt-o-dissasemble options))
     options))
 
