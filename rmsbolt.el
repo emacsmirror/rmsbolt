@@ -37,8 +37,6 @@
   "Shell rmsbolt will use to split paths.")
 (defvar rmsbolt-output-buffer "*rmsbolt-output*")
 
-(defun rmsbolt-output-filename ()
-  (expand-file-name "rmsbolt.s" rmsbolt-temp-dir))
 (defvar rmsbolt-hide-compile t)
 (defvar rmsbolt-intel-x86 t)
 (defvar rmsbolt-filter-asm-directives t)
@@ -46,6 +44,11 @@
 (defvar rmsbolt-filter-comment-only t)
 (defvar rmsbolt-dissasemble nil)
 (defvar rmsbolt-binary-asm-limit 5000)
+(defun rmsbolt-output-filename (&optional asm)
+  (if (and rmsbolt-dissasemble
+           (not asm))
+      (expand-file-name "rmsbolt.out" rmsbolt-temp-dir)
+    (expand-file-name "rmsbolt.s" rmsbolt-temp-dir)))
 
 ;;;; Regexes
 
@@ -106,6 +109,11 @@
    ""
    :type 'string
    :documentation "The command used to compile this file")
+  (lang
+   nil
+   :type 'symbol
+   :documentation "The major mode language we are compiling in."
+   )
   (binary-compile
    nil
    :type 'bool
@@ -126,8 +134,8 @@
    :type 'bool
    :documentation "If we support binary dumping with this language.")
   (objdumper
-   "objdump"
-   :type 'string
+   'objdump
+   :type symbol
    :documentation "The object dumper to use if dissasembling binary.")
   (starter-file
    nil
@@ -153,7 +161,10 @@
          (cmd (mapconcat 'identity
                          (list cmd
                                "-g"
-                               "-S" (buffer-file-name)
+                               (if rmsbolt-dissasemble
+                                   ""
+                                 "-S")
+                               (buffer-file-name)
                                "-o" (rmsbolt-output-filename)
                                (when rmsbolt-intel-x86
                                  "-masm=intel"))
@@ -172,7 +183,8 @@
  `((c-mode
     . ,(make-rmsbolt-lang :mode 'c
                           :options (make-rmsbolt-options
-                                    :compile-cmd "gcc")
+                                    :compile-cmd "gcc"
+                                    :lang 'c-mode)
                           :supports-binary t
                           :starter-file-name "rmsbolt.c"
                           :compile-cmd-function #'rmsbolt--c-compile-cmd
@@ -205,7 +217,8 @@ int main() {
    (c++-mode
     . ,(make-rmsbolt-lang :mode 'c++-mode
                           :options (make-rmsbolt-options
-                                    :compile-cmd "g++")
+                                    :compile-cmd "g++"
+                                    :lang 'c++-mode)
                           :supports-binary t
                           :starter-file-name "rmsbolt.cpp"
                           :compile-cmd-function #'rmsbolt--c-compile-cmd
@@ -331,16 +344,16 @@ int main() {
             (setq completed t))))
       labels-used)))
 
-(defun rmsbolt--user-func-p (func)
+(defun rmsbolt--user-func-p (opts func)
   "Return t if FUNC is a user function."
-  (let* ((lang (rmsbolt--get-lang))
+  (let* ((lang (rmsbolt--get-lang (rmsbolt-o-lang opts)))
          (regexp (rmsbolt-l-dissas-hidden-funcs lang)))
     (if regexp
         (not (string-match-p regexp func))
       t)))
 
-(cl-defun rmsbolt--process-dissasembled-lines (asm-lines)
-  "Process and filter dissasembled lines."
+(cl-defun rmsbolt--process-dissasembled-lines (opts asm-lines)
+  "Process and filter dissasembled ASM-LINES from OPTS."
   (let* ((result nil)
          (func nil)
          (match nil))
@@ -351,24 +364,25 @@ int main() {
            '("Aborting processing due to exceeding the binary limit.")))
        ;; TODO process line numbers
        (when (string-match rmsbolt-dissas-label line)
-         (setq func (match-string 2 line)))
-       (unless (and func
-                    (rmsbolt--user-func-p func))
+         (setq func (match-string 2 line))
+         (when (rmsbolt--user-func-p opts func)
+           (push (concat func ":") result))
          (go continue))
-
+       (unless (and func
+                    (rmsbolt--user-func-p opts func))
+         (go continue))
        (when (string-match rmsbolt-dissas-opcode line)
-         (push (match-string 3 line) result))
-
-
+         (push (concat "\t" (match-string 3 line)) result)
+         (go continue))
        continue))
     (mapconcat 'identity
                (nreverse result)
                "\n")))
 
-(cl-defun rmsbolt--process-asm-lines (asm-lines)
+(cl-defun rmsbolt--process-asm-lines (opts asm-lines)
   "Process and filter a set of asm lines."
   (if rmsbolt-dissasemble
-      (rmsbolt--process-dissasembled-lines asm-lines)
+      (rmsbolt--process-dissasembled-lines opts asm-lines)
     (let ((used-labels (rmsbolt--find-used-labels asm-lines))
           (result nil)
           (prev-label nil))
@@ -417,17 +431,19 @@ int main() {
          (with-current-buffer buffer
            (eq 'compilation-mode-line-fail
                (get-text-property 0 'face (car mode-line-process)))))
-        (default-directory (buffer-local-value 'default-directory buffer)))
+        (default-directory (buffer-local-value 'default-directory buffer))
+        (opts (buffer-local-value 'rmsbolt-current-options buffer)))
 
     (with-current-buffer (get-buffer-create rmsbolt-output-buffer)
       (cond ((not compilation-fail)
-             (if (not (file-exists-p (rmsbolt-output-filename)))
+             (if (not (file-exists-p (rmsbolt-output-filename t)))
                  (message "Error reading from output file.")
                (delete-region (point-min) (point-max))
                (insert
                 (rmsbolt--process-asm-lines
+                 opts
                  (with-temp-buffer
-                   (insert-file-contents (rmsbolt-output-filename))
+                   (insert-file-contents (rmsbolt-output-filename t))
                    (split-string (buffer-string) "\n" t))))
                (asm-mode)
                (display-buffer (current-buffer))))
@@ -454,17 +470,37 @@ int main() {
     options))
 
 ;;;;; UI Functions
+(defvar-local rmsbolt-current-options nil)
 (defun rmsbolt-compile ()
   "Compile the current rmsbolt buffer."
   (interactive)
   (save-some-buffers nil (lambda () rmsbolt-mode))
   (let* ((options (rmsbolt--parse-options))
-         (func (rmsbolt-l-compile-cmd-function (rmsbolt--get-lang)))
+         (lang (rmsbolt--get-lang))
+         (options (rmsbolt-l-options lang))
+         (func (rmsbolt-l-compile-cmd-function lang))
          (cmd (funcall func options)))
+    (when rmsbolt-dissasemble
+      (cond
+       ((eq (rmsbolt-l-objdumper lang) 'objdump)
+        (setq cmd
+              (mapconcat 'identity
+                         (list cmd
+                               "&&"
+                               "objdump" "-d" (rmsbolt-output-filename)
+                               "-C" "--insn-width=16" "-l"
+                               "-M" (if rmsbolt-intel-x86
+                                        "intel"
+                                      "att")
+                               ">" (rmsbolt-output-filename t))
+                         " ")))
+       (t
+        (error "Objdumper not recognized"))))
     (rmsbolt-with-display-buffer-no-window
      (with-current-buffer (compilation-start cmd)
        (add-hook 'compilation-finish-functions
-                 #'rmsbolt--handle-finish-compile nil t)))))
+                 #'rmsbolt--handle-finish-compile nil t)
+       (setq-local rmsbolt-current-options options)))))
 
 ;;;; Keymap
 (defvar rmsbolt-mode-map nil "Keymap for `rmsbolt-mode'.")
@@ -505,7 +541,8 @@ int main() {
 (define-minor-mode rmsbolt-mode
   "RMSbolt"
   nil "RMSBolt" rmsbolt-mode-map
-  (unless rmsbolt-temp-dir
+  (unless (and rmsbolt-temp-dir
+               (file-exists-p rmsbolt-temp-dir))
     (setq rmsbolt-temp-dir
           (make-temp-file "rmsbolt-" t))
     (add-hook 'kill-emacs-hook
