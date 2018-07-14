@@ -35,6 +35,7 @@
   "rmsbolt customization options"
   :group 'applications)
 
+;;;;; Buffer Local Tweakables
 (defcustom rmsbolt-dissasemble nil
   "Whether we should dissasemble an output binary."
   :type 'boolean
@@ -43,6 +44,7 @@
 (defcustom rmsbolt-command nil
   "The base command to run rmsbolt from."
   :type 'string
+  ;; nil means use default command
   :safe (lambda (v) (or (booleanp v) (stringp v)))
   :group 'rmsbolt)
 (defcustom rmsbolt-intel-x86 t
@@ -482,8 +484,8 @@ int main() {
   (let* ((lang (rmsbolt--get-lang))
          (src-buffer (current-buffer))
          (cmd rmsbolt-command))
-    (when cmd
-      (setq-local rmsbolt-command cmd))
+    (when (not cmd)
+      (setq-local rmsbolt-command (rmsbolt-l-compile-cmd lang)))
     (when (not (rmsbolt-l-supports-asm lang))
       (setq-local rmsbolt-dissasemble t))
     src-buffer))
