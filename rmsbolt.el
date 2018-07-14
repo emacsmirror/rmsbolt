@@ -30,6 +30,21 @@
 (require 'map)
 
 ;;; Code:
+;;;; Customize:
+(defgroup rmsbolt nil
+  "rmsbolt customization options"
+  :group 'applications)
+
+(defcustom rmsbolt-dissasemble nil
+  "Whether we should dissasemble an output binary."
+  :type 'boolean
+  :safe 'booleanp)
+(defcustom rmsbolt-command nil
+  "The base command to run rmsbolt from."
+  :type 'string
+  :safe 'stringp)
+
+
 ;;;; Variables:
 (defvar rmsbolt-temp-dir nil
   "Temporary directory to use for compilation and other reasons.")
@@ -42,13 +57,15 @@
 (defvar rmsbolt-filter-asm-directives t)
 (defvar rmsbolt-filter-unused-labels t)
 (defvar rmsbolt-filter-comment-only t)
-(defvar rmsbolt-dissasemble nil)
 (defvar rmsbolt-binary-asm-limit 5000)
-(defun rmsbolt-output-filename (&optional asm)
-  (if (and rmsbolt-dissasemble
-           (not asm))
+(defun rmsbolt-output-filename (options &optional asm)
+  (if (and (not asm)
+           (rmsbolt-o-dissasemble options))
       (expand-file-name "rmsbolt.out" rmsbolt-temp-dir)
     (expand-file-name "rmsbolt.s" rmsbolt-temp-dir)))
+
+(defvar-local rmsbolt-dissasemble nil)
+
 
 ;;;; Regexes
 
@@ -114,7 +131,7 @@
    :type 'symbol
    :documentation "The major mode language we are compiling in."
    )
-  (binary-compile
+  (dissasemble
    nil
    :type 'bool
    :documentation "Whether we should compile to binary and dissasemble that."))
@@ -161,11 +178,11 @@
          (cmd (mapconcat 'identity
                          (list cmd
                                "-g"
-                               (if rmsbolt-dissasemble
+                               (if (rmsbolt-o-dissasemble options)
                                    ""
                                  "-S")
                                (buffer-file-name)
-                               "-o" (rmsbolt-output-filename)
+                               "-o" (rmsbolt-output-filename options)
                                (when rmsbolt-intel-x86
                                  "-masm=intel"))
                          " ")))
@@ -192,7 +209,10 @@
                           :starter-file
                           "#include <stdio.h>
 
-// RMS: gcc -O3
+// Local Variables:
+// rmsbolt-command: \"gcc -O3\"
+// rmsbolt-dissasemble: nil
+// End:
 
 int isRMS(int a) {
 	 switch (a) {
@@ -226,7 +246,10 @@ int main() {
                           :starter-file
                           "#include <iostream>
 
-// RMS: g++ -O3
+// Local Variables:
+// rmsbolt-command: \"g++ -O3\"
+// rmsbolt-dissasemble: nil
+// End:
 
 int isRMS(int a) {
 	 switch (a) {
@@ -381,7 +404,7 @@ int main() {
 
 (cl-defun rmsbolt--process-asm-lines (opts asm-lines)
   "Process and filter a set of asm lines."
-  (if rmsbolt-dissasemble
+  (if (rmsbolt-o-dissasemble opts)
       (rmsbolt--process-dissasembled-lines opts asm-lines)
     (let ((used-labels (rmsbolt--find-used-labels asm-lines))
           (result nil)
@@ -436,14 +459,14 @@ int main() {
 
     (with-current-buffer (get-buffer-create rmsbolt-output-buffer)
       (cond ((not compilation-fail)
-             (if (not (file-exists-p (rmsbolt-output-filename t)))
+             (if (not (file-exists-p (rmsbolt-output-filename opts t)))
                  (message "Error reading from output file.")
                (delete-region (point-min) (point-max))
                (insert
                 (rmsbolt--process-asm-lines
                  opts
                  (with-temp-buffer
-                   (insert-file-contents (rmsbolt-output-filename t))
+                   (insert-file-contents (rmsbolt-output-filename opts t))
                    (split-string (buffer-string) "\n" t))))
                (asm-mode)
                (display-buffer (current-buffer))))
@@ -454,19 +477,17 @@ int main() {
 ;;;;; Parsing Options
 (defun rmsbolt--get-lang (&optional language)
   (cdr-safe (assoc (or language major-mode) rmsbolt-languages)))
-(defun rmsbolt--get-cmd ()
-  "Gets the rms command from the buffer, if available."
-  (save-excursion
-    (goto-char (point-min))
-    (re-search-forward (rx "RMS:" (1+ space) (group (1+ (any "-" "+" alnum space)))) nil t)
-    (match-string-no-properties 1)))
 (defun rmsbolt--parse-options ()
   "Parse RMS options from file."
   (let* ((lang (rmsbolt--get-lang))
-         (options (copy-rmsbolt-options (rmsbolt-l-options lang)))
-         (cmd (rmsbolt--get-cmd)))
+         (options (copy-rmsbolt-options
+                   (rmsbolt-l-options lang)))
+         (cmd rmsbolt-command))
     (when cmd
       (setf (rmsbolt-o-compile-cmd options) cmd))
+    (setf (rmsbolt-o-dissasemble options)
+          rmsbolt-dissasemble)
+    (prin1 (rmsbolt-o-dissasemble options))
     options))
 
 ;;;;; UI Functions
@@ -475,27 +496,29 @@ int main() {
   "Compile the current rmsbolt buffer."
   (interactive)
   (save-some-buffers nil (lambda () rmsbolt-mode))
+  (hack-local-variables)
   (let* ((options (rmsbolt--parse-options))
          (lang (rmsbolt--get-lang))
-         (options (rmsbolt-l-options lang))
          (func (rmsbolt-l-compile-cmd-function lang))
          (cmd (funcall func options)))
-    (when rmsbolt-dissasemble
-      (cond
-       ((eq (rmsbolt-l-objdumper lang) 'objdump)
-        (setq cmd
-              (mapconcat 'identity
-                         (list cmd
-                               "&&"
-                               "objdump" "-d" (rmsbolt-output-filename)
-                               "-C" "--insn-width=16" "-l"
-                               "-M" (if rmsbolt-intel-x86
-                                        "intel"
-                                      "att")
-                               ">" (rmsbolt-output-filename t))
-                         " ")))
-       (t
-        (error "Objdumper not recognized"))))
+
+    (when (rmsbolt-o-dissasemble options)
+      (pcase
+          (rmsbolt-l-objdumper lang)
+        ('objdump
+         (setq cmd
+               (mapconcat 'identity
+                          (list cmd
+                                "&&"
+                                "objdump" "-d" (rmsbolt-output-filename options)
+                                "-C" "--insn-width=16" "-l"
+                                "-M" (if rmsbolt-intel-x86
+                                         "intel"
+                                       "att")
+                                ">" (rmsbolt-output-filename options t))
+                          " ")))
+        (_
+         (error "Objdumper not recognized"))))
     (rmsbolt-with-display-buffer-no-window
      (with-current-buffer (compilation-start cmd)
        (add-hook 'compilation-finish-functions
