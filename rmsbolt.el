@@ -75,6 +75,8 @@
 (defvar rmsbolt-shell "bash"
   "Shell rmsbolt will use to split paths.")
 (defvar rmsbolt-output-buffer "*rmsbolt-output*")
+(defvar rmsbolt-mode
+  "whether rmsbolt-mode is enabled")
 
 (defvar rmsbolt-hide-compile t)
 (defvar rmsbolt-binary-asm-limit 5000)
@@ -566,7 +568,9 @@ int main() {
           (make-temp-file "rmsbolt-" t))
     (add-hook 'kill-emacs-hook
               (lambda ()
-                (delete-directory rmsbolt-temp-dir t)
+                (when (and rmsbolt-temp-dir
+                           (file-directory-p rmsbolt-temp-dir) )
+                  (delete-directory rmsbolt-temp-dir t))
                 (setq rmsbolt-temp-dir nil)))))
 
 (provide 'rmsbolt)

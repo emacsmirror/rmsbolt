@@ -5,11 +5,26 @@ A basic implementation of the [[https://github.com/mattgodbolt/compiler-explorer
 
 * Why RMSbolt over godbolt?
 
-- No sending your code to a third party server
-- Compilation runs entirely on your machine
-- Better turnaround time from writing code to seeing disassembly
-- Infinitely hackable!
+- No more sending your code to any server
+- Much faster turnaround time from writing code to seeing and interacting with disassembly
+- 100% usable without the mouse.
 - Write, compile, and view dissasembly entirely in Emacs
-  - Use compile.el to traverse errors like you would normally
+  - Use compile.el, flymake, or flycheck to traverse and fix errors as you
+    would normally.
+  - Use any libraries on your machine trivially
 - Runs entirely without node, npm, or js.
   - No dependencies other than emacs 25 and your compiler ~:)~
+  - Code is actually readable
+- Full undo (tree) system from Emacs on disassembly for easy comparisons
+- Infinitely hackable!
+
+* Installation
+
+rmsbolt is not on melpa yet. If you find it useful, please let me know and I may
+add it..
+
+** Quelpa
+
+#+BEGIN_SRC emacs-lisp
+  (quelpa '(rmsbolt :fetcher gitlab :repo "jgkamat/rmsbolt"))
+#+END_SRC
