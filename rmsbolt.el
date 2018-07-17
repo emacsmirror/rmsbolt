@@ -86,7 +86,8 @@
       (expand-file-name "rmsbolt.out" rmsbolt-temp-dir)
     (expand-file-name "rmsbolt.s" rmsbolt-temp-dir)))
 
-(defvar-local rmsbolt-dissasemble nil)
+(defvar-local rmsbolt-line-mapping nil
+  "Line mapping hashtable from source lines -> asm lines")
 
 
 ;;;; Regexes
@@ -139,6 +140,14 @@
                                           (opt " ")))
                                   (0+ space)
                                   (group (0+ any))))
+(defvar rmsbolt-source-tag (rx bol (0+ space) ".loc" (1+ space)
+                               (group (1+ digit)) (1+ space)
+                               (group (1+ digit))
+                               (0+ any)))
+(defvar rmsbolt-source-stab (rx bol (0+ any) ".stabn" (1+ space)
+                                (group (1+ digit)) ",0,"
+                                (group (1+ digit)) "," (0+ any)))
+
 
 ;;;; Classes
 
@@ -200,6 +209,7 @@
                                            "frame_dummy"
                                            (and ".plt" (0+ any)))
                                    eol))
+;;;; Language Definitions
 (defvar rmsbolt-languages)
 (setq
  rmsbolt-languages
@@ -397,9 +407,7 @@ int main() {
          (push (concat "\t" (match-string 3 line)) result)
          (go continue))
        continue))
-    (mapconcat 'identity
-               (nreverse result)
-               "\n")))
+    (nreverse result)))
 
 (cl-defun rmsbolt--process-asm-lines (src-buffer asm-lines)
   "Process and filter a set of asm lines."
@@ -407,7 +415,8 @@ int main() {
       (rmsbolt--process-dissasembled-lines src-buffer asm-lines)
     (let ((used-labels (rmsbolt--find-used-labels src-buffer asm-lines))
           (result nil)
-          (prev-label nil))
+          (prev-label nil)
+          (source-linum nil))
       (dolist (line asm-lines)
         (let* ((raw-match (or (string-match rmsbolt-label-def line)
                               (string-match rmsbolt-assignment-def line)))
@@ -415,7 +424,18 @@ int main() {
                         (match-string 1 line)))
                (used-label (cl-find match used-labels :test #'equal)))
           (cl-tagbody
-           ;; TODO process line numbers
+           ;; Process any line number hints
+           (when (string-match rmsbolt-source-tag line)
+             (setq source-linum
+                   (string-to-number
+                    (match-string 2 line))))
+           (when (string-match rmsbolt-source-stab line)
+             (pcase (string-to-number (match-string 1 line))
+               (68
+                (setq source-linum (match-string 2 line)))
+               ((or 100 132)
+                (setq source-linum nil))))
+
            ;; End block, reset prev-label and source
            (when (string-match-p rmsbolt-endblock line)
              (setq prev-label nil))
@@ -440,11 +460,16 @@ int main() {
                  nil
                (when (string-match-p rmsbolt-directive line)
                  (go continue))))
+           ;; Add line numbers to mapping
+           (when (and source-linum
+                      (rmsbolt--has-opcode-p line))
+             (add-text-properties 0 (length line)
+                                  `(rmsbolt-src-line ,source-linum) line))
+           ;; Add line
            (push line result)
+
            continue)))
-      (mapconcat 'identity
-                 (nreverse result)
-                 "\n"))))
+      (nreverse result))))
 
 ;;;;; Handlers
 (defun rmsbolt--handle-finish-compile (buffer _str)
@@ -460,15 +485,30 @@ int main() {
       (cond ((not compilation-fail)
              (if (not (file-exists-p (rmsbolt-output-filename src-buffer t)))
                  (message "Error reading from output file.")
-               (delete-region (point-min) (point-max))
-               (insert
-                (rmsbolt--process-asm-lines
-                 src-buffer
-                 (with-temp-buffer
-                   (insert-file-contents (rmsbolt-output-filename src-buffer t))
-                   (split-string (buffer-string) "\n" t))))
-               (asm-mode)
-               (display-buffer (current-buffer))))
+               (let ((lines
+                      (rmsbolt--process-asm-lines
+                       src-buffer
+                       (with-temp-buffer
+                         (insert-file-contents (rmsbolt-output-filename src-buffer t))
+                         (split-string (buffer-string) "\n" t))))
+                     (ht (make-hash-table))
+                     (linum 0))
+                 ;; Add lines to hashtable
+                 (dolist (line lines)
+                   (cl-pushnew
+                    linum
+                    (gethash
+                     (get-text-property
+                      0 'rmsbolt-src-line line)
+                     ht))
+                   (incf linum))
+                 (with-current-buffer src-buffer
+                   (setq-local rmsbolt-line-mapping ht))
+                 (delete-region (point-min) (point-max))
+                 (insert
+                  (mapconcat 'identity lines "\n"))
+                 (asm-mode)
+                 (display-buffer (current-buffer)))))
             (t
              ;; Display compilation output
              (display-buffer buffer))))))
