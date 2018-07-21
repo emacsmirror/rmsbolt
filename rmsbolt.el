@@ -310,6 +310,10 @@ int main() {
       matches)))
 
 ;;;;; Filter Functions
+
+;; Filtering functions were more or less lifted from the godbolt compiler exporter to maintain compatiblity.
+;; https://github.com/mattgodbolt/compiler-explorer/blob/master/lib/asm.js
+
 (defun rmsbolt--has-opcode-p (line)
   "Check if LINE has opcodes."
   (save-match-data
@@ -385,16 +389,22 @@ int main() {
         (not (string-match-p regexp func))
       t)))
 
+;; TODO godbolt does not handle dissasembly with filter=off, but we should.
 (cl-defun rmsbolt--process-dissasembled-lines (src-buffer asm-lines)
   "Process and filter dissasembled ASM-LINES from SRC-BUFFER."
   (let* ((result nil)
-         (func nil))
+         (func nil)
+         (source-linum nil))
     (dolist (line asm-lines)
       (cl-tagbody
        (when (> (length result) rmsbolt-binary-asm-limit)
          (cl-return-from rmsbolt--process-dissasembled-lines
            '("Aborting processing due to exceeding the binary limit.")))
-       ;; TODO process line numbers
+       (when (string-match rmsbolt-dissas-line line)
+         (setq source-linum (string-to-number (match-string 2 line)))
+         ;; We are just setting a linum, no data here.
+         (go continue))
+
        (when (string-match rmsbolt-dissas-label line)
          (setq func (match-string 2 line))
          (when (rmsbolt--user-func-p src-buffer func)
@@ -404,7 +414,12 @@ int main() {
                     (rmsbolt--user-func-p src-buffer func))
          (go continue))
        (when (string-match rmsbolt-dissas-opcode line)
-         (push (concat "\t" (match-string 3 line)) result)
+         (let ((line (concat "\t" (match-string 3 line))))
+           ;; Add line text property if available
+           (when source-linum
+             (add-text-properties 0 (length line)
+                                  `(rmsbolt-src-line ,source-linum) line))
+           (push line result))
          (go continue))
        continue))
     (nreverse result)))
@@ -431,6 +446,7 @@ int main() {
                     (match-string 2 line))))
            (when (string-match rmsbolt-source-stab line)
              (pcase (string-to-number (match-string 1 line))
+               ;; http://www.math.utah.edu/docs/info/stabs_11.html
                (68
                 (setq source-linum (match-string 2 line)))
                ((or 100 132)
@@ -495,12 +511,12 @@ int main() {
                      (linum 0))
                  ;; Add lines to hashtable
                  (dolist (line lines)
-                   (cl-pushnew
-                    linum
-                    (gethash
-                     (get-text-property
-                      0 'rmsbolt-src-line line)
-                     ht))
+                   (when-let ((property
+                               (get-text-property
+                                0 'rmsbolt-src-line line)))
+                     (cl-pushnew
+                      linum
+                      (gethash property ht)))
                    (incf linum))
                  (with-current-buffer src-buffer
                    (setq-local rmsbolt-line-mapping ht))
