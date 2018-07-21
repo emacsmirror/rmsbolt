@@ -68,6 +68,12 @@
   :safe 'booleanp
   :group 'rmsbolt)
 
+;;;; Faces
+
+(defface rmsbolt-current-line-face
+  '((t (:weight bold)))
+  "Face to fontify the current line for showing matches."
+  :group 'fic-mode)
 
 ;;;; Variables:
 (defvar rmsbolt-temp-dir nil
@@ -147,7 +153,6 @@
 (defvar rmsbolt-source-stab (rx bol (0+ any) ".stabn" (1+ space)
                                 (group (1+ digit)) ",0,"
                                 (group (1+ digit)) "," (0+ any)))
-
 
 ;;;; Classes
 
@@ -524,6 +529,7 @@ int main() {
                  (insert
                   (mapconcat 'identity lines "\n"))
                  (asm-mode)
+                 (rmsbolt-mode 1)
                  (display-buffer (current-buffer)))))
             (t
              ;; Display compilation output
@@ -551,33 +557,36 @@ int main() {
   (interactive)
   (save-some-buffers nil (lambda () rmsbolt-mode))
   (rmsbolt--parse-options)
-  (let* ((src-buffer (current-buffer))
-         (lang (rmsbolt--get-lang))
-         (func (rmsbolt-l-compile-cmd-function lang))
-         (cmd (funcall func src-buffer)))
+  (if (eq major-mode 'asm-mode)
+      ;; We cannot compile asm-mode files
+      (message "Cannot compile this file. Are you sure you are not in the output buffer?")
+    (let* ((src-buffer (current-buffer))
+           (lang (rmsbolt--get-lang))
+           (func (rmsbolt-l-compile-cmd-function lang))
+           (cmd (funcall func src-buffer)))
 
-    (when (buffer-local-value 'rmsbolt-dissasemble src-buffer)
-      (pcase
-          (rmsbolt-l-objdumper lang)
-        ('objdump
-         (setq cmd
-               (mapconcat 'identity
-                          (list cmd
-                                "&&"
-                                "objdump" "-d" (rmsbolt-output-filename src-buffer)
-                                "-C" "--insn-width=16" "-l"
-                                "-M" (if (buffer-local-value 'rmsbolt-intel-x86 src-buffer)
-                                         "intel"
-                                       "att")
-                                ">" (rmsbolt-output-filename src-buffer t))
-                          " ")))
-        (_
-         (error "Objdumper not recognized"))))
-    (rmsbolt-with-display-buffer-no-window
-     (with-current-buffer (compilation-start cmd)
-       (add-hook 'compilation-finish-functions
-                 #'rmsbolt--handle-finish-compile nil t)
-       (setq-local rmsbolt-src-buffer src-buffer)))))
+      (when (buffer-local-value 'rmsbolt-dissasemble src-buffer)
+        (pcase
+            (rmsbolt-l-objdumper lang)
+          ('objdump
+           (setq cmd
+                 (mapconcat 'identity
+                            (list cmd
+                                  "&&"
+                                  "objdump" "-d" (rmsbolt-output-filename src-buffer)
+                                  "-C" "--insn-width=16" "-l"
+                                  "-M" (if (buffer-local-value 'rmsbolt-intel-x86 src-buffer)
+                                           "intel"
+                                         "att")
+                                  ">" (rmsbolt-output-filename src-buffer t))
+                            " ")))
+          (_
+           (error "Objdumper not recognized"))))
+      (rmsbolt-with-display-buffer-no-window
+       (with-current-buffer (compilation-start cmd)
+         (add-hook 'compilation-finish-functions
+                   #'rmsbolt--handle-finish-compile nil t)
+         (setq-local rmsbolt-src-buffer src-buffer))))))
 
 ;;;; Keymap
 (defvar rmsbolt-mode-map nil "Keymap for `rmsbolt-mode'.")
@@ -611,6 +620,11 @@ int main() {
 (rmsbolt-defstarter "c" 'c-mode)
 (rmsbolt-defstarter "c++" 'c++-mode)
 
+;;;; Font lock matcher
+(defun rmsbolt-search-for-keyword (limit)
+  ;; TODO implement me
+  )
+
 ;;;; Mode Definition:
 
 ;;;###autoload
@@ -618,6 +632,12 @@ int main() {
 (define-minor-mode rmsbolt-mode
   "RMSbolt"
   nil "RMSBolt" rmsbolt-mode-map
+  (if rmsbolt-mode
+      (font-lock-add-keywords
+       nil '((rmsbolt-search-for-keyword
+              (0 rmsbolt-current-line-face))))
+    )
+
   (unless (and rmsbolt-temp-dir
                (file-exists-p rmsbolt-temp-dir))
     (setq rmsbolt-temp-dir
@@ -626,7 +646,7 @@ int main() {
               (lambda ()
                 (when (and (boundp 'rmsbolt-temp-dir)
                            rmsbolt-temp-dir
-                           (file-directory-p rmsbolt-temp-dir) )
+                           (file-directory-p rmsbolt-temp-dir))
                   (delete-directory rmsbolt-temp-dir t))
                 (setq rmsbolt-temp-dir nil)))))
 
