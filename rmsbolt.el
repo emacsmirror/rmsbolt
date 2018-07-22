@@ -278,10 +278,14 @@ Needed as ocaml cannot output asm to a non-hardcoded file"
                                    eol))
 (defvar rmsbolt--hidden-func-ocaml)
 (setq rmsbolt--hidden-func-ocaml (rx bol
-                                     (or
-                                      (and "camlCamlinternalFormat__" (0+ any))
-                                      ;; (0+ any)
-                                      )
+                                     (or (and "__" (0+ any))
+                                         (and "_" (or "init" "start" "fini"))
+                                         (and (opt "de") "register_tm_clones")
+                                         "call_gmon_start"
+                                         "frame_dummy"
+                                         (and ".plt" (0+ any))
+                                         (and "camlCamlinternalFormat__" (0+ any))
+                                         (and (1+ (not (any "@"))) "@plt"))
                                      eol))
 ;;;; Language Definitions
 (defvar rmsbolt-languages)
@@ -313,6 +317,7 @@ Needed as ocaml cannot output asm to a non-hardcoded file"
 ;;;; Macros
 
 (defmacro rmsbolt-with-display-buffer-no-window (&rest body)
+  "Run BODY without displaying any window."
   ;; See http://debbugs.gnu.org/13594
   `(let ((display-buffer-overriding-action
           (if rmsbolt-hide-compile
@@ -352,7 +357,7 @@ Needed as ocaml cannot output asm to a non-hardcoded file"
         (string-match-p rmsbolt-has-opcode line)))))
 
 (defun rmsbolt--find-used-labels (src-buffer asm-lines)
-  "Find used labels in asm-lines."
+  "Find used labels in ASM-LINES generated from SRC-BUFFER."
   (let ((match nil)
         (current-label nil)
         (labels-used nil)
@@ -427,7 +432,11 @@ Needed as ocaml cannot output asm to a non-hardcoded file"
          (cl-return-from rmsbolt--process-dissasembled-lines
            '("Aborting processing due to exceeding the binary limit.")))
        (when (string-match rmsbolt-dissas-line line)
-         (setq source-linum (string-to-number (match-string 2 line)))
+         ;; Don't add linums from files which we aren't inspecting
+         (if (file-equal-p (buffer-file-name src-buffer)
+                           (match-string 1 line))
+             (setq source-linum (string-to-number (match-string 2 line)))
+           (setq source-linum nil))
          ;; We are just setting a linum, no data here.
          (go continue))
 
@@ -747,7 +756,9 @@ Needed as ocaml cannot output asm to a non-hardcoded file"
                                   src-current-line))
                    (window (get-buffer-window scroll-buffer)))
                 (with-selected-window window
-                  (rmsbolt--goto-line line-scroll))))))
+                  (rmsbolt--goto-line line-scroll)
+                  ;; If we scrolled, recenter
+                  (recenter))))))
       (mapc #'delete-overlay rmsbolt-overlays)
       (setq rmsbolt-overlays nil))
 
