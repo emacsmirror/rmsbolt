@@ -111,6 +111,10 @@
 (defvar rmsbolt--idle-timer nil
   "Idle timer for rmsbolt overlays.")
 
+(defvar rmsbolt-dir (when load-file-name
+                      (file-name-directory load-file-name))
+  "The directory which rmsbolt is installed to.")
+
 (defvar-local rmsbolt-src-buffer nil)
 
 ;;;; Regexes
@@ -187,10 +191,6 @@
    'objdump
    :type symbol
    :documentation "The object dumper to use if dissasembling binary.")
-  (starter-file
-   nil
-   :type 'string
-   :documentation "Some starter code to jump off of, if not supplying your own.")
   (starter-file-name
    nil
    :type 'string
@@ -241,70 +241,14 @@
                           :supports-asm t
                           :starter-file-name "rmsbolt.c"
                           :compile-cmd-function #'rmsbolt--c-compile-cmd
-                          :dissas-hidden-funcs rmsbolt--hidden-func-c
-                          :starter-file
-                          "#include <stdio.h>
-
-// Local Variables:
-// rmsbolt-command: \"gcc -O3\"
-// rmsbolt-dissasemble: nil
-// End:
-
-int isRMS(int a) {
-	 switch (a) {
-	 case 'R':
-		  return 1;
-	 case 'M':
-		  return 2;
-	 case 'S':
-		  return 3;
-	 default:
-		  return 0;
-	 }
-}
-
-int main() {
-		char a = 1 + 1;
-		if (isRMS(a))
-			 printf(\"%c\\n\", a);
-}
-"
-                          ))
+                          :dissas-hidden-funcs rmsbolt--hidden-func-c))
    (c++-mode
     . ,(make-rmsbolt-lang :mode 'c++-mode
                           :compile-cmd "g++"
                           :supports-asm t
                           :starter-file-name "rmsbolt.cpp"
                           :compile-cmd-function #'rmsbolt--c-compile-cmd
-                          :dissas-hidden-funcs rmsbolt--hidden-func-c
-                          :starter-file
-                          "#include <iostream>
-
-// Local Variables:
-// rmsbolt-command: \"g++ -O3\"
-// rmsbolt-dissasemble: nil
-// End:
-
-int isRMS(int a) {
-	 switch (a) {
-	 case 'R':
-		  return 1;
-	 case 'M':
-		  return 2;
-	 case 'S':
-		  return 3;
-	 default:
-		  return 0;
-	 }
-}
-
-int main() {
-		char a = 1 + 1;
-		if (isRMS(a))
-			 std::cout << a << std::endl;
-}
-"
-                          ))))
+                          :dissas-hidden-funcs rmsbolt--hidden-func-c))))
 
 
 ;;;; Macros
@@ -624,14 +568,20 @@ int main() {
   (let* ((lang-def (rmsbolt--get-lang lang-mode))
          (file-name
           (expand-file-name (rmsbolt-l-starter-file-name lang-def) rmsbolt-temp-dir))
-         (exists (file-exists-p file-name)))
-    (find-file file-name)
-    (unless exists
-      (insert
-       (rmsbolt-l-starter-file lang-def))
-      (save-buffer))
-    (unless rmsbolt-mode
-      (rmsbolt-mode 1))))
+         (exists (file-exists-p file-name))
+         (src-file-name
+          (when rmsbolt-dir
+            (expand-file-name (rmsbolt-l-starter-file-name lang-def) (concat rmsbolt-dir "starters/"))))
+         (src-file-exists (file-exists-p src-file-name)))
+    (if (not src-file-exists)
+        (error "Could not find starter files! Are you sure the starter/ folder is available?")
+      (find-file file-name)
+      (unless exists
+        (insert-file-contents
+         src-file-name)
+        (save-buffer))
+      (unless rmsbolt-mode
+        (rmsbolt-mode 1)))))
 (defmacro rmsbolt-defstarter (lang mode)
   "Defines a starter for LANG and MODE."
   `(defun ,(intern (concat "rmsbolt-" lang)) ()
