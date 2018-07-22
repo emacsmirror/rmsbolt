@@ -28,6 +28,7 @@
 (require 'cl-lib)
 (require 'subr-x)
 (require 'map)
+(require 'cc-defs)
 
 ;;; Code:
 ;;;; Customize:
@@ -42,6 +43,10 @@
 (defcustom rmsbolt-goto-match t
   "Whether we should goto the match in the other buffer if it is non visible."
   :type 'boolean
+  :group 'rmsbolt)
+(defcustom rmsbolt-mode-lighter " RMS🗲"
+  "Lighter displayed in mode line when `rmsbolt-mode' is active."
+  :type 'string
   :group 'rmsbolt)
 
 ;;;;; Buffer Local Tweakables
@@ -530,17 +535,32 @@ Needed as ocaml cannot output asm to a non-hardcoded file"
                          (insert-file-contents (rmsbolt-output-filename src-buffer t))
                          (split-string (buffer-string) "\n" t))))
                      (ht (make-hash-table))
-                     (linum 0))
+                     (linum 1)
+                     (start-match nil)
+                     (in-match nil))
                  ;; Add lines to hashtable
                  (dolist (line lines)
-                   (when-let ((property
-                               (get-text-property
-                                0 'rmsbolt-src-line line)))
-                     (cl-pushnew
-                      ;; These numbers are 0 indexed, but we want 1 indexed
-                      (1+ linum)
-                      (gethash property ht)))
-                   (incf linum))
+                   (let ((property
+                          (get-text-property
+                           0 'rmsbolt-src-line line)))
+                     (progn
+                       (cl-tagbody
+                        run-conditional
+                        (cond
+                         ((and in-match (eq in-match property))
+                          ;; We are continuing an existing match
+                          nil)
+                         (in-match
+                          ;; We are in a match that has just expired
+                          (push (cons start-match (1- linum))
+                                (gethash in-match ht))
+                          (setq in-match nil
+                                start-match nil)
+                          (go run-conditional))
+                         (property
+                          (setq in-match property
+                                start-match linum))))))
+                   (cl-incf linum))
 
                  (with-current-buffer src-buffer
                    (setq-local rmsbolt-line-mapping ht))
@@ -668,65 +688,82 @@ Needed as ocaml cannot output asm to a non-hardcoded file"
 (defun rmsbolt-move-overlays ()
   "Function for moving overlays for rmsbolt."
 
-  (if-let* ((should-run
-             (and rmsbolt-mode rmsbolt-use-overlays))
-            (src-buffer
-             (buffer-local-value 'rmsbolt-src-buffer (current-buffer)))
-            (output-buffer (get-buffer-create rmsbolt-output-buffer))
-            (current-line (line-number-at-pos))
-            (src-current-line
-             (if (eq (current-buffer) src-buffer)
-                 current-line
-               (get-text-property (point) 'rmsbolt-src-line)))
-            (hash-table (buffer-local-value 'rmsbolt-line-mapping src-buffer))
-            (asm-lines (gethash src-current-line hash-table))
-            ;; TODO also consider asm
-            (src-pts
-             (with-current-buffer src-buffer
-               (save-excursion
-                 (rmsbolt--goto-line src-current-line)
-                 (values (c-point 'bol) (c-point 'eol))))))
-      (let ((line-visible (not rmsbolt-goto-match))
-            (src-buffer-selected (eq (current-buffer) src-buffer)))
-        (mapc #'delete-overlay rmsbolt-overlays)
-        (setq rmsbolt-overlays nil)
-        (push (rmsbolt--setup-overlay (first src-pts) (second src-pts) src-buffer)
-              rmsbolt-overlays)
-        (unless src-buffer-selected
-          (with-current-buffer src-buffer
-            (setq line-visible (rmsbolt--point-visible (first src-pts)))))
-        (with-current-buffer output-buffer
-          (save-excursion
-            (dolist (l asm-lines)
-              (rmsbolt--goto-line l)
-              ;; check if line is visible and set line-visible
-              (unless (or line-visible (not src-buffer-selected))
-                (setq line-visible (rmsbolt--point-visible (c-point 'bol))))
+  (when rmsbolt-mode
+    (if-let* ((should-run rmsbolt-use-overlays)
+              (src-buffer
+               (buffer-local-value 'rmsbolt-src-buffer (current-buffer)))
+              (output-buffer (get-buffer-create rmsbolt-output-buffer))
+              (current-line (line-number-at-pos))
+              (src-current-line
+               (if (eq (current-buffer) src-buffer)
+                   current-line
+                 (get-text-property (point) 'rmsbolt-src-line)))
+              (hash-table (buffer-local-value 'rmsbolt-line-mapping src-buffer))
+              (asm-lines (gethash src-current-line hash-table))
+              ;; TODO also consider asm
+              (src-pts
+               (with-current-buffer src-buffer
+                 (save-excursion
+                   (rmsbolt--goto-line src-current-line)
+                   (cl-values (c-point 'bol) (c-point 'eol))))))
+        (let ((line-visible (not rmsbolt-goto-match))
+              (src-buffer-selected (eq (current-buffer) src-buffer)))
+          (mapc #'delete-overlay rmsbolt-overlays)
+          (setq rmsbolt-overlays nil)
+          (push (rmsbolt--setup-overlay (cl-first src-pts) (cl-second src-pts) src-buffer)
+                rmsbolt-overlays)
+          (unless src-buffer-selected
+            (with-current-buffer src-buffer
+              (setq line-visible (rmsbolt--point-visible (cl-first src-pts)))))
+          (with-current-buffer output-buffer
+            (let ((saved-pt (point)))
+              (save-excursion
+                (dolist (l asm-lines)
+                  (let* ((start (car l))
+                         (end (cdr l))
+                         (start-pt (progn (rmsbolt--goto-line start)
+                                          (c-point 'bol)))
+                         (end-pt (progn (rmsbolt--goto-line end)
+                                        (c-point 'eol)))
+                         (visible (or line-visible
+                                      (rmsbolt--point-visible start-pt)
+                                      (rmsbolt--point-visible end-pt)
+                                      (and (> saved-pt start-pt)
+                                           (< saved-pt end-pt)))))
+                    ;; check if line is visible and set line-visible
+                    (unless (or visible (not src-buffer-selected))
+                      (setq line-visible visible))
+                    (push (rmsbolt--setup-overlay start-pt end-pt output-buffer)
+                          rmsbolt-overlays)))))
+            (unless line-visible
+              ;; Scroll buffer to first line
+              (when-let
+                  ((scroll-buffer (if src-buffer-selected
+                                      output-buffer
+                                    src-buffer))
+                   (line-scroll (if src-buffer-selected
+                                    (car-safe
+                                     (cl-first asm-lines))
+                                  src-current-line))
+                   (window (get-buffer-window scroll-buffer)))
+                (with-selected-window window
+                  (rmsbolt--goto-line line-scroll))))))
+      (mapc #'delete-overlay rmsbolt-overlays)
+      (setq rmsbolt-overlays nil))
 
-              (push (rmsbolt--setup-overlay (c-point 'bol) (c-point 'eol) output-buffer)
-                    rmsbolt-overlays)))
-          (unless line-visible
-            ;; Scroll buffer to first line
-            (when-let
-                ((scroll-buffer (if src-buffer-selected
-                                    output-buffer
-                                  src-buffer))
-                 (line-scroll (if src-buffer-selected
-                                  (first asm-lines)
-                                src-current-line))
-                 (window (get-buffer-window scroll-buffer)))
-              (with-selected-window window
-                (rmsbolt--goto-line line-scroll))))))
-    (mapc #'delete-overlay rmsbolt-overlays)
-    (setq rmsbolt-overlays nil)))
+    ;; If not in rmsbolt-mode, don't do anything
+    ))
 
 ;;;; Mode Definition:
 
 ;;;###autoload
 ;; TODO handle more modes than c-mode
 (define-minor-mode rmsbolt-mode
-  "RMSbolt"
-  nil "RMSBolt" rmsbolt-mode-map
+  "Toggle rmsbolt-mode.
+
+This mode is enabled both in modes to be compiled and output buffers."
+  :global nil
+  :lighter rmsbolt-mode-lighter rmsbolt-mode-map
   ;; This idle timer always runs, even when we aren't in rmsbolt-mode
   (unless rmsbolt--idle-timer
     (setq rmsbolt--idle-timer (run-with-idle-timer
