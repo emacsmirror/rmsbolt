@@ -35,6 +35,12 @@
   "rmsbolt customization options"
   :group 'applications)
 
+(defcustom rmsbolt-use-overlays t
+  "Whether we should use overlays to show matching code."
+  :type 'boolean
+  :safe 'booleanp
+  :group 'rmsbolt)
+
 ;;;;; Buffer Local Tweakables
 (defcustom rmsbolt-dissasemble nil
   "Whether we should dissasemble an output binary."
@@ -94,7 +100,18 @@
 
 (defvar-local rmsbolt-line-mapping nil
   "Line mapping hashtable from source lines -> asm lines")
+(defvar-local rmsbolt-current-line nil
+  "Current line for fontifier.")
 
+(defvar rmsbolt-overlays nil
+  "List of overlays to use.")
+(defvar rmsbolt-overlay-delay 0.125
+  "Time in seconds to delay before showing overlays.")
+
+(defvar rmsbolt--idle-timer nil
+  "Idle timer for rmsbolt overlays.")
+
+(defvar-local rmsbolt-src-buffer nil)
 
 ;;;; Regexes
 
@@ -503,6 +520,7 @@ int main() {
         (src-buffer (buffer-local-value 'rmsbolt-src-buffer buffer)))
 
     (with-current-buffer (get-buffer-create rmsbolt-output-buffer)
+      ;; Store src buffer value for later linking
       (cond ((not compilation-fail)
              (if (not (file-exists-p (rmsbolt-output-filename src-buffer t)))
                  (message "Error reading from output file.")
@@ -520,9 +538,11 @@ int main() {
                                (get-text-property
                                 0 'rmsbolt-src-line line)))
                      (cl-pushnew
-                      linum
+                      ;; These numbers are 0 indexed, but we want 1 indexed
+                      (1+ linum)
                       (gethash property ht)))
                    (incf linum))
+
                  (with-current-buffer src-buffer
                    (setq-local rmsbolt-line-mapping ht))
                  (delete-region (point-min) (point-max))
@@ -530,6 +550,7 @@ int main() {
                   (mapconcat 'identity lines "\n"))
                  (asm-mode)
                  (rmsbolt-mode 1)
+                 (setq-local rmsbolt-src-buffer src-buffer)
                  (display-buffer (current-buffer)))))
             (t
              ;; Display compilation output
@@ -551,15 +572,14 @@ int main() {
     src-buffer))
 
 ;;;;; UI Functions
-(defvar-local rmsbolt-src-buffer nil)
 (defun rmsbolt-compile ()
   "Compile the current rmsbolt buffer."
   (interactive)
   (save-some-buffers nil (lambda () rmsbolt-mode))
-  (rmsbolt--parse-options)
   (if (eq major-mode 'asm-mode)
       ;; We cannot compile asm-mode files
       (message "Cannot compile this file. Are you sure you are not in the output buffer?")
+    (rmsbolt--parse-options)
     (let* ((src-buffer (current-buffer))
            (lang (rmsbolt--get-lang))
            (func (rmsbolt-l-compile-cmd-function lang))
@@ -582,6 +602,7 @@ int main() {
                             " ")))
           (_
            (error "Objdumper not recognized"))))
+      (setq-local rmsbolt-src-buffer src-buffer)
       (rmsbolt-with-display-buffer-no-window
        (with-current-buffer (compilation-start cmd)
          (add-hook 'compilation-finish-functions
@@ -621,9 +642,50 @@ int main() {
 (rmsbolt-defstarter "c++" 'c++-mode)
 
 ;;;; Font lock matcher
-(defun rmsbolt-search-for-keyword (limit)
-  ;; TODO implement me
-  )
+(defun rmsbolt--goto-line (line)
+  "Goto a certain LINE."
+  (let ((cur (line-number-at-pos)))
+    (forward-line (- line cur))))
+(defun rmsbolt--setup-overlay (start end buf)
+  "Setup overlay with START and END in BUF."
+  (let ((o (make-overlay start end buf)))
+    (overlay-put o 'face 'rmsbolt-current-line-face)
+    o))
+
+(defun rmsbolt-move-overlays ()
+  "Function for moving overlays for rmsbolt."
+
+  (if-let* ((src-buffer
+             (and rmsbolt-mode rmsbolt-use-overlays))
+            (src-buffer
+             (buffer-local-value 'rmsbolt-src-buffer (current-buffer)))
+            (output-buffer (get-buffer-create rmsbolt-output-buffer))
+            (current-line (line-number-at-pos))
+            (src-current-line
+             (if (eq (current-buffer) src-buffer)
+                 current-line
+               (get-text-property (point) 'rmsbolt-src-line)))
+            (asm-lines (gethash src-current-line
+                                (buffer-local-value 'rmsbolt-line-mapping src-buffer)))
+            ;; TODO also consider asm
+            (src-pts
+             (with-current-buffer src-buffer
+               (save-excursion
+                 (rmsbolt--goto-line src-current-line)
+                 (values (c-point 'bol) (c-point 'eol))))))
+      (progn
+        (mapc #'delete-overlay rmsbolt-overlays)
+        (setq rmsbolt-overlays nil)
+        (push (rmsbolt--setup-overlay (first src-pts) (second src-pts) src-buffer)
+              rmsbolt-overlays)
+        (with-current-buffer output-buffer
+          (save-excursion
+            (dolist (l asm-lines)
+              (rmsbolt--goto-line l)
+              (push (rmsbolt--setup-overlay (c-point 'bol) (c-point 'eol) output-buffer)
+                    rmsbolt-overlays)))))
+    (mapc #'delete-overlay rmsbolt-overlays)
+    (setq rmsbolt-overlays nil)))
 
 ;;;; Mode Definition:
 
@@ -635,8 +697,13 @@ int main() {
   (if rmsbolt-mode
       (font-lock-add-keywords
        nil '((rmsbolt-search-for-keyword
-              (0 rmsbolt-current-line-face))))
-    )
+              (0 rmsbolt-current-line-face)))))
+
+  ;; This idle timer always runs, even when we aren't in rmsbolt-mode
+  (unless rmsbolt--idle-timer
+    (setq rmsbolt--idle-timer (run-with-idle-timer
+                               rmsbolt-overlay-delay t
+                               #'rmsbolt-move-overlays)))
 
   (unless (and rmsbolt-temp-dir
                (file-exists-p rmsbolt-temp-dir))
