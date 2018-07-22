@@ -1,7 +1,9 @@
 #include <stdio.h>
 
+// C rmsbolt starter file
+
 // Local Variables:
-// rmsbolt-command: "gcc -O3"
+// rmsbolt-command: "gcc -O0"
 // rmsbolt-dissasemble: nil
 // End:
 

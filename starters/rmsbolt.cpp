@@ -1,7 +1,9 @@
 #include <iostream>
 
+// C++ rmsbolt starter file
+
 // Local Variables:
-// rmsbolt-command: "g++ -O3"
+// rmsbolt-command: "g++ -O0"
 // rmsbolt-dissasemble: nil
 // End:
 

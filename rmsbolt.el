@@ -73,6 +73,11 @@
   :type 'boolean
   :safe 'booleanp
   :group 'rmsbolt)
+(defcustom rmsbolt-ignore-binary-limit nil
+  "Whether to ignore the binary limit. Could hang emacs..."
+  :type 'boolean
+  :safe 'booleanp
+  :group 'rmsbolt)
 
 ;;;; Faces
 
@@ -209,7 +214,7 @@
    :documentation "A function which takes in a compile command (could be the default) and adds needed args to it."))
 
 
-(defun rmsbolt--c-compile-cmd (src-buffer)
+(cl-defun rmsbolt--c-compile-cmd (&key src-buffer)
   "Process a compile command for gcc/clang."
   (let* ((cmd (buffer-local-value 'rmsbolt-command src-buffer))
          (cmd (mapconcat 'identity
@@ -222,6 +227,35 @@
                                "-o" (rmsbolt-output-filename src-buffer)
                                (when (buffer-local-value 'rmsbolt-intel-x86 src-buffer)
                                  "-masm=intel"))
+                         " ")))
+    cmd))
+(cl-defun rmsbolt--ocaml-compile-cmd (&key src-buffer)
+  "Process a compile command for gcc/clang.
+
+Needed as ocaml cannot output asm to a non-hardcoded file"
+  (let* ((diss (buffer-local-value 'rmsbolt-dissasemble src-buffer))
+         (output-filename (rmsbolt-output-filename src-buffer))
+         (predicted-asm-filename (concat (file-name-sans-extension (buffer-file-name)) ".s"))
+         (cmd (buffer-local-value 'rmsbolt-command src-buffer))
+         (cmd (mapconcat 'identity
+                         (list cmd
+                               "-g"
+                               (if (buffer-local-value 'rmsbolt-dissasemble src-buffer)
+                                   ""
+                                 "-S")
+                               (buffer-file-name)
+                               (mapconcat #'identity
+                                          (cond
+                                           (diss
+                                            (list "-o" output-filename))
+                                           ((equal predicted-asm-filename output-filename)
+                                            nil)
+                                           (t
+                                            (list "&&" "mv"
+                                                  (concat (file-name-sans-extension (buffer-file-name))
+                                                          ".s")
+                                                  output-filename)))
+                                          " "))
                          " ")))
     cmd))
 (defvar rmsbolt--hidden-func-c (rx bol (or (and "__" (0+ any))
@@ -248,8 +282,15 @@
                           :supports-asm t
                           :starter-file-name "rmsbolt.cpp"
                           :compile-cmd-function #'rmsbolt--c-compile-cmd
+                          :dissas-hidden-funcs rmsbolt--hidden-func-c))
+   ;; In order to parse ocaml files, you need the emacs ocaml mode, tuareg
+   (tuareg-mode
+    . ,(make-rmsbolt-lang :mode 'tuareg-mode
+                          :compile-cmd "ocamlopt"
+                          :supports-asm t
+                          :starter-file-name "rmsbolt.ml"
+                          :compile-cmd-function #'rmsbolt--ocaml-compile-cmd
                           :dissas-hidden-funcs rmsbolt--hidden-func-c))))
-
 
 ;;;; Macros
 
@@ -363,7 +404,8 @@
          (source-linum nil))
     (dolist (line asm-lines)
       (cl-tagbody
-       (when (> (length result) rmsbolt-binary-asm-limit)
+       (when (and (> (length result) rmsbolt-binary-asm-limit)
+                  (not (buffer-local-value 'rmsbolt-ignore-binary-limit src-buffer)))
          (cl-return-from rmsbolt--process-dissasembled-lines
            '("Aborting processing due to exceeding the binary limit.")))
        (when (string-match rmsbolt-dissas-line line)
@@ -527,7 +569,7 @@
     (let* ((src-buffer (current-buffer))
            (lang (rmsbolt--get-lang))
            (func (rmsbolt-l-compile-cmd-function lang))
-           (cmd (funcall func src-buffer)))
+           (cmd (funcall func :src-buffer src-buffer)))
 
       (when (buffer-local-value 'rmsbolt-dissasemble src-buffer)
         (pcase
@@ -590,6 +632,7 @@
      (rmsbolt-starter ,mode)))
 (rmsbolt-defstarter "c" 'c-mode)
 (rmsbolt-defstarter "c++" 'c++-mode)
+(rmsbolt-defstarter "ocaml" 'tuareg-mode)
 
 ;;;; Font lock matcher
 (defun rmsbolt--goto-line (line)
@@ -615,8 +658,8 @@
              (if (eq (current-buffer) src-buffer)
                  current-line
                (get-text-property (point) 'rmsbolt-src-line)))
-            (asm-lines (gethash src-current-line
-                                (buffer-local-value 'rmsbolt-line-mapping src-buffer)))
+            (hash-table (buffer-local-value 'rmsbolt-line-mapping src-buffer))
+            (asm-lines (gethash src-current-line hash-table))
             ;; TODO also consider asm
             (src-pts
              (with-current-buffer src-buffer
