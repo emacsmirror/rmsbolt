@@ -38,7 +38,10 @@
 (defcustom rmsbolt-use-overlays t
   "Whether we should use overlays to show matching code."
   :type 'boolean
-  :safe 'booleanp
+  :group 'rmsbolt)
+(defcustom rmsbolt-goto-match t
+  "Whether we should goto the match in the other buffer if it is non visible."
+  :type 'boolean
   :group 'rmsbolt)
 
 ;;;;; Buffer Local Tweakables
@@ -96,8 +99,11 @@
 (defvar rmsbolt-mode)
 
 (defvar rmsbolt-hide-compile t)
-(defvar rmsbolt-binary-asm-limit 5000)
+(defvar rmsbolt-binary-asm-limit 10000)
 (defun rmsbolt-output-filename (src-buffer &optional asm)
+  "Function for generating an output filename for SRC-BUFFER.
+
+Outputs assembly file if ASM."
   (if (and (not asm)
            (buffer-local-value 'rmsbolt-dissasemble src-buffer))
       (expand-file-name "rmsbolt.out" rmsbolt-temp-dir)
@@ -265,6 +271,13 @@ Needed as ocaml cannot output asm to a non-hardcoded file"
                                            "frame_dummy"
                                            (and ".plt" (0+ any)))
                                    eol))
+(defvar rmsbolt--hidden-func-ocaml)
+(setq rmsbolt--hidden-func-ocaml (rx bol
+                                     (or
+                                      (and "camlCamlinternalFormat__" (0+ any))
+                                      ;; (0+ any)
+                                      )
+                                     eol))
 ;;;; Language Definitions
 (defvar rmsbolt-languages)
 (setq
@@ -290,7 +303,7 @@ Needed as ocaml cannot output asm to a non-hardcoded file"
                           :supports-asm t
                           :starter-file-name "rmsbolt.ml"
                           :compile-cmd-function #'rmsbolt--ocaml-compile-cmd
-                          :dissas-hidden-funcs rmsbolt--hidden-func-c))))
+                          :dissas-hidden-funcs rmsbolt--hidden-func-ocaml))))
 
 ;;;; Macros
 
@@ -637,18 +650,25 @@ Needed as ocaml cannot output asm to a non-hardcoded file"
 ;;;; Font lock matcher
 (defun rmsbolt--goto-line (line)
   "Goto a certain LINE."
-  (let ((cur (line-number-at-pos)))
-    (forward-line (- line cur))))
+  (when line
+    (let ((cur (line-number-at-pos)))
+      (forward-line (- line cur)))))
 (defun rmsbolt--setup-overlay (start end buf)
   "Setup overlay with START and END in BUF."
   (let ((o (make-overlay start end buf)))
     (overlay-put o 'face 'rmsbolt-current-line-face)
     o))
+(cl-defun rmsbolt--point-visible (point)
+  "Check if the current point is visible in a winodw in the current buffer."
+  (dolist (w (get-buffer-window-list))
+    (when (pos-visible-in-window-p point w)
+      (cl-return-from rmsbolt--point-visible t)))
+  nil)
 
 (defun rmsbolt-move-overlays ()
   "Function for moving overlays for rmsbolt."
 
-  (if-let* ((src-buffer
+  (if-let* ((should-run
              (and rmsbolt-mode rmsbolt-use-overlays))
             (src-buffer
              (buffer-local-value 'rmsbolt-src-buffer (current-buffer)))
@@ -666,17 +686,37 @@ Needed as ocaml cannot output asm to a non-hardcoded file"
                (save-excursion
                  (rmsbolt--goto-line src-current-line)
                  (values (c-point 'bol) (c-point 'eol))))))
-      (progn
+      (let ((line-visible (not rmsbolt-goto-match))
+            (src-buffer-selected (eq (current-buffer) src-buffer)))
         (mapc #'delete-overlay rmsbolt-overlays)
         (setq rmsbolt-overlays nil)
         (push (rmsbolt--setup-overlay (first src-pts) (second src-pts) src-buffer)
               rmsbolt-overlays)
+        (unless src-buffer-selected
+          (with-current-buffer src-buffer
+            (setq line-visible (rmsbolt--point-visible (first src-pts)))))
         (with-current-buffer output-buffer
           (save-excursion
             (dolist (l asm-lines)
               (rmsbolt--goto-line l)
+              ;; check if line is visible and set line-visible
+              (unless (or line-visible (not src-buffer-selected))
+                (setq line-visible (rmsbolt--point-visible (c-point 'bol))))
+
               (push (rmsbolt--setup-overlay (c-point 'bol) (c-point 'eol) output-buffer)
-                    rmsbolt-overlays)))))
+                    rmsbolt-overlays)))
+          (unless line-visible
+            ;; Scroll buffer to first line
+            (when-let
+                ((scroll-buffer (if src-buffer-selected
+                                    output-buffer
+                                  src-buffer))
+                 (line-scroll (if src-buffer-selected
+                                  (first asm-lines)
+                                src-current-line))
+                 (window (get-buffer-window scroll-buffer)))
+              (with-selected-window window
+                (rmsbolt--goto-line line-scroll))))))
     (mapc #'delete-overlay rmsbolt-overlays)
     (setq rmsbolt-overlays nil)))
 
@@ -687,11 +727,6 @@ Needed as ocaml cannot output asm to a non-hardcoded file"
 (define-minor-mode rmsbolt-mode
   "RMSbolt"
   nil "RMSBolt" rmsbolt-mode-map
-  (if rmsbolt-mode
-      (font-lock-add-keywords
-       nil '((rmsbolt-search-for-keyword
-              (0 rmsbolt-current-line-face)))))
-
   ;; This idle timer always runs, even when we aren't in rmsbolt-mode
   (unless rmsbolt--idle-timer
     (setq rmsbolt--idle-timer (run-with-idle-timer
