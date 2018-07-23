@@ -90,9 +90,9 @@
 ;;;; Faces
 
 (defface rmsbolt-current-line-face
-  '((t (:weight bold)))
+  '((t (:weight bold :inherit hl-line)))
   "Face to fontify the current line for showing matches."
-  :group 'fic-mode)
+  :group 'rmsbolt)
 
 ;;;; Variables:
 (defvar rmsbolt-temp-dir nil
@@ -721,7 +721,7 @@ Needed as ocaml cannot output asm to a non-hardcoded file"
                (with-current-buffer src-buffer
                  (save-excursion
                    (rmsbolt--goto-line src-current-line)
-                   (cl-values (c-point 'bol) (c-point 'eol))))))
+                   (cl-values (c-point 'bol) (c-point 'bonl))))))
         (let ((line-visible (not rmsbolt-goto-match))
               (src-buffer-selected (eq (current-buffer) src-buffer)))
           (mapc #'delete-overlay rmsbolt-overlays)
@@ -740,7 +740,7 @@ Needed as ocaml cannot output asm to a non-hardcoded file"
                          (start-pt (progn (rmsbolt--goto-line start)
                                           (c-point 'bol)))
                          (end-pt (progn (rmsbolt--goto-line end)
-                                        (c-point 'eol)))
+                                        (c-point 'bonl)))
                          (visible (or line-visible
                                       (rmsbolt--point-visible start-pt)
                                       (rmsbolt--point-visible end-pt)
