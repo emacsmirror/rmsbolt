@@ -747,7 +747,7 @@ Needed as ocaml cannot output asm to a non-hardcoded file"
                                       (and (> saved-pt start-pt)
                                            (< saved-pt end-pt)))))
                     ;; check if line is visible and set line-visible
-                    (unless (or visible (not src-buffer-selected))
+                    (unless (or line-visible (not src-buffer-selected))
                       (setq line-visible visible))
                     (push (rmsbolt--setup-overlay start-pt end-pt output-buffer)
                           rmsbolt-overlays)))))
