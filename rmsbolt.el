@@ -269,24 +269,31 @@ Needed as ocaml cannot output asm to a non-hardcoded file"
                                           " "))
                          " ")))
     cmd))
-(defvar rmsbolt--hidden-func-c (rx bol (or (and "__" (0+ any))
-                                           (and "_" (or "init" "start" "fini"))
-                                           (and (opt "de") "register_tm_clones")
-                                           "call_gmon_start"
-                                           "frame_dummy"
-                                           (and ".plt" (0+ any)))
-                                   eol))
+(defvar rmsbolt--hidden-func-c
+  (rx bol (or (and "__" (0+ any))
+              (and "_" (or "init" "start" "fini"))
+              (and (opt "de") "register_tm_clones")
+              "call_gmon_start"
+              "frame_dummy"
+              (and ".plt" (0+ any)))
+      eol))
 (defvar rmsbolt--hidden-func-ocaml)
-(setq rmsbolt--hidden-func-ocaml (rx bol
-                                     (or (and "__" (0+ any))
-                                         (and "_" (or "init" "start" "fini"))
-                                         (and (opt "de") "register_tm_clones")
-                                         "call_gmon_start"
-                                         "frame_dummy"
-                                         (and ".plt" (0+ any))
-                                         (and "camlCamlinternalFormat__" (0+ any))
-                                         (and (1+ (not (any "@"))) "@plt"))
-                                     eol))
+(setq rmsbolt--hidden-func-ocaml
+      (rx bol
+          (or (and "__" (0+ any))
+              (and "_" (or "init" "start" "fini"))
+              (and (opt "de") "register_tm_clones")
+              (and ".plt" (0+ any))
+              (and "camlCamlinternalFormat" (0+ any))
+              (and (1+ (not (any "@"))) "@plt")
+              (and (or "caml_" "camlStd_") (0+ any))
+              (and "caml" (or "Pervasives" "List" "Bytes"
+                              "String" "Buffer" "Printf"
+                              "Char" "Sys") "__" (0+ any))
+              ;; Ocaml likes to make labels following camlModule__,
+              ;; filter out any lowercase
+              (and (1+ (1+ lower) (opt (or "64" "32" "8" "16")) (opt "_"))))
+          eol))
 ;;;; Language Definitions
 (defvar rmsbolt-languages)
 (setq
