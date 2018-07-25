@@ -653,9 +653,23 @@ Needed as ocaml cannot output asm to a non-hardcoded file"
 
 ;;;; Init commands
 
+(defun rmsbolt--gen-temp ()
+  "Generate rmsbolt temp dir if needed."
+  (unless (and rmsbolt-temp-dir
+               (file-exists-p rmsbolt-temp-dir))
+    (setq rmsbolt-temp-dir
+          (make-temp-file "rmsbolt-" t))
+    (add-hook 'kill-emacs-hook
+              (lambda ()
+                (when (and (boundp 'rmsbolt-temp-dir)
+                           rmsbolt-temp-dir
+                           (file-directory-p rmsbolt-temp-dir))
+                  (delete-directory rmsbolt-temp-dir t))
+                (setq rmsbolt-temp-dir nil)))))
 
 (defun rmsbolt-starter (lang-mode)
   "Code for fully setting up a language from LANG-MODE."
+  (rmsbolt--gen-temp)
   (let* ((lang-def (rmsbolt--get-lang lang-mode))
          (file-name
           (expand-file-name (rmsbolt-l-starter-file-name lang-def) rmsbolt-temp-dir))
@@ -787,18 +801,7 @@ This mode is enabled both in modes to be compiled and output buffers."
     (setq rmsbolt--idle-timer (run-with-idle-timer
                                rmsbolt-overlay-delay t
                                #'rmsbolt-move-overlays)))
-
-  (unless (and rmsbolt-temp-dir
-               (file-exists-p rmsbolt-temp-dir))
-    (setq rmsbolt-temp-dir
-          (make-temp-file "rmsbolt-" t))
-    (add-hook 'kill-emacs-hook
-              (lambda ()
-                (when (and (boundp 'rmsbolt-temp-dir)
-                           rmsbolt-temp-dir
-                           (file-directory-p rmsbolt-temp-dir))
-                  (delete-directory rmsbolt-temp-dir t))
-                (setq rmsbolt-temp-dir nil)))))
+  (rmsbolt--gen-temp))
 
 (provide 'rmsbolt)
 
