@@ -90,7 +90,7 @@
 ;;;; Faces
 
 (defface rmsbolt-current-line-face
-  '((t (:weight bold :inherit hl-line)))
+  '((t (:weight bold :inherit highlight)))
   "Face to fontify the current line for showing matches."
   :group 'rmsbolt)
 
