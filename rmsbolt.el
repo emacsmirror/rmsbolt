@@ -306,6 +306,7 @@ Needed as ocaml cannot output asm to a non-hardcoded file"
     . ,(make-rmsbolt-lang :mode 'c
                           :compile-cmd "gcc"
                           :supports-asm t
+                          :supports-disass t
                           :starter-file-name "rmsbolt.c"
                           :compile-cmd-function #'rmsbolt--c-compile-cmd
                           :disass-hidden-funcs rmsbolt--hidden-func-c))
@@ -313,6 +314,7 @@ Needed as ocaml cannot output asm to a non-hardcoded file"
     . ,(make-rmsbolt-lang :mode 'c++-mode
                           :compile-cmd "g++"
                           :supports-asm t
+                          :supports-disass t
                           :starter-file-name "rmsbolt.cpp"
                           :compile-cmd-function #'rmsbolt--c-compile-cmd
                           :disass-hidden-funcs rmsbolt--hidden-func-c))
@@ -321,6 +323,7 @@ Needed as ocaml cannot output asm to a non-hardcoded file"
     . ,(make-rmsbolt-lang :mode 'tuareg-mode
                           :compile-cmd "ocamlopt"
                           :supports-asm t
+                          :supports-disass t
                           :starter-file-name "rmsbolt.ml"
                           :compile-cmd-function #'rmsbolt--ocaml-compile-cmd
                           :disass-hidden-funcs rmsbolt--hidden-func-ocaml))))
@@ -603,11 +606,17 @@ Needed as ocaml cannot output asm to a non-hardcoded file"
   (hack-local-variables)
   (let* ((lang (rmsbolt--get-lang))
          (src-buffer (current-buffer))
-         (cmd rmsbolt-command))
+         (cmd rmsbolt-command)
+         (force-disass (not (rmsbolt-l-supports-asm lang)))
+         (force-asm (not (rmsbolt-l-supports-disass lang))))
     (when (not cmd)
       (setq-local rmsbolt-command (rmsbolt-l-compile-cmd lang)))
-    (when (not (rmsbolt-l-supports-asm lang))
+    (when (and force-disass force-asm)
+      (error "No dissasembly method found for this langauge, please double check spec"))
+    (when force-disass
       (setq-local rmsbolt-disassemble t))
+    (when force-asm
+      (setq-local rmsbolt-disassemble nil))
     src-buffer))
 
 ;;;;; UI Functions
@@ -617,7 +626,7 @@ Needed as ocaml cannot output asm to a non-hardcoded file"
   (save-some-buffers nil (lambda () rmsbolt-mode))
   (if (eq major-mode 'asm-mode)
       ;; We cannot compile asm-mode files
-      (message "Cannot compile this file. Are you sure you are not in the output buffer?")
+      (message "Cannot compile assembly files. Are you sure you are not in the output buffer?")
     (rmsbolt--parse-options)
     (let* ((src-buffer (current-buffer))
            (lang (rmsbolt--get-lang))
