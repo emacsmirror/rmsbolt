@@ -273,6 +273,34 @@ Needed as ocaml cannot output asm to a non-hardcoded file"
                                           " "))
                          " ")))
     cmd))
+(cl-defun rmsbolt--lisp-compile-cmd (&key src-buffer)
+  "Process a compile command for common lisp.
+
+Assumes function name to dissasemble is 'main'."
+  (let* ((cmd (buffer-local-value 'rmsbolt-command src-buffer))
+         (interpreter (cl-first (split-string cmd nil t)))
+         (disass-eval "\"(disassemble 'main)\"")
+         (disass-eval-unquoted "(disassemble 'main)"))
+    (pcase interpreter
+      ("sbcl"
+       (mapconcat 'identity
+                  (list cmd "--noinform" "--load"
+                        (buffer-file-name)
+                        "--eval" disass-eval "--non-interactive"
+                        ;; Remove leading comments
+                        "|" "sed" "'s/^;\s//'" ">"
+                        (rmsbolt-output-filename src-buffer))
+                  " "))
+      ("clisp"
+       (mapconcat 'identity
+                  (list cmd "-q" "-x"
+                        (concat
+                         "\"(load \\\"" (buffer-file-name) "\\\") " disass-eval-unquoted "\"")
+                        ">" (rmsbolt-output-filename src-buffer))
+                  " "))
+      (_
+       (error "This Common Lisp interpreter is not supported")))))
+
 (defvar rmsbolt--hidden-func-c
   (rx bol (or (and "__" (0+ any))
               (and "_" (or "init" "start" "fini"))
@@ -326,7 +354,17 @@ Needed as ocaml cannot output asm to a non-hardcoded file"
                           :supports-disass t
                           :starter-file-name "rmsbolt.ml"
                           :compile-cmd-function #'rmsbolt--ocaml-compile-cmd
-                          :disass-hidden-funcs rmsbolt--hidden-func-ocaml))))
+                          :disass-hidden-funcs rmsbolt--hidden-func-ocaml))
+   (lisp-mode
+    . ,(make-rmsbolt-lang :mode 'lisp-mode ;; Assume common lisp..
+                          :compile-cmd "sbcl"
+                          :supports-asm t
+                          :supports-disass nil
+                          :objdumper 'cat
+                          :starter-file-name "rmsbolt.lisp"
+                          :compile-cmd-function #'rmsbolt--lisp-compile-cmd
+                          :disass-hidden-funcs nil))
+   ))
 
 ;;;; Macros
 
@@ -648,6 +686,14 @@ Needed as ocaml cannot output asm to a non-hardcoded file"
                                          "att")
                                   ">" (rmsbolt-output-filename src-buffer t))
                             " ")))
+          ('cat
+           (setq cmd
+                 (mapconcat 'identity
+                            (list cmd
+                                  "&&" "mv"
+                                  (rmsbolt-output-filename src-buffer)
+                                  (rmsbolt-output-filename src-buffer t))
+                            " ")))
           (_
            (error "Objdumper not recognized"))))
       (setq-local rmsbolt-src-buffer src-buffer)
@@ -709,6 +755,7 @@ Needed as ocaml cannot output asm to a non-hardcoded file"
 (rmsbolt-defstarter "c" 'c-mode)
 (rmsbolt-defstarter "c++" 'c++-mode)
 (rmsbolt-defstarter "ocaml" 'tuareg-mode)
+(rmsbolt-defstarter "cl" 'lisp-mode)
 
 ;;;; Font lock matcher
 (defun rmsbolt--goto-line (line)
