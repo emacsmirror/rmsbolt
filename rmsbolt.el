@@ -50,8 +50,8 @@
   :group 'rmsbolt)
 
 ;;;;; Buffer Local Tweakables
-(defcustom rmsbolt-dissasemble nil
-  "Whether we should dissasemble an output binary."
+(defcustom rmsbolt-disassemble nil
+  "Whether we should disassemble an output binary."
   :type 'boolean
   :safe 'booleanp
   :group 'rmsbolt)
@@ -110,7 +110,7 @@
 
 Outputs assembly file if ASM."
   (if (and (not asm)
-           (buffer-local-value 'rmsbolt-dissasemble src-buffer))
+           (buffer-local-value 'rmsbolt-disassemble src-buffer))
       (expand-file-name "rmsbolt.out" rmsbolt-temp-dir)
     (expand-file-name "rmsbolt.s" rmsbolt-temp-dir)))
 
@@ -165,17 +165,17 @@ Outputs assembly file if ASM."
 (defvar rmsbolt-comment-only (rx bol (0+ space) (or (and (or (any "#@;") "//"))
                                                     (and "/*" (0+ any) "*/"))
                                  (0+ any) eol))
-(defvar rmsbolt-dissas-line (rx bol
+(defvar rmsbolt-disass-line (rx bol
                                 (group "/" (1+ (not (any ":")))) ":"
                                 (group (1+ num))
                                 (0+ any)))
-(defvar rmsbolt-dissas-label (rx bol (group (1+ (any digit "a-f")))
+(defvar rmsbolt-disass-label (rx bol (group (1+ (any digit "a-f")))
                                  (1+ space) "<"
                                  (group (1+ (not (any ">")))) ">:" eol))
-(defvar rmsbolt-dissas-dest (rx (0+ any) (group (1+ (any digit "a-f")))
+(defvar rmsbolt-disass-dest (rx (0+ any) (group (1+ (any digit "a-f")))
                                 (1+ space) "<" (group (1+ (not (any ">")))) ">" eol))
 
-(defvar rmsbolt-dissas-opcode (rx bol (0+ space) (group (1+ (any digit "a-f")))
+(defvar rmsbolt-disass-opcode (rx bol (0+ space) (group (1+ (any digit "a-f")))
                                   ":" (0+ space)
                                   (group (1+
                                           (repeat 2
@@ -199,22 +199,26 @@ Outputs assembly file if ASM."
    'fundamental-mode
    :type 'symbol
    :documentation "The mode to activate this language in.")
+  (supports-disass
+   nil
+   :type 'bool
+   :documentation "If we support assembly directly. If nil, we must disassemble.")
   (supports-asm
    nil
    :type 'bool
-   :documentation "If we support assembly directly. If nil, we must dissasemble.")
+   :documentation "If we support assembly directly. If nil, we must disassemble.")
   (objdumper
    'objdump
    :type symbol
-   :documentation "The object dumper to use if dissasembling binary.")
+   :documentation "The object dumper to use if disassembling binary.")
   (starter-file-name
    nil
    :type 'string
    :documentation "The starter filename to use")
-  (dissas-hidden-funcs
+  (disass-hidden-funcs
    nil
    :type 'string
-   :documentation "Functions that are hidden when dissasembling.")
+   :documentation "Functions that are hidden when disassembling.")
   (compile-cmd
    nil
    :type 'string
@@ -231,7 +235,7 @@ Outputs assembly file if ASM."
          (cmd (mapconcat 'identity
                          (list cmd
                                "-g"
-                               (if (buffer-local-value 'rmsbolt-dissasemble src-buffer)
+                               (if (buffer-local-value 'rmsbolt-disassemble src-buffer)
                                    ""
                                  "-S")
                                (buffer-file-name)
@@ -244,14 +248,14 @@ Outputs assembly file if ASM."
   "Process a compile command for gcc/clang.
 
 Needed as ocaml cannot output asm to a non-hardcoded file"
-  (let* ((diss (buffer-local-value 'rmsbolt-dissasemble src-buffer))
+  (let* ((diss (buffer-local-value 'rmsbolt-disassemble src-buffer))
          (output-filename (rmsbolt-output-filename src-buffer))
          (predicted-asm-filename (concat (file-name-sans-extension (buffer-file-name)) ".s"))
          (cmd (buffer-local-value 'rmsbolt-command src-buffer))
          (cmd (mapconcat 'identity
                          (list cmd
                                "-g"
-                               (if (buffer-local-value 'rmsbolt-dissasemble src-buffer)
+                               (if (buffer-local-value 'rmsbolt-disassemble src-buffer)
                                    ""
                                  "-S")
                                (buffer-file-name)
@@ -304,14 +308,14 @@ Needed as ocaml cannot output asm to a non-hardcoded file"
                           :supports-asm t
                           :starter-file-name "rmsbolt.c"
                           :compile-cmd-function #'rmsbolt--c-compile-cmd
-                          :dissas-hidden-funcs rmsbolt--hidden-func-c))
+                          :disass-hidden-funcs rmsbolt--hidden-func-c))
    (c++-mode
     . ,(make-rmsbolt-lang :mode 'c++-mode
                           :compile-cmd "g++"
                           :supports-asm t
                           :starter-file-name "rmsbolt.cpp"
                           :compile-cmd-function #'rmsbolt--c-compile-cmd
-                          :dissas-hidden-funcs rmsbolt--hidden-func-c))
+                          :disass-hidden-funcs rmsbolt--hidden-func-c))
    ;; In order to parse ocaml files, you need the emacs ocaml mode, tuareg
    (tuareg-mode
     . ,(make-rmsbolt-lang :mode 'tuareg-mode
@@ -319,7 +323,7 @@ Needed as ocaml cannot output asm to a non-hardcoded file"
                           :supports-asm t
                           :starter-file-name "rmsbolt.ml"
                           :compile-cmd-function #'rmsbolt--ocaml-compile-cmd
-                          :dissas-hidden-funcs rmsbolt--hidden-func-ocaml))))
+                          :disass-hidden-funcs rmsbolt--hidden-func-ocaml))))
 
 ;;;; Macros
 
@@ -421,14 +425,14 @@ Needed as ocaml cannot output asm to a non-hardcoded file"
   "Return t if FUNC is a user function."
   (let* ((lang (rmsbolt--get-lang
                 (buffer-local-value 'major-mode src-buffer)))
-         (regexp (rmsbolt-l-dissas-hidden-funcs lang)))
+         (regexp (rmsbolt-l-disass-hidden-funcs lang)))
     (if regexp
         (not (string-match-p regexp func))
       t)))
 
-;; TODO godbolt does not handle dissasembly with filter=off, but we should.
-(cl-defun rmsbolt--process-dissasembled-lines (src-buffer asm-lines)
-  "Process and filter dissasembled ASM-LINES from SRC-BUFFER."
+;; TODO godbolt does not handle disassembly with filter=off, but we should.
+(cl-defun rmsbolt--process-disassembled-lines (src-buffer asm-lines)
+  "Process and filter disassembled ASM-LINES from SRC-BUFFER."
   (let* ((result nil)
          (func nil)
          (source-linum nil))
@@ -436,9 +440,9 @@ Needed as ocaml cannot output asm to a non-hardcoded file"
       (cl-tagbody
        (when (and (> (length result) rmsbolt-binary-asm-limit)
                   (not (buffer-local-value 'rmsbolt-ignore-binary-limit src-buffer)))
-         (cl-return-from rmsbolt--process-dissasembled-lines
+         (cl-return-from rmsbolt--process-disassembled-lines
            '("Aborting processing due to exceeding the binary limit.")))
-       (when (string-match rmsbolt-dissas-line line)
+       (when (string-match rmsbolt-disass-line line)
          ;; Don't add linums from files which we aren't inspecting
          (if (file-equal-p (buffer-file-name src-buffer)
                            (match-string 1 line))
@@ -447,7 +451,7 @@ Needed as ocaml cannot output asm to a non-hardcoded file"
          ;; We are just setting a linum, no data here.
          (go continue))
 
-       (when (string-match rmsbolt-dissas-label line)
+       (when (string-match rmsbolt-disass-label line)
          (setq func (match-string 2 line))
          (when (rmsbolt--user-func-p src-buffer func)
            (push (concat func ":") result))
@@ -455,7 +459,7 @@ Needed as ocaml cannot output asm to a non-hardcoded file"
        (unless (and func
                     (rmsbolt--user-func-p src-buffer func))
          (go continue))
-       (when (string-match rmsbolt-dissas-opcode line)
+       (when (string-match rmsbolt-disass-opcode line)
          (let ((line (concat "\t" (match-string 3 line))))
            ;; Add line text property if available
            (when source-linum
@@ -468,8 +472,8 @@ Needed as ocaml cannot output asm to a non-hardcoded file"
 
 (cl-defun rmsbolt--process-asm-lines (src-buffer asm-lines)
   "Process and filter a set of asm lines."
-  (if (buffer-local-value 'rmsbolt-dissasemble src-buffer)
-      (rmsbolt--process-dissasembled-lines src-buffer asm-lines)
+  (if (buffer-local-value 'rmsbolt-disassemble src-buffer)
+      (rmsbolt--process-disassembled-lines src-buffer asm-lines)
     (let ((used-labels (rmsbolt--find-used-labels src-buffer asm-lines))
           (result nil)
           (prev-label nil)
@@ -603,7 +607,7 @@ Needed as ocaml cannot output asm to a non-hardcoded file"
     (when (not cmd)
       (setq-local rmsbolt-command (rmsbolt-l-compile-cmd lang)))
     (when (not (rmsbolt-l-supports-asm lang))
-      (setq-local rmsbolt-dissasemble t))
+      (setq-local rmsbolt-disassemble t))
     src-buffer))
 
 ;;;;; UI Functions
@@ -620,7 +624,7 @@ Needed as ocaml cannot output asm to a non-hardcoded file"
            (func (rmsbolt-l-compile-cmd-function lang))
            (cmd (funcall func :src-buffer src-buffer)))
 
-      (when (buffer-local-value 'rmsbolt-dissasemble src-buffer)
+      (when (buffer-local-value 'rmsbolt-disassemble src-buffer)
         (pcase
             (rmsbolt-l-objdumper lang)
           ('objdump
