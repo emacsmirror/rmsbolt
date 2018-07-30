@@ -5,7 +5,7 @@
 (*
 Local Variables:
 rmsbolt-command: "ocamlopt"
-rmsbolt-dissasemble: nil
+rmsbolt-disassemble: nil
 End:
 *)
 

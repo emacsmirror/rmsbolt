@@ -1,11 +1,11 @@
-;;; rmsbolt.el --- A compiler output viewer for Emacs -*- lexical-binding: t; -*-
+;;; rmsbolt.el --- A compiler output viewer -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2018 Jay Kamat
 ;; Author: Jay Kamat <jaygkamat@gmail.com>
-;; Version: 0.0.1
-;; Keywords: compilation
+;; Version: 0.1.0
+;; Keywords: compilation, tools
 ;; URL: http://gitlab.com/jgkamat/rmsbolt
-;; Package-Requires: ((emacs "25.0"))
+;; Package-Requires: ((emacs "25.1"))
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU Affero General Public License as published by
@@ -300,6 +300,22 @@ Assumes function name to dissasemble is 'main'."
                   " "))
       (_
        (error "This Common Lisp interpreter is not supported")))))
+(cl-defun rmsbolt--rust-compile-cmd (&key src-buffer)
+  "Process a compile command for rustc."
+  (let* ((cmd (buffer-local-value 'rmsbolt-command src-buffer))
+         (cmd (mapconcat 'identity
+                         (list cmd
+                               "-g"
+                               "--emit"
+                               (if (buffer-local-value 'rmsbolt-disassemble src-buffer)
+                                   "link"
+                                 "asm")
+                               (buffer-file-name)
+                               "-o" (rmsbolt-output-filename src-buffer)
+                               (when (buffer-local-value 'rmsbolt-intel-x86 src-buffer)
+                                 "-Cllvm-args=--x86-asm-syntax=intel"))
+                         " ")))
+    cmd))
 
 (defvar rmsbolt--hidden-func-c
   (rx bol (or (and "__" (0+ any))
@@ -364,6 +380,15 @@ Assumes function name to dissasemble is 'main'."
                           :starter-file-name "rmsbolt.lisp"
                           :compile-cmd-function #'rmsbolt--lisp-compile-cmd
                           :disass-hidden-funcs nil))
+   (rust-mode
+    . ,(make-rmsbolt-lang :mode 'rust-mode
+                          :compile-cmd "rustc"
+                          :supports-asm t
+                          :supports-disass nil
+                          :objdumper 'objdump
+                          :starter-file-name "rmsbolt.rs"
+                          :compile-cmd-function #'rmsbolt--rust-compile-cmd
+                          :disass-hidden-funcs nil))
    ))
 
 ;;;; Macros
@@ -379,7 +404,7 @@ Assumes function name to dissasemble is 'main'."
 
 
 ;;;; Functions
-;; Functions to parse and lint assembly were lifted almost directly from the compiler-exporter
+;; Functions to parse and lint assembly were lifted almost directly from the compiler-explorer
 
 (defun rmsbolt-re-seq (regexp string)
   "Get list of all REGEXP match in STRING."
@@ -393,7 +418,7 @@ Assumes function name to dissasemble is 'main'."
 
 ;;;;; Filter Functions
 
-;; Filtering functions were more or less lifted from the godbolt compiler exporter to maintain compatiblity.
+;; Filtering functions were more or less lifted from the godbolt compiler explorer to maintain compatiblity.
 ;; https://github.com/mattgodbolt/compiler-explorer/blob/master/lib/asm.js
 
 (defun rmsbolt--has-opcode-p (line)

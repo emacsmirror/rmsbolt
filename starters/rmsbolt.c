@@ -4,7 +4,7 @@
 
 // Local Variables:
 // rmsbolt-command: "gcc -O0"
-// rmsbolt-dissasemble: nil
+// rmsbolt-disassemble: nil
 // End:
 
 int isRMS(int a) {

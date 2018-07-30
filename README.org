@@ -1,7 +1,7 @@
 
 * RMSbolt
 
-A basic implementation of the [[https://github.com/mattgodbolt/compiler-explorer][godbolt compiler-exporter]] for Emacs.
+A basic implementation of the [[https://github.com/mattgodbolt/compiler-explorer][godbolt compiler-explorer]] for Emacs.
 
 RMSBolt tries to make it easy to see what your compiler is doing. It does this
 by showing you the assembly output of a given source code file. It also
