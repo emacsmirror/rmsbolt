@@ -183,6 +183,12 @@ Outputs assembly file if ASM."
                                           (opt " ")))
                                   (0+ space)
                                   (group (0+ any))))
+(defvar rmsbolt-source-file (rx bol (0+ space) ".file" (1+ space)
+                                (group (1+ digit)) (1+ space) ?\"
+                                (group (1+ (not (any ?\")))) ?\"
+                                (opt (1+ space) ?\"
+                                     (group (1+ (not (any ?\")))) ?\")
+                                (0+ any)))
 (defvar rmsbolt-source-tag (rx bol (0+ space) ".loc" (1+ space)
                                (group (1+ digit)) (1+ space)
                                (group (1+ digit))
@@ -247,7 +253,7 @@ Outputs assembly file if ASM."
 (cl-defun rmsbolt--ocaml-compile-cmd (&key src-buffer)
   "Process a compile command for gcc/clang.
 
-Needed as ocaml cannot output asm to a non-hardcoded file"
+                                  Needed as ocaml cannot output asm to a non-hardcoded file"
   (let* ((diss (buffer-local-value 'rmsbolt-disassemble src-buffer))
          (output-filename (rmsbolt-output-filename src-buffer))
          (predicted-asm-filename (concat (file-name-sans-extension (buffer-file-name)) ".s"))
@@ -276,7 +282,7 @@ Needed as ocaml cannot output asm to a non-hardcoded file"
 (cl-defun rmsbolt--lisp-compile-cmd (&key src-buffer)
   "Process a compile command for common lisp.
 
-Assumes function name to dissasemble is 'main'."
+                                  Assumes function name to dissasemble is 'main'."
   (let* ((cmd (buffer-local-value 'rmsbolt-command src-buffer))
          (interpreter (cl-first (split-string cmd nil t)))
          (disass-eval "\"(disassemble 'main)\"")
@@ -289,17 +295,17 @@ Assumes function name to dissasemble is 'main'."
                         "--eval" disass-eval "--non-interactive"
                         ;; Remove leading comments
                         "|" "sed" "'s/^;\s//'" ">"
-                        (rmsbolt-output-filename src-buffer))
-                  " "))
-      ("clisp"
-       (mapconcat 'identity
-                  (list cmd "-q" "-x"
-                        (concat
-                         "\"(load \\\"" (buffer-file-name) "\\\") " disass-eval-unquoted "\"")
-                        ">" (rmsbolt-output-filename src-buffer))
-                  " "))
-      (_
-       (error "This Common Lisp interpreter is not supported")))))
+                                  (rmsbolt-output-filename src-buffer))
+                             " "))
+("clisp"
+ (mapconcat 'identity
+            (list cmd "-q" "-x"
+                  (concat
+                   "\"(load \\\"" (buffer-file-name) "\\\") " disass-eval-unquoted "\"")
+                  ">" (rmsbolt-output-filename src-buffer))
+            " "))
+(_
+ (error "This Common Lisp interpreter is not supported")))))
 (cl-defun rmsbolt--rust-compile-cmd (&key src-buffer)
   "Process a compile command for rustc."
   (let* ((cmd (buffer-local-value 'rmsbolt-command src-buffer))
@@ -543,7 +549,11 @@ Assumes function name to dissasemble is 'main'."
     (let ((used-labels (rmsbolt--find-used-labels src-buffer asm-lines))
           (result nil)
           (prev-label nil)
-          (source-linum nil))
+          (source-linum nil)
+          (source-file nil)
+          (skip-file-match
+           ;; Skip file match if we don't have a current filename
+           (not (buffer-file-name src-buffer))))
       (dolist (line asm-lines)
         (let* ((raw-match (or (string-match rmsbolt-label-def line)
                               (string-match rmsbolt-assignment-def line)))
@@ -551,11 +561,21 @@ Assumes function name to dissasemble is 'main'."
                         (match-string 1 line)))
                (used-label (cl-find match used-labels :test #'equal)))
           (cl-tagbody
+           ;; Process file name hints
+           (when (string-match rmsbolt-source-file line)
+             (if (match-string 3 line)
+                 ;; Clang style match
+                 (setq source-file (expand-file-name
+                                    (match-string 3 line)
+                                    (match-string 2 line)))
+               (setq source-file (match-string 2 line))))
            ;; Process any line number hints
            (when (string-match rmsbolt-source-tag line)
-             (setq source-linum
-                   (string-to-number
-                    (match-string 2 line))))
+             (if (or skip-file-match
+                     (file-equal-p (buffer-file-name src-buffer) source-file))
+                 (setq source-linum (string-to-number
+                                     (match-string 2 line)))
+               (setq source-linum nil)))
            (when (string-match rmsbolt-source-stab line)
              (pcase (string-to-number (match-string 1 line))
                ;; http://www.math.utah.edu/docs/info/stabs_11.html
@@ -781,6 +801,7 @@ Assumes function name to dissasemble is 'main'."
 (rmsbolt-defstarter "c++" 'c++-mode)
 (rmsbolt-defstarter "ocaml" 'tuareg-mode)
 (rmsbolt-defstarter "cl" 'lisp-mode)
+(rmsbolt-defstarter "rust" 'rust-mode)
 
 ;;;; Font lock matcher
 (defun rmsbolt--goto-line (line)
