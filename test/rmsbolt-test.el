@@ -51,6 +51,14 @@
     (setq-local rmsbolt-filter-directives t)
     (setq-local rmsbolt-filter-labels nil)
     (test-asm-preprocessor "test/rmsbolt-c-pre1.s" "test/rmsbolt-c-post3.s")))
+(ert-deftest filter-tests-weak-ref-c ()
+  "Test if assembly filteration in c is working."
+  (with-temp-buffer
+    (setq-local rmsbolt-dissasemble nil)
+    (setq-local rmsbolt-filter-comment-only nil)
+    (setq-local rmsbolt-filter-directives t)
+    (setq-local rmsbolt-filter-labels t)
+    (test-asm-preprocessor "test/rmsbolt-c-pre2.s" "test/rmsbolt-c-post4.s")))
 
 ;;;; Filtration tests
 
