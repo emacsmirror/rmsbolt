@@ -1,4 +1,3 @@
-
 * RMSbolt
 
 A basic implementation of the [[https://github.com/mattgodbolt/compiler-explorer][godbolt compiler-explorer]] for Emacs.
@@ -41,14 +40,14 @@ add it..
 
 ** C/C++
 
-[[https://u.cubeupload.com/jgkamat/sihr1g.gif][https://u.cubeupload.com/jgkamat/sihr1g.gif]]
+[[https://s25.postimg.cc/c1zj5ghr3/sihr1g.gif]]
 
 ** Ocaml
 
-[[https://u.cubeupload.com/jgkamat/PabAq2.gif][https://u.cubeupload.com/jgkamat/PabAq2.gif]]
+[[https://s25.postimg.cc/s088vljov/Pab_Aq2.gif]]
 
 ** Common Lisp
 
 No support for source->asm matching or filtering.
 
-[[http://u.cubeupload.com/jgkamat/1FB9k7.gif][http://u.cubeupload.com/jgkamat/1FB9k7.gif]]
+[[https://s25.postimg.cc/uhk02ugfz/1_FB9k7.gif]]
