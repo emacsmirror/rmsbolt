@@ -739,13 +739,15 @@ Outputs assembly file if ASM."
       ;; We cannot compile asm-mode files
       (message "Cannot compile assembly files. Are you sure you are not in the output buffer?")
     (rmsbolt--parse-options)
+    (rmsbolt--gen-temp)
     (let* ((src-buffer (current-buffer))
            (lang (rmsbolt--get-lang))
            (func (rmsbolt-l-compile-cmd-function lang))
            ;; Generate command
            (cmd (funcall func :src-buffer src-buffer))
            ;; Convert to demangle if we need to
-           (cmd (rmsbolt--demangle-command cmd lang src-buffer)))
+           (cmd (rmsbolt--demangle-command cmd lang src-buffer))
+           (default-directory rmsbolt-temp-dir))
 
       (when (buffer-local-value 'rmsbolt-disassemble src-buffer)
         (pcase
@@ -858,6 +860,8 @@ Outputs assembly file if ASM."
     (if-let* ((should-run rmsbolt-use-overlays)
               (src-buffer
                (buffer-local-value 'rmsbolt-src-buffer (current-buffer)))
+              ;; Don't run on unsaved buffers
+              (should-run (not (buffer-modified-p src-buffer)))
               (output-buffer (get-buffer-create rmsbolt-output-buffer))
               (current-line (line-number-at-pos))
               (src-current-line
