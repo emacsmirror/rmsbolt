@@ -128,8 +128,14 @@ Outputs assembly file if ASM."
   "List of overlays to use.")
 (defvar rmsbolt-overlay-delay 0.125
   "Time in seconds to delay before showing overlays.")
+(defvar rmsbolt-compile-delay 1
+  "Time in seconds to delay before recompiling if there is a change.")
+(defvar rmsbolt--automated-compile nil
+  "Whether this compile was automated or not.")
 
 (defvar rmsbolt--idle-timer nil
+  "Idle timer for rmsbolt overlays.")
+(defvar rmsbolt--compile-idle-timer nil
   "Idle timer for rmsbolt overlays.")
 
 (defvar rmsbolt-dir (when load-file-name
@@ -654,7 +660,8 @@ Outputs assembly file if ASM."
                      (ht (make-hash-table))
                      (linum 1)
                      (start-match nil)
-                     (in-match nil))
+                     (in-match nil)
+                     (output-buffer (current-buffer)))
                  ;; Add lines to hashtable
                  (dolist (line lines)
                    (let ((property
@@ -681,16 +688,25 @@ Outputs assembly file if ASM."
 
                  (with-current-buffer src-buffer
                    (setq-local rmsbolt-line-mapping ht))
-                 (delete-region (point-min) (point-max))
-                 (insert
-                  (mapconcat 'identity lines "\n"))
+                 ;; Replace buffer contents non-destructively
+                 (with-temp-buffer
+                   (insert (mapconcat 'identity lines "\n"))
+                   (let ((tmp-buffer (current-buffer)))
+                     (with-current-buffer output-buffer
+                       (replace-buffer-contents tmp-buffer))))
                  (asm-mode)
                  (rmsbolt-mode 1)
                  (setq-local rmsbolt-src-buffer src-buffer)
-                 (display-buffer (current-buffer)))))
-            (t
+                 (display-buffer (current-buffer))
+                 ;; Attempt to replace overlays
+                 (with-current-buffer src-buffer
+                   (rmsbolt-move-overlays)))))
+            ((and t
+                  (not rmsbolt--automated-compile))
              ;; Display compilation output
-             (display-buffer buffer))))))
+             (display-buffer buffer)))
+      ;; Reset automated recompile
+      (setq rmsbolt--automated-compile nil))))
 
 ;;;;; Parsing Options
 (defun rmsbolt--get-lang (&optional language)
@@ -925,6 +941,19 @@ Outputs assembly file if ASM."
     ;; If not in rmsbolt-mode, don't do anything
     ))
 
+(defun rmsbolt-hot-recompile ()
+  "Recompile source buffer if we need to."
+  (when-let ((should-hot-compile rmsbolt-mode)
+             (output-buffer (get-buffer rmsbolt-output-buffer))
+             (src-buffer (buffer-local-value 'rmsbolt-src-buffer output-buffer))
+             (modified (buffer-modified-p src-buffer)))
+    (with-current-buffer src-buffer
+      ;; Write to disk
+      (save-buffer)
+      ;; Recompile
+      (setq rmsbolt--automated-compile t)
+      (rmsbolt-compile))))
+
 ;;;; Mode Definition:
 
 ;;;###autoload
@@ -940,6 +969,10 @@ This mode is enabled both in modes to be compiled and output buffers."
     (setq rmsbolt--idle-timer (run-with-idle-timer
                                rmsbolt-overlay-delay t
                                #'rmsbolt-move-overlays)))
+  (unless rmsbolt--compile-idle-timer
+    (setq rmsbolt--compile-idle-timer (run-with-idle-timer
+                                       rmsbolt-compile-delay t
+                                       #'rmsbolt-hot-recompile)))
   (rmsbolt--gen-temp))
 
 (provide 'rmsbolt)
