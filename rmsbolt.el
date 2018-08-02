@@ -86,6 +86,11 @@
   :type 'boolean
   :safe 'booleanp
   :group 'rmsbolt)
+(defcustom rmsbolt-demangle t
+  "Whether to attempt to demangle the resulting assembly."
+  :type 'boolean
+  :safe 'booleanp
+  :group 'rmsbolt)
 
 ;;;; Faces
 
@@ -215,8 +220,12 @@ Outputs assembly file if ASM."
    :documentation "If we support assembly directly. If nil, we must disassemble.")
   (objdumper
    'objdump
-   :type symbol
+   :type 'symbol
    :documentation "The object dumper to use if disassembling binary.")
+  (demangler
+   "c++filt"
+   :type 'string
+   :documentation "The command of the demangler to use for this source code.")
   (starter-file-name
    nil
    :type 'string
@@ -253,7 +262,7 @@ Outputs assembly file if ASM."
 (cl-defun rmsbolt--ocaml-compile-cmd (&key src-buffer)
   "Process a compile command for gcc/clang.
 
-                                  Needed as ocaml cannot output asm to a non-hardcoded file"
+  Needed as ocaml cannot output asm to a non-hardcoded file"
   (let* ((diss (buffer-local-value 'rmsbolt-disassemble src-buffer))
          (output-filename (rmsbolt-output-filename src-buffer))
          (predicted-asm-filename (concat (file-name-sans-extension (buffer-file-name)) ".s"))
@@ -373,6 +382,7 @@ Outputs assembly file if ASM."
                           :compile-cmd "ocamlopt"
                           :supports-asm t
                           :supports-disass t
+                          :demangler nil
                           :starter-file-name "rmsbolt.ml"
                           :compile-cmd-function #'rmsbolt--ocaml-compile-cmd
                           :disass-hidden-funcs rmsbolt--hidden-func-ocaml))
@@ -382,6 +392,7 @@ Outputs assembly file if ASM."
                           :supports-asm t
                           :supports-disass nil
                           :objdumper 'cat
+                          :demangler nil
                           :starter-file-name "rmsbolt.lisp"
                           :compile-cmd-function #'rmsbolt--lisp-compile-cmd
                           :disass-hidden-funcs nil))
@@ -391,6 +402,7 @@ Outputs assembly file if ASM."
                           :supports-asm t
                           :supports-disass nil
                           :objdumper 'objdump
+                          :demangler "rustfilt"
                           :starter-file-name "rmsbolt.rs"
                           :compile-cmd-function #'rmsbolt--rust-compile-cmd
                           :disass-hidden-funcs nil))
@@ -701,6 +713,23 @@ Outputs assembly file if ASM."
       (setq-local rmsbolt-disassemble nil))
     src-buffer))
 
+(defun rmsbolt--demangle-command (existing-cmd lang src-buffer)
+  "Append a demangler routine to EXISTING-CMD with LANG and SRC-BUFFER and return it."
+  (if-let ((to-demangle (buffer-local-value 'rmsbolt-demangle src-buffer))
+           (demangler (rmsbolt-l-demangler lang))
+           (demangler-exists (executable-find demangler)))
+      (concat existing-cmd " "
+              (mapconcat
+               'identity
+               (list "&&" demangler
+                     "<" (rmsbolt-output-filename src-buffer t)
+                     ">" (expand-file-name "tmp.s" rmsbolt-temp-dir)
+                     "&&" "mv"
+                     (expand-file-name "tmp.s" rmsbolt-temp-dir)
+                     (rmsbolt-output-filename src-buffer t))
+               " "))
+    existing-cmd))
+
 ;;;;; UI Functions
 (defun rmsbolt-compile ()
   "Compile the current rmsbolt buffer."
@@ -713,7 +742,10 @@ Outputs assembly file if ASM."
     (let* ((src-buffer (current-buffer))
            (lang (rmsbolt--get-lang))
            (func (rmsbolt-l-compile-cmd-function lang))
-           (cmd (funcall func :src-buffer src-buffer)))
+           ;; Generate command
+           (cmd (funcall func :src-buffer src-buffer))
+           ;; Convert to demangle if we need to
+           (cmd (rmsbolt--demangle-command cmd lang src-buffer)))
 
       (when (buffer-local-value 'rmsbolt-disassemble src-buffer)
         (pcase
@@ -822,7 +854,6 @@ Outputs assembly file if ASM."
 
 (defun rmsbolt-move-overlays ()
   "Function for moving overlays for rmsbolt."
-
   (when rmsbolt-mode
     (if-let* ((should-run rmsbolt-use-overlays)
               (src-buffer
@@ -843,6 +874,7 @@ Outputs assembly file if ASM."
                    (cl-values (c-point 'bol) (c-point 'bonl))))))
         (let ((line-visible (not rmsbolt-goto-match))
               (src-buffer-selected (eq (current-buffer) src-buffer)))
+          ;; Clear out overlays in case they are used
           (mapc #'delete-overlay rmsbolt-overlays)
           (setq rmsbolt-overlays nil)
           (push (rmsbolt--setup-overlay (cl-first src-pts) (cl-second src-pts) src-buffer)
@@ -872,22 +904,20 @@ Outputs assembly file if ASM."
                           rmsbolt-overlays)))))
             (unless line-visible
               ;; Scroll buffer to first line
-              (when-let
-                  ((scroll-buffer (if src-buffer-selected
-                                      output-buffer
-                                    src-buffer))
-                   (line-scroll (if src-buffer-selected
-                                    (car-safe
-                                     (cl-first asm-lines))
-                                  src-current-line))
-                   (window (get-buffer-window scroll-buffer)))
+              (when-let ((scroll-buffer (if src-buffer-selected
+                                            output-buffer
+                                          src-buffer))
+                         (line-scroll (if src-buffer-selected
+                                          (car-safe
+                                           (cl-first asm-lines))
+                                        src-current-line))
+                         (window (get-buffer-window scroll-buffer)))
                 (with-selected-window window
                   (rmsbolt--goto-line line-scroll)
                   ;; If we scrolled, recenter
                   (recenter))))))
       (mapc #'delete-overlay rmsbolt-overlays)
       (setq rmsbolt-overlays nil))
-
     ;; If not in rmsbolt-mode, don't do anything
     ))
 

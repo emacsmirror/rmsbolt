@@ -25,6 +25,8 @@ versa.
 
 * Installation
 
+rmsbolt will almost certainly not work on windows.
+
 rmsbolt is not on melpa yet. If you find it useful, please let me know and I may
 add it..
 

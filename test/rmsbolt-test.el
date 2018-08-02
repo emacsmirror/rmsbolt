@@ -27,6 +27,8 @@
       (string-trim
        (buffer-string))))))
 
+;;;; Filtration tests
+
 (ert-deftest filter-tests-all-c ()
   "Test if assembly filteration in c is working."
   (with-temp-buffer
@@ -60,6 +62,49 @@
     (setq-local rmsbolt-filter-labels t)
     (test-asm-preprocessor "test/rmsbolt-c-pre2.s" "test/rmsbolt-c-post4.s")))
 
-;;;; Filtration tests
+;;;; Demangler tests
+
+(ert-deftest demangler-test-disabled ()
+  (with-temp-buffer
+    (setq-local rmsbolt-demangle nil)
+    (should
+     (string-empty-p
+      (rmsbolt--demangle-command
+       ""
+       (make-rmsbolt-lang :demangler nil)
+       (current-buffer))))))
+
+(ert-deftest demangler-test-invalid-demangler ()
+  (with-temp-buffer
+    (setq-local rmsbolt-demangle t)
+    (should
+     (string-empty-p
+      (rmsbolt--demangle-command
+       ""
+       (make-rmsbolt-lang :demangler nil)
+       (current-buffer))))))
+
+(ert-deftest demangler-test-not-path ()
+  (with-temp-buffer
+    (setq-local rmsbolt-demangle t)
+    (should
+     (string-empty-p
+      (rmsbolt--demangle-command
+       ""
+       (make-rmsbolt-lang :demangler "nonsense-binary-name-not-on-path")
+       (current-buffer))))))
+
+(ert-deftest demangler-test-valid-demangler ()
+  ;; Assumes test is on the path!
+  (with-temp-buffer
+    (setq-local rmsbolt-demangle t)
+    (should
+     (string-match-p
+      (regexp-opt '("test"))
+      (rmsbolt--demangle-command
+       ""
+       (make-rmsbolt-lang :demangler "test")
+       (current-buffer))))))
+
 
 ;;; rmsbolt-test.el ends here
