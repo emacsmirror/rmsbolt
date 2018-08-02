@@ -48,6 +48,12 @@ add it..
 
 [[https://s25.postimg.cc/s088vljov/Pab_Aq2.gif]]
 
+** Rust
+
+demangling is done with rustfilt if available
+
+[[https://s25.postimg.cc/h7npjnnun/output-2018-08-01-19_30_52.gif][https://s25.postimg.cc/h7npjnnun/output-2018-08-01-19_30_52.gif]]
+
 ** Common Lisp
 
 No support for source->asm matching or filtering.
