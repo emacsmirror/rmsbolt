@@ -585,7 +585,8 @@ Outputs assembly file if ASM."
   "Process and filter a set of asm lines."
   (let* ((lang (with-current-buffer src-buffer
                  (rmsbolt--get-lang)))
-         (process-asm-fn (rmsbolt-l-process-asm-custom-fn lang)))
+         (process-asm-fn (when lang
+                           (rmsbolt-l-process-asm-custom-fn lang))))
     (cond
      (process-asm-fn
       (funcall process-asm-fn src-buffer asm-lines))
