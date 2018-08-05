@@ -61,9 +61,9 @@ demangling is done with rustfilt if available
 
 ** Python
 
-Support for bytecode viewing. Python dosen't have many options, so most
-tweakables will not work. Python 3.7 is required for recursion into functions.
-Python 2 is unsupported.
+Support for viewing bytecode only. Python [[https://bugs.python.org/issue2506][dosen't have many options]], so most
+tweakables will not work. Python 3.7 is required for recursion into functions,
+otherwise only top level code will be shown. Python 2 is unsupported.
 
 [[https://s25.postimg.cc/594qd9o4v/output-2018-08-04-18_07_45.gif][https://s25.postimg.cc/594qd9o4v/output-2018-08-04-18_07_45.gif]]
 
