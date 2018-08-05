@@ -896,7 +896,8 @@ Outputs assembly file if ASM."
          (src-file-name
           (when rmsbolt-dir
             (expand-file-name (rmsbolt-l-starter-file-name lang-def) (concat rmsbolt-dir "starters/"))))
-         (src-file-exists (file-exists-p src-file-name)))
+         (src-file-exists (when src-file-name
+                            (file-exists-p src-file-name))))
     (if (not src-file-exists)
         (error "Could not find starter files! Are you sure the starter/ folder is available?")
       (find-file file-name)
@@ -916,7 +917,8 @@ Outputs assembly file if ASM."
 (rmsbolt-defstarter "c++" 'c++-mode)
 (rmsbolt-defstarter "ocaml" 'tuareg-mode)
 (rmsbolt-defstarter "cl" 'lisp-mode)
-(rmsbolt-defstarter "rust" 'rust-mode)
+(rmsbolt-defstarter "rust " 'rust-mode)
+(rmsbolt-defstarter "python" 'python-mode)
 
 ;;;; Font lock matcher
 (defun rmsbolt--goto-line (line)

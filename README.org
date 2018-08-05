@@ -38,6 +38,11 @@ add it..
             :repo "jgkamat/rmsbolt"))
 #+END_SRC
 
+* Running
+ Once installed, use the ~rmsbolt-lang~ functions to generate starter files, or
+ enable ~rmsbolt-mode~ in a supported language. Then run ~rmsbolt-compile~ or
+ use the default ~C-c C-c~ binding.
+
 * Demo
 
 ** C/C++
@@ -53,6 +58,14 @@ add it..
 demangling is done with rustfilt if available
 
 [[https://s25.postimg.cc/h7npjnnun/output-2018-08-01-19_30_52.gif][https://s25.postimg.cc/h7npjnnun/output-2018-08-01-19_30_52.gif]]
+
+** Python
+
+Support for bytecode viewing. Python dosen't have many options, so most
+tweakables will not work. Python 3.7 is required for recursion into functions.
+Python 2 is unsupported.
+
+[[https://s25.postimg.cc/594qd9o4v/output-2018-08-04-18_07_45.gif][https://s25.postimg.cc/594qd9o4v/output-2018-08-04-18_07_45.gif]]
 
 ** Common Lisp
 
