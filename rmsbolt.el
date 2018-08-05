@@ -433,7 +433,8 @@ Outputs assembly file if ASM."
                           :supports-disass nil
                           :starter-file-name "rmsbolt.py"
                           :compile-cmd-function #'rmsbolt--py-compile-cmd
-                          :disass-hidden-funcs nil))
+                          :disass-hidden-funcs nil
+                          :process-asm-custom-fn #'rmsbolt--process-python-bytecode))
    ))
 
 ;;;; Macros
@@ -581,6 +582,112 @@ Outputs assembly file if ASM."
        continue))
     (nreverse result)))
 
+(cl-defun rmsbolt--process-src-asm-lines (src-buffer asm-lines)
+  (let ((used-labels (rmsbolt--find-used-labels src-buffer asm-lines))
+        (result nil)
+        (prev-label nil)
+        (source-linum nil)
+        (source-file nil)
+        (skip-file-match
+         ;; Skip file match if we don't have a current filename
+         (not (buffer-file-name src-buffer))))
+    (dolist (line asm-lines)
+      (let* ((raw-match (or (string-match rmsbolt-label-def line)
+                            (string-match rmsbolt-assignment-def line)))
+             (match (when raw-match
+                      (match-string 1 line)))
+             (used-label (cl-find match used-labels :test #'equal)))
+        (cl-tagbody
+         ;; Process file name hints
+         (when (string-match rmsbolt-source-file line)
+           (if (match-string 3 line)
+               ;; Clang style match
+               (setq source-file (expand-file-name
+                                  (match-string 3 line)
+                                  (match-string 2 line)))
+             (setq source-file (match-string 2 line))))
+         ;; Process any line number hints
+         (when (string-match rmsbolt-source-tag line)
+           (if (or skip-file-match
+                   (file-equal-p (buffer-file-name src-buffer) source-file))
+               (setq source-linum (string-to-number
+                                   (match-string 2 line)))
+             (setq source-linum nil)))
+         (when (string-match rmsbolt-source-stab line)
+           (pcase (string-to-number (match-string 1 line))
+             ;; http://www.math.utah.edu/docs/info/stabs_11.html
+             (68
+              (setq source-linum (match-string 2 line)))
+             ((or 100 132)
+              (setq source-linum nil))))
+
+         ;; End block, reset prev-label and source
+         (when (string-match-p rmsbolt-endblock line)
+           (setq prev-label nil))
+
+         (when (and (buffer-local-value 'rmsbolt-filter-comment-only src-buffer)
+                    (string-match-p rmsbolt-comment-only line))
+           (go continue))
+
+         ;; continue means we don't add to the ouptut
+         (when match
+           (if (not used-label)
+               ;; Unused label
+               (when (buffer-local-value 'rmsbolt-filter-labels src-buffer)
+                 (go continue))
+             ;; Real label, set prev-label
+             (setq prev-label raw-match)))
+         (when (and (buffer-local-value 'rmsbolt-filter-directives src-buffer)
+                    (not match))
+           (if  (and (string-match-p rmsbolt-data-defn line)
+                     prev-label)
+               ;; data is being used
+               nil
+             (when (string-match-p rmsbolt-directive line)
+               (go continue))))
+         ;; Add line numbers to mapping
+         (when (and source-linum
+                    (rmsbolt--has-opcode-p line))
+           (add-text-properties 0 (length line)
+                                `(rmsbolt-src-line ,source-linum) line))
+         ;; Add line
+         (push line result)
+
+         continue)))
+    (nreverse result)))
+
+(cl-defun rmsbolt--process-python-bytecode (_src-buffer asm-lines)
+  (let ((source-linum nil)
+        (result nil))
+    (dolist (line asm-lines)
+      (if (not (string-match (rx bol (repeat 3 (opt space))
+                                 (group (opt (1+ digit))) (0+ space)
+                                 (group (opt "-->")) (0+ space)
+                                 (group (opt ">>")) (0+ space)
+                                 (group (1+ digit)) (0+ space)
+                                 (group (1+ (or letter "_"))) (0+ space)
+                                 (group (opt (1+ digit))) (0+ space)
+                                 (group (opt (0+ any))))
+                             line))
+          ;; just push the var with no linum
+          (push line result)
+        ;; Grab line numbers
+        (unless (string-empty-p (match-string 1 line))
+          (setq source-linum
+                (string-to-number (match-string 1 line))))
+        ;; Reformat line to be more like assembly
+        (setq line (mapconcat 'identity
+                              (list (match-string 5 line)
+                                    (match-string 6 line)
+                                    (match-string 7 line))
+                              "\t"))
+        (when source-linum
+          (add-text-properties 0 (length line)
+                               `(rmsbolt-src-line ,source-linum) line))
+        ;; Add line
+        (push line result)))
+    (nreverse result)))
+
 (cl-defun rmsbolt--process-asm-lines (src-buffer asm-lines)
   "Process and filter a set of asm lines."
   (let* ((lang (with-current-buffer src-buffer
@@ -593,78 +700,7 @@ Outputs assembly file if ASM."
      ((buffer-local-value 'rmsbolt-disassemble src-buffer)
       (rmsbolt--process-disassembled-lines src-buffer asm-lines))
      (t
-      (let ((used-labels (rmsbolt--find-used-labels src-buffer asm-lines))
-            (result nil)
-            (prev-label nil)
-            (source-linum nil)
-            (source-file nil)
-            (skip-file-match
-             ;; Skip file match if we don't have a current filename
-             (not (buffer-file-name src-buffer))))
-        (dolist (line asm-lines)
-          (let* ((raw-match (or (string-match rmsbolt-label-def line)
-                                (string-match rmsbolt-assignment-def line)))
-                 (match (when raw-match
-                          (match-string 1 line)))
-                 (used-label (cl-find match used-labels :test #'equal)))
-            (cl-tagbody
-             ;; Process file name hints
-             (when (string-match rmsbolt-source-file line)
-               (if (match-string 3 line)
-                   ;; Clang style match
-                   (setq source-file (expand-file-name
-                                      (match-string 3 line)
-                                      (match-string 2 line)))
-                 (setq source-file (match-string 2 line))))
-             ;; Process any line number hints
-             (when (string-match rmsbolt-source-tag line)
-               (if (or skip-file-match
-                       (file-equal-p (buffer-file-name src-buffer) source-file))
-                   (setq source-linum (string-to-number
-                                       (match-string 2 line)))
-                 (setq source-linum nil)))
-             (when (string-match rmsbolt-source-stab line)
-               (pcase (string-to-number (match-string 1 line))
-                 ;; http://www.math.utah.edu/docs/info/stabs_11.html
-                 (68
-                  (setq source-linum (match-string 2 line)))
-                 ((or 100 132)
-                  (setq source-linum nil))))
-
-             ;; End block, reset prev-label and source
-             (when (string-match-p rmsbolt-endblock line)
-               (setq prev-label nil))
-
-             (when (and (buffer-local-value 'rmsbolt-filter-comment-only src-buffer)
-                        (string-match-p rmsbolt-comment-only line))
-               (go continue))
-
-             ;; continue means we don't add to the ouptut
-             (when match
-               (if (not used-label)
-                   ;; Unused label
-                   (when (buffer-local-value 'rmsbolt-filter-labels src-buffer)
-                     (go continue))
-                 ;; Real label, set prev-label
-                 (setq prev-label raw-match)))
-             (when (and (buffer-local-value 'rmsbolt-filter-directives src-buffer)
-                        (not match))
-               (if  (and (string-match-p rmsbolt-data-defn line)
-                         prev-label)
-                   ;; data is being used
-                   nil
-                 (when (string-match-p rmsbolt-directive line)
-                   (go continue))))
-             ;; Add line numbers to mapping
-             (when (and source-linum
-                        (rmsbolt--has-opcode-p line))
-               (add-text-properties 0 (length line)
-                                    `(rmsbolt-src-line ,source-linum) line))
-             ;; Add line
-             (push line result)
-
-             continue)))
-        (nreverse result))))))
+      (rmsbolt--process-src-asm-lines src-buffer asm-lines)))))
 
 ;;;;; Handlers
 (defun rmsbolt--handle-finish-compile (buffer _str)
@@ -686,7 +722,7 @@ Outputs assembly file if ASM."
                        src-buffer
                        (with-temp-buffer
                          (insert-file-contents (rmsbolt-output-filename src-buffer t))
-                         (split-string (buffer-string) "\n" t))))
+                         (split-string (buffer-string) "\n" nil))))
                      (ht (make-hash-table))
                      (linum 1)
                      (start-match nil)
