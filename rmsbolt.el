@@ -344,12 +344,26 @@ Outputs assembly file if ASM."
                          " ")))
     cmd))
 (cl-defun rmsbolt--py-compile-cmd (&key src-buffer)
-  "Process a compile command for rustc."
+  "Process a compile command for python3."
   (let* ((cmd (buffer-local-value 'rmsbolt-command src-buffer)))
     (mapconcat 'identity
                (list cmd "-m" "dis" (buffer-file-name)
                      ">" (rmsbolt-output-filename src-buffer))
                " ")))
+
+(cl-defun rmsbolt--hs-compile-cmd (&key src-buffer)
+  "Process a compile command for ghc."
+  (let* ((cmd (buffer-local-value 'rmsbolt-command src-buffer))
+         (cmd (mapconcat 'identity
+                         (list cmd
+                               "-g"
+                               (if (buffer-local-value 'rmsbolt-disassemble src-buffer)
+                                   ""
+                                 "-S")
+                               (buffer-file-name)
+                               "-o" (rmsbolt-output-filename src-buffer))
+                         " ")))
+    cmd))
 
 (defvar rmsbolt--hidden-func-c
   (rx bol (or (and "__" (0+ any))
@@ -435,6 +449,15 @@ Outputs assembly file if ASM."
                           :compile-cmd-function #'rmsbolt--py-compile-cmd
                           :disass-hidden-funcs nil
                           :process-asm-custom-fn #'rmsbolt--process-python-bytecode))
+   (haskell-mode
+    . ,(make-rmsbolt-lang :mode 'haskell-mode
+                          :compile-cmd "ghc"
+                          :supports-asm t
+                          :supports-disass nil
+                          :demangler "haskell-demangler"
+                          :starter-file-name "rmsbolt.hs"
+                          :compile-cmd-function #'rmsbolt--hs-compile-cmd
+                          :disass-hidden-funcs nil))
    ))
 
 ;;;; Macros

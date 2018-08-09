@@ -59,6 +59,13 @@ demangling is done with rustfilt if available
 
 [[https://s25.postimg.cc/h7npjnnun/output-2018-08-01-19_30_52.gif][https://s25.postimg.cc/h7npjnnun/output-2018-08-01-19_30_52.gif]]
 
+** Haskell
+
+demangling is done with the compiler-explorer demangler, named
+to ~haskell-demangler~.
+
+[[https://s25.postimg.cc/4d5167yr3/output-2018-08-08-23_17_59.gif][https://s25.postimg.cc/4d5167yr3/output-2018-08-08-23_17_59.gif]]
+
 ** Python
 
 Support for viewing bytecode only. Python [[https://bugs.python.org/issue2506][dosen't have many options]], so most
