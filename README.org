@@ -49,7 +49,7 @@ add it..
 
 [[https://s25.postimg.cc/c1zj5ghr3/sihr1g.gif]]
 
-** Ocaml
+** OCaml
 
 [[https://s25.postimg.cc/s088vljov/Pab_Aq2.gif]]
 
