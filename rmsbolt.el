@@ -930,6 +930,8 @@ Outputs assembly file if ASM."
         (save-buffer))
       (unless rmsbolt-mode
         (rmsbolt-mode 1)))))
+
+;;;;; Starter Definitions
 (defmacro rmsbolt-defstarter (lang mode)
   "Defines a starter for LANG and MODE."
   `(defun ,(intern (concat "rmsbolt-" lang)) ()

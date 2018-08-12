@@ -17,8 +17,9 @@ versa.
     would normally.
   - Use any libraries on your machine trivially
 - Runs entirely without node, npm, or js.
-  - No dependencies other than emacs 25 and your compiler ~:)~
-  - Code is actually readable
+  - No required dependencies other than emacs 25 and your compiler ~:)~
+  - It's easy to add new languages (even those that use unique bytecode formats)
+    without touching many files.
 - Full undo (tree) system from Emacs on disassembly for easy comparisons
 - Infinitely hackable!
 
@@ -79,3 +80,27 @@ otherwise only top level code will be shown. Python 2 is unsupported.
 No support for source->asm matching or filtering.
 
 [[https://s25.postimg.cc/uhk02ugfz/1_FB9k7.gif]]
+
+* Adding a Language
+
+Adding support for a new language is fairly easy. The closer it is to existing
+compilers, the easier it will be. However, it is not excessively hard to add
+support for completely foreign compilers and bytecode/assembly formats.
+
+As a minimum starting point, you must know how to compile a source file to
+assembly or bytecode on the command line, and know how the line numbers are
+available in the compiled form if they exist.
+
+1. [[file:rmsbolt.el::;;;;%20Language%20Definitions][Add a new entry to the language definitions statement.]]
+   - To do this, you will need to (at a minimum) add a mode, compile-command, a
+     compile-cmd-function, and a starter file name.
+   - The compile-cmd-function is a function that will turn local variable
+     settings into a valid command which will take in a filename and output
+     assembly or an executable. See ~rmsbolt--c-compile-cmd~ for an example.
+   - If the assembly is not in a standard format, you will need to define a
+     ~process-asm-custom-fn~ as well.
+2. [[file:rmsbolt.el::;;;;;%20Starter%20Definitions][Add a new entry into the starter file]]
+   - For this, you will need to make a starter file. See [[file:starters/][this folder]] for
+     existing examples.
+
+You're done!
