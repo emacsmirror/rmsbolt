@@ -21,6 +21,10 @@ versa.
   - It's easy to add new languages (even those that use unique bytecode formats)
     without touching many files.
 - Full undo (tree) system from Emacs on disassembly for easy comparisons
+- Much more flexible
+  - Supports dissasembling to bytecode as well as assembly
+  - Supports many languages that godbolt does not support, such as python,
+    common lisp, and ocaml.
 - Infinitely hackable!
 
 * Installation
@@ -84,7 +88,8 @@ No support for source->asm matching or filtering.
 * Adding a Language
 
 Adding support for a new language is fairly easy. The closer it is to existing
-compilers, the easier it will be. However, it is not excessively hard to add
+compilers, the easier it will be (to the point where a clone of a C compiler is
+just a couple copy-paste lines). However, it is not excessively hard to add
 support for completely foreign compilers and bytecode/assembly formats.
 
 As a minimum starting point, you must know how to compile a source file to

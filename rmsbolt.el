@@ -215,7 +215,7 @@ Outputs assembly file if ASM."
   (mode
    'fundamental-mode
    :type 'symbol
-   :documentation "The mode to activate this language in.")
+   :documentation "The mode(s) to activate this language in.")
   (supports-disass
    nil
    :type 'bool
@@ -272,7 +272,7 @@ Outputs assembly file if ASM."
                          " ")))
     cmd))
 (cl-defun rmsbolt--ocaml-compile-cmd (&key src-buffer)
-  "Process a compile command for gcc/clang.
+  "Process a compile command for ocaml.
 
   Needed as ocaml cannot output asm to a non-hardcoded file"
   (let* ((diss (buffer-local-value 'rmsbolt-disassemble src-buffer))
@@ -303,7 +303,7 @@ Outputs assembly file if ASM."
 (cl-defun rmsbolt--lisp-compile-cmd (&key src-buffer)
   "Process a compile command for common lisp.
 
-                                  Assumes function name to dissasemble is 'main'."
+   Assumes function name to dissasemble is 'main'."
   (let* ((cmd (buffer-local-value 'rmsbolt-command src-buffer))
          (interpreter (cl-first (split-string cmd nil t)))
          (disass-eval "\"(disassemble 'main)\"")
@@ -316,17 +316,17 @@ Outputs assembly file if ASM."
                         "--eval" disass-eval "--non-interactive"
                         ;; Remove leading comments
                         "|" "sed" "'s/^;\s//'" ">"
-                                  (rmsbolt-output-filename src-buffer))
-                             " "))
-("clisp"
- (mapconcat 'identity
-            (list cmd "-q" "-x"
-                  (concat
-                   "\"(load \\\"" (buffer-file-name) "\\\") " disass-eval-unquoted "\"")
-                  ">" (rmsbolt-output-filename src-buffer))
-            " "))
-(_
- (error "This Common Lisp interpreter is not supported")))))
+                        (rmsbolt-output-filename src-buffer))
+                  " "))
+      ("clisp"
+       (mapconcat 'identity
+                  (list cmd "-q" "-x"
+                        (concat
+                         "\"(load \\\"" (buffer-file-name) "\\\") " disass-eval-unquoted "\"")
+                        ">" (rmsbolt-output-filename src-buffer))
+                  " "))
+      (_
+       (error "This Common Lisp interpreter is not supported")))))
 (cl-defun rmsbolt--rust-compile-cmd (&key src-buffer)
   "Process a compile command for rustc."
   (let* ((cmd (buffer-local-value 'rmsbolt-command src-buffer))
