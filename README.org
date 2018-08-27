@@ -12,24 +12,29 @@ versa.
 - No more sending your code to any server
 - Much faster turnaround time from writing code to seeing and interacting with disassembly
 - 100% usable without the mouse.
-- Write, compile, and view dissasembly entirely in Emacs
-  - Use compile.el, flymake, or flycheck to traverse and fix errors as you
-    would normally.
-  - Use any libraries on your machine trivially
 - Runs entirely without node, npm, or js.
   - No required dependencies other than emacs 25 and your compiler ~:)~
   - It's easy to add new languages (even those that use unique bytecode formats)
     without touching many files.
-- Full undo (tree) system from Emacs on disassembly for easy comparisons
-- Much more flexible
+- Benefits from living in Emacs
+  - Full undo tree from Emacs on disassembly/source so you don't loose work.
+  - Vim bindings through evil/viper.
+  - Use compile.el, flymake, or flycheck to traverse and fix errors as you
+    would normally.
+  - Use *any* libraries on your machine trivially.
+  - Customize colors and behavior through ~customize~.
+  - Change tracking through magit/diff-hl/etc.
+- Much more flexible and powerful
   - Supports dissasembling to bytecode as well as assembly
   - Supports many languages that godbolt does not support, such as python,
-    common lisp, and ocaml.
+    common lisp, ocaml, and java.
+- Simpler
 - Infinitely hackable!
 
 * Installation
 
-rmsbolt will almost certainly not work on windows.
+rmsbolt will almost certainly not work naively on windows as it depends on a
+unix shell for building commands. It may work through cygwin though.
 
 rmsbolt is not on melpa yet. If you find it useful, please let me know and I may
 add it..

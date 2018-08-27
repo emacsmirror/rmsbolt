@@ -23,7 +23,7 @@
 ;;; Commentary:
 ;; TODO create commentary
 
-;;; Constants:
+;;; Requires:
 
 (require 'cl-lib)
 (require 'subr-x)
