@@ -364,6 +364,25 @@ Outputs assembly file if ASM."
                                "-o" (rmsbolt-output-filename src-buffer))
                          " ")))
     cmd))
+(cl-defun rmsbolt--java-compile-cmd (&key src-buffer)
+  "Process a compile command for ocaml.
+
+  Needed as ocaml cannot output asm to a non-hardcoded file"
+  (let* ((output-filename (rmsbolt-output-filename src-buffer))
+         (class-filename (concat (file-name-sans-extension (buffer-file-name)) ".class"))
+         (cmd (buffer-local-value 'rmsbolt-command src-buffer))
+         (cmd (mapconcat 'identity
+                         (list cmd
+                               "-g"
+                               (buffer-file-name)
+                               "&&"
+                               "javap"
+                               "-c" "-l"
+                               class-filename
+                               ">"
+                               output-filename)
+                         " ")))
+    cmd))
 
 (defvar rmsbolt--hidden-func-c
   (rx bol (or (and "__" (0+ any))
@@ -457,6 +476,15 @@ Outputs assembly file if ASM."
                           :demangler "haskell-demangler"
                           :starter-file-name "rmsbolt.hs"
                           :compile-cmd-function #'rmsbolt--hs-compile-cmd
+                          :disass-hidden-funcs nil))
+   (java-mode
+    . ,(make-rmsbolt-lang :mode 'java-mode
+                          :compile-cmd "javac"
+                          :supports-asm t
+                          :supports-disass nil
+                          :objdumper 'cat
+                          :starter-file-name "rmsbolt.java"
+                          :compile-cmd-function #'rmsbolt--java-compile-cmd
                           :disass-hidden-funcs nil))
    ))
 
