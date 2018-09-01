@@ -87,7 +87,7 @@ otherwise only top level code will be shown. Python 2 is unsupported.
 
 ** Java
 
-parses the output of ~javap~, so may be a little unreliable or buggy at the
+Parses the output of ~javap~, so may be a little unreliable or buggy at the
 moment.
 
 [[https://s25.postimg.cc/57s2z9uxb/output-2018-09-01-00_29_30.gif][https://s25.postimg.cc/57s2z9uxb/output-2018-09-01-00_29_30.gif]]

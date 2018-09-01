@@ -31,6 +31,7 @@
 ;;; Requires:
 
 (require 'cl-lib)
+(require 'subr-x)
 
 ;;; Code:
 
