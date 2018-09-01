@@ -30,6 +30,8 @@
 (require 'map)
 (require 'cc-defs)
 
+(require 'rmsbolt-java)
+
 ;;; Code:
 ;;;; Customize:
 (defgroup rmsbolt nil
@@ -483,8 +485,9 @@ Outputs assembly file if ASM."
                           :supports-asm t
                           :supports-disass nil
                           :objdumper 'cat
-                          :starter-file-name "rmsbolt.java"
+                          :starter-file-name "Rmsbolt.java"
                           :compile-cmd-function #'rmsbolt--java-compile-cmd
+                          :process-asm-custom-fn #'rmsbolt--process-java-bytecode
                           :disass-hidden-funcs nil))
    ))
 
@@ -972,6 +975,7 @@ Outputs assembly file if ASM."
 (rmsbolt-defstarter "cl" 'lisp-mode)
 (rmsbolt-defstarter "rust " 'rust-mode)
 (rmsbolt-defstarter "python" 'python-mode)
+(rmsbolt-defstarter "java" 'java-mode)
 
 ;;;; Font lock matcher
 (defun rmsbolt--goto-line (line)

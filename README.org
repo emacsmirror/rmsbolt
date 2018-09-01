@@ -1,4 +1,4 @@
-* RMSbolt
+ * RMSbolt
 
 A basic implementation of the [[https://github.com/mattgodbolt/compiler-explorer][godbolt compiler-explorer]] for Emacs.
 
@@ -13,9 +13,10 @@ versa.
 - Much faster turnaround time from writing code to seeing and interacting with disassembly
 - 100% usable without the mouse.
 - Runs entirely without node, npm, or js.
-  - No required dependencies other than emacs 25 and your compiler ~:)~
+  - No required dependencies other than Emacs 25 and your compiler ~:)~
   - It's easy to add new languages (even those that use unique bytecode formats)
     without touching many files.
+  - Dosen't eat your ram on the 'server' or the 'client'
 - Benefits from living in Emacs
   - Full undo tree from Emacs on disassembly/source so you don't loose work.
   - Vim bindings through evil/viper.
@@ -34,7 +35,8 @@ versa.
 * Installation
 
 rmsbolt will almost certainly not work naively on windows as it depends on a
-unix shell for building commands. It may work through cygwin though.
+unix shell for building the compilation commands. It may work through cygwin
+though.
 
 rmsbolt is not on melpa yet. If you find it useful, please let me know and I may
 add it..
@@ -53,8 +55,7 @@ add it..
  enable ~rmsbolt-mode~ in a supported language. Then run ~rmsbolt-compile~ or
  use the default ~C-c C-c~ binding.
 
-* Demo
-
+* Demos
 ** C/C++
 
 [[https://s25.postimg.cc/c1zj5ghr3/sihr1g.gif]]
@@ -114,3 +115,6 @@ available in the compiled form if they exist.
      existing examples.
 
 You're done!
+* Alternatives
+- [[https://github.com/yawkat/javap][yawkat/javap]]
+- [[https://github.com/mattgodbolt/compiler-explorer][mattgodbolt/compiler-explorer]]
