@@ -85,6 +85,12 @@ otherwise only top level code will be shown. Python 2 is unsupported.
 
 [[https://s25.postimg.cc/594qd9o4v/output-2018-08-04-18_07_45.gif][https://s25.postimg.cc/594qd9o4v/output-2018-08-04-18_07_45.gif]]
 
+** Java
+
+parses the output of ~javap~, so may be a little unreliable or buggy at the
+moment.
+
+[[https://s25.postimg.cc/57s2z9uxb/output-2018-09-01-00_29_30.gif][https://s25.postimg.cc/57s2z9uxb/output-2018-09-01-00_29_30.gif]]
 ** Common Lisp
 
 No support for source->asm matching or filtering.
