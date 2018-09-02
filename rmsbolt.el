@@ -957,7 +957,7 @@ Outputs assembly file if ASM."
          (src-file-exists (when src-file-name
                             (file-exists-p src-file-name))))
     (if (not src-file-exists)
-        (error "Could not find starter files! Are you sure the starter/ folder is available?")
+        (error "Could not find starter files! Are you sure the starter/ folder is available? If you want to overide, set `rmsbolt-dir' to your install path")
       (find-file file-name)
       (unless exists
         (insert-file-contents

@@ -26,6 +26,7 @@ versa. It supports more types of languages than any previous tool of it's kind.
   - Use *any* libraries on your machine trivially.
   - Customize colors and behavior through ~customize~.
   - Change tracking through magit/diff-hl/etc.
+  - Nyans are fully supported with nyan-mode.
 - Much more flexible and powerful
   - Supports dissasembling to bytecode as well as assembly
   - Supports many languages that godbolt does not support, such as python,
