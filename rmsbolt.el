@@ -47,7 +47,7 @@
   :type 'boolean
   :group 'rmsbolt)
 (defcustom rmsbolt-mode-lighter " RMS🗲"
-  "Lighter displayed in mode line when `rmsbolt-mode' is active."
+  "Lighter displayed in mode line when function `rmsbolt-mode' is active."
   :type 'string
   :group 'rmsbolt)
 (defcustom rmsbolt-automatic-recompile t
@@ -593,7 +593,8 @@ Outputs assembly file if ASM."
       labels-used)))
 
 (defun rmsbolt--user-func-p (src-buffer func)
-  "Return t if FUNC is a user function."
+  "Return t if FUNC is a user function.
+Argument SRC-BUFFER source buffer."
   (let* ((lang (rmsbolt--get-lang
                 (buffer-local-value 'major-mode src-buffer)))
          (regexp (rmsbolt-l-disass-hidden-funcs lang)))
@@ -748,7 +749,9 @@ Outputs assembly file if ASM."
     (nreverse result)))
 
 (defun rmsbolt--process-java-bytecode (src-buffer asm-lines)
-  "Wrapper for easy integration into rmsbolt."
+  "Wrapper for easy integration into rmsbolt.
+Argument SRC-BUFFER source buffer.
+Argument ASM-LINES input lines."
   (rmsbolt-java-process-bytecode
    asm-lines
    (buffer-local-value 'rmsbolt-filter-directives src-buffer)))
@@ -769,7 +772,8 @@ Outputs assembly file if ASM."
 
 ;;;;; Handlers
 (defun rmsbolt--handle-finish-compile (buffer _str)
-  "Finish hook for compilations."
+  "Finish hook for compilations.
+Argument BUFFER compilation buffer."
   (let ((compilation-fail
          (with-current-buffer buffer
            (eq 'compilation-mode-line-fail
@@ -841,6 +845,7 @@ Outputs assembly file if ASM."
 
 ;;;;; Parsing Options
 (defun rmsbolt--get-lang (&optional language)
+  "Helper function to get lang def for LANGUAGE."
   (cdr-safe (assoc (or language major-mode) rmsbolt-languages)))
 (defun rmsbolt--parse-options ()
   "Parse RMS options from file."
@@ -929,7 +934,7 @@ Outputs assembly file if ASM."
          (setq-local rmsbolt-src-buffer src-buffer))))))
 
 ;;;; Keymap
-(defvar rmsbolt-mode-map nil "Keymap for `rmsbolt-mode'.")
+(defvar rmsbolt-mode-map nil "Keymap for function `rmsbolt-mode'.")
 (when (not rmsbolt-mode-map) ; if it is not already defined
   ;; assign command to keys
   (setq rmsbolt-mode-map (make-sparse-keymap))
