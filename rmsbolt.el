@@ -21,7 +21,9 @@
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 ;;; Commentary:
-;; TODO create commentary
+;; rmsbolt is a package to provide assembly or bytecode output for a source code input file.
+;;
+;;
 
 ;;; Requires:
 
@@ -49,6 +51,10 @@
 (defcustom rmsbolt-mode-lighter " RMS🗲"
   "Lighter displayed in mode line when `rmsbolt-mode' is active."
   :type 'string
+  :group 'rmsbolt)
+(defcustom rmsbolt-automatic-recompile t
+  "Whether to automatically recompile on source buffer changes."
+  :type 'boolean
   :group 'rmsbolt)
 
 ;;;;; Buffer Local Tweakables
@@ -977,7 +983,7 @@ Outputs assembly file if ASM."
 (rmsbolt-defstarter "python" 'python-mode)
 (rmsbolt-defstarter "java" 'java-mode)
 
-;;;; Font lock matcher
+;;;; Overlay Commands
 (defun rmsbolt--goto-line (line)
   "Goto a certain LINE."
   (when line
@@ -1069,6 +1075,7 @@ Outputs assembly file if ASM."
 (defun rmsbolt-hot-recompile ()
   "Recompile source buffer if we need to."
   (when-let ((should-hot-compile rmsbolt-mode)
+             (should-hot-recompile rmsbolt-automatic-recompile)
              (output-buffer (get-buffer rmsbolt-output-buffer))
              (src-buffer (buffer-local-value 'rmsbolt-src-buffer output-buffer))
              (modified (buffer-modified-p src-buffer)))
@@ -1094,7 +1101,8 @@ This mode is enabled both in modes to be compiled and output buffers."
     (setq rmsbolt--idle-timer (run-with-idle-timer
                                rmsbolt-overlay-delay t
                                #'rmsbolt-move-overlays)))
-  (unless rmsbolt--compile-idle-timer
+  (unless (or rmsbolt--compile-idle-timer
+              (not rmsbolt-automatic-recompile))
     (setq rmsbolt--compile-idle-timer (run-with-idle-timer
                                        rmsbolt-compile-delay t
                                        #'rmsbolt-hot-recompile)))

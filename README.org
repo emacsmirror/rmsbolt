@@ -17,6 +17,7 @@ versa.
   - It's easy to add new languages (even those that use unique bytecode formats)
     without touching many files.
   - Dosen't eat your ram on the 'server' or the 'client'
+  - No enforced limits on code size, compilation time, or processing time.
 - Benefits from living in Emacs
   - Full undo tree from Emacs on disassembly/source so you don't loose work.
   - Vim bindings through evil/viper.
@@ -53,7 +54,8 @@ add it..
 * Running
  Once installed, use the ~rmsbolt-lang~ functions to generate starter files, or
  enable ~rmsbolt-mode~ in a supported language. Then run ~rmsbolt-compile~ or
- use the default ~C-c C-c~ binding.
+ use the default ~C-c C-c~ binding. After the first run, the buffer should
+ automatically update.
 
 * Demos
 ** C/C++
@@ -115,12 +117,14 @@ available in the compiled form if they exist.
      settings into a valid command which will take in a filename and output
      assembly or an executable. See ~rmsbolt--c-compile-cmd~ for an example.
    - If the assembly is not in a standard format, you will need to define a
-     ~process-asm-custom-fn~ as well.
+     ~process-asm-custom-fn~ as well (see python/java for examples).
 2. [[file:rmsbolt.el::;;;;;%20Starter%20Definitions][Add a new entry into the starter file]]
    - For this, you will need to make a starter file. See [[file:starters/][this folder]] for
      existing examples.
 
 You're done!
+
 * Alternatives
 - [[https://github.com/yawkat/javap][yawkat/javap]]
 - [[https://github.com/mattgodbolt/compiler-explorer][mattgodbolt/compiler-explorer]]
+- [[http://reliant.colab.duke.edu/c2mips/][c2mips]]
