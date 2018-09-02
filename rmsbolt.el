@@ -1015,25 +1015,25 @@ Argument BUFFER compilation buffer."
 (defun rmsbolt-move-overlays ()
   "Function for moving overlays for rmsbolt."
   (when rmsbolt-mode
-    (if-let* ((should-run rmsbolt-use-overlays)
-              (src-buffer
-               (buffer-local-value 'rmsbolt-src-buffer (current-buffer)))
-              ;; Don't run on unsaved buffers
-              (should-run (not (buffer-modified-p src-buffer)))
-              (output-buffer (get-buffer-create rmsbolt-output-buffer))
-              (current-line (line-number-at-pos))
-              (src-current-line
-               (if (eq (current-buffer) src-buffer)
-                   current-line
-                 (get-text-property (point) 'rmsbolt-src-line)))
-              (hash-table (buffer-local-value 'rmsbolt-line-mapping src-buffer))
-              (asm-lines (gethash src-current-line hash-table))
-              ;; TODO also consider asm
-              (src-pts
-               (with-current-buffer src-buffer
-                 (save-excursion
-                   (rmsbolt--goto-line src-current-line)
-                   (cl-values (c-point 'bol) (c-point 'bonl))))))
+    (if-let ((should-run rmsbolt-use-overlays)
+             (src-buffer
+              (buffer-local-value 'rmsbolt-src-buffer (current-buffer)))
+             ;; Don't run on unsaved buffers
+             (should-run (not (buffer-modified-p src-buffer)))
+             (output-buffer (get-buffer-create rmsbolt-output-buffer))
+             (current-line (line-number-at-pos))
+             (src-current-line
+              (if (eq (current-buffer) src-buffer)
+                  current-line
+                (get-text-property (point) 'rmsbolt-src-line)))
+             (hash-table (buffer-local-value 'rmsbolt-line-mapping src-buffer))
+             (asm-lines (gethash src-current-line hash-table))
+             ;; TODO also consider asm
+             (src-pts
+              (with-current-buffer src-buffer
+                (save-excursion
+                  (rmsbolt--goto-line src-current-line)
+                  (cl-values (c-point 'bol) (c-point 'bonl))))))
         (let ((line-visible (not rmsbolt-goto-match))
               (src-buffer-selected (eq (current-buffer) src-buffer)))
           ;; Clear out overlays in case they are used
