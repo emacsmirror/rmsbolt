@@ -127,12 +127,6 @@ Also FILTER \"useless\" lines out, optionally."
           (push line result-hold))))
     (nreverse result)))
 
-(defun rmsbolt--process-java-bytecode (src-buffer asm-lines)
-  "Wrapper for easy integration into rmsbolt."
-  (rmsbolt-java-process-bytecode
-   asm-lines
-   (buffer-local-value 'rmsbolt-filter-directives src-buffer)))
-
 (provide 'rmsbolt-java)
 
 ;;; rmsbolt-java.el ends here

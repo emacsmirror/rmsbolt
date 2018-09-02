@@ -747,6 +747,12 @@ Outputs assembly file if ASM."
         (push line result)))
     (nreverse result)))
 
+(defun rmsbolt--process-java-bytecode (src-buffer asm-lines)
+  "Wrapper for easy integration into rmsbolt."
+  (rmsbolt-java-process-bytecode
+   asm-lines
+   (buffer-local-value 'rmsbolt-filter-directives src-buffer)))
+
 (cl-defun rmsbolt--process-asm-lines (src-buffer asm-lines)
   "Process and filter a set of asm lines."
   (let* ((lang (with-current-buffer src-buffer
