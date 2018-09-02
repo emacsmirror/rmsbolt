@@ -1,4 +1,4 @@
- * RMSbolt
+* RMSbolt
 
 A basic implementation of the [[https://github.com/mattgodbolt/compiler-explorer][godbolt compiler-explorer]] for Emacs.
 
