@@ -953,7 +953,8 @@ Outputs assembly file if ASM."
          (exists (file-exists-p file-name))
          (src-file-name
           (when rmsbolt-dir
-            (expand-file-name (rmsbolt-l-starter-file-name lang-def) (concat rmsbolt-dir "starters/"))))
+            (expand-file-name (rmsbolt-l-starter-file-name lang-def)
+                              (expand-file-name "starters/" rmsbolt-dir ))))
          (src-file-exists (when src-file-name
                             (file-exists-p src-file-name))))
     (if (not src-file-exists)
