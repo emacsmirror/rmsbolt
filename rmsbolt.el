@@ -771,13 +771,12 @@ Argument ASM-LINES input lines."
       (rmsbolt--process-src-asm-lines src-buffer asm-lines)))))
 
 ;;;;; Handlers
-(defun rmsbolt--handle-finish-compile (buffer _str)
+(defun rmsbolt--handle-finish-compile (buffer str)
   "Finish hook for compilations.
-Argument BUFFER compilation buffer."
+Argument BUFFER compilation buffer.
+Argument STR compilation finish status."
   (let ((compilation-fail
-         (with-current-buffer buffer
-           (eq 'compilation-mode-line-fail
-               (get-text-property 0 'face (car mode-line-process)))))
+         (not (string-match "^finished" str)))
         (default-directory (buffer-local-value 'default-directory buffer))
         (src-buffer (buffer-local-value 'rmsbolt-src-buffer buffer)))
 
@@ -823,12 +822,18 @@ Argument BUFFER compilation buffer."
 
                  (with-current-buffer src-buffer
                    (setq-local rmsbolt-line-mapping ht))
-                 ;; Replace buffer contents non-destructively
-                 (with-temp-buffer
-                   (insert (mapconcat 'identity lines "\n"))
-                   (let ((tmp-buffer (current-buffer)))
-                     (with-current-buffer output-buffer
-                       (replace-buffer-contents tmp-buffer))))
+                 ;; Replace buffer contents non-destructively if possible
+                 (if (functionp #'replace-buffer-contents)
+                     (with-temp-buffer
+                       (insert (mapconcat 'identity lines "\n"))
+                       (let ((tmp-buffer (current-buffer)))
+                         (with-current-buffer output-buffer
+                           (replace-buffer-contents tmp-buffer))))
+                   (with-current-buffer output-buffer
+                     (let ((old-point (point)))
+                       (erase-buffer)
+                       (insert (mapconcat 'identity lines "\n"))
+                       (goto-char old-point))))
                  (asm-mode)
                  (rmsbolt-mode 1)
                  (setq-local rmsbolt-src-buffer src-buffer)
