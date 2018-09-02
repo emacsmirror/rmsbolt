@@ -106,25 +106,12 @@
   :group 'rmsbolt)
 
 ;;;; Variables:
-(defvar rmsbolt-temp-dir nil
-  "Temporary directory to use for compilation and other reasons.")
-(defvar rmsbolt-shell "bash"
-  "Shell rmsbolt will use to split paths.")
 (defvar rmsbolt-output-buffer "*rmsbolt-output*")
 ;; whether rmsbolt-mode is enabled.
 (defvar rmsbolt-mode)
 
 (defvar rmsbolt-hide-compile t)
 (defvar rmsbolt-binary-asm-limit 10000)
-(defun rmsbolt-output-filename (src-buffer &optional asm)
-  "Function for generating an output filename for SRC-BUFFER.
-
-Outputs assembly file if ASM."
-  (if (and (not asm)
-           (buffer-local-value 'rmsbolt-disassemble src-buffer))
-      (expand-file-name "rmsbolt.out" rmsbolt-temp-dir)
-    (expand-file-name "rmsbolt.s" rmsbolt-temp-dir)))
-
 (defvar-local rmsbolt-line-mapping nil
   "Line mapping hashtable from source lines -> asm lines")
 (defvar-local rmsbolt-current-line nil
@@ -143,12 +130,26 @@ Outputs assembly file if ASM."
   "Idle timer for rmsbolt overlays.")
 (defvar rmsbolt--compile-idle-timer nil
   "Idle timer for rmsbolt overlays.")
+(defvar rmsbolt--temp-dir nil
+  "Temporary directory to use for compilation and other reasons.
+
+Please DO NOT modify this blindly, as this directory will get deleted on Emacs exit.")
 
 (defvar rmsbolt-dir (when load-file-name
                       (file-name-directory load-file-name))
   "The directory which rmsbolt is installed to.")
 
 (defvar-local rmsbolt-src-buffer nil)
+
+;;;; Variable-like funcs
+(defun rmsbolt-output-filename (src-buffer &optional asm)
+  "Function for generating an output filename for SRC-BUFFER.
+
+Outputs assembly file if ASM."
+  (if (and (not asm)
+           (buffer-local-value 'rmsbolt-disassemble src-buffer))
+      (expand-file-name "rmsbolt.out" rmsbolt--temp-dir)
+    (expand-file-name "rmsbolt.s" rmsbolt--temp-dir)))
 
 ;;;; Regexes
 
@@ -863,9 +864,9 @@ Outputs assembly file if ASM."
                'identity
                (list "&&" demangler
                      "<" (rmsbolt-output-filename src-buffer t)
-                     ">" (expand-file-name "tmp.s" rmsbolt-temp-dir)
+                     ">" (expand-file-name "tmp.s" rmsbolt--temp-dir)
                      "&&" "mv"
-                     (expand-file-name "tmp.s" rmsbolt-temp-dir)
+                     (expand-file-name "tmp.s" rmsbolt--temp-dir)
                      (rmsbolt-output-filename src-buffer t))
                " "))
     existing-cmd))
@@ -887,7 +888,7 @@ Outputs assembly file if ASM."
            (cmd (funcall func :src-buffer src-buffer))
            ;; Convert to demangle if we need to
            (cmd (rmsbolt--demangle-command cmd lang src-buffer))
-           (default-directory rmsbolt-temp-dir))
+           (default-directory rmsbolt--temp-dir))
 
       (when (buffer-local-value 'rmsbolt-disassemble src-buffer)
         (pcase
@@ -932,29 +933,29 @@ Outputs assembly file if ASM."
 
 (defun rmsbolt--gen-temp ()
   "Generate rmsbolt temp dir if needed."
-  (unless (and rmsbolt-temp-dir
-               (file-exists-p rmsbolt-temp-dir))
-    (setq rmsbolt-temp-dir
+  (unless (and rmsbolt--temp-dir
+               (file-exists-p rmsbolt--temp-dir))
+    (setq rmsbolt--temp-dir
           (make-temp-file "rmsbolt-" t))
     (add-hook 'kill-emacs-hook
               (lambda ()
-                (when (and (boundp 'rmsbolt-temp-dir)
-                           rmsbolt-temp-dir
-                           (file-directory-p rmsbolt-temp-dir))
-                  (delete-directory rmsbolt-temp-dir t))
-                (setq rmsbolt-temp-dir nil)))))
+                (when (and (boundp 'rmsbolt--temp-dir)
+                           rmsbolt--temp-dir
+                           (file-directory-p rmsbolt--temp-dir))
+                  (delete-directory rmsbolt--temp-dir t))
+                (setq rmsbolt--temp-dir nil)))))
 
 (defun rmsbolt-starter (lang-mode)
   "Code for fully setting up a language from LANG-MODE."
   (rmsbolt--gen-temp)
   (let* ((lang-def (rmsbolt--get-lang lang-mode))
          (file-name
-          (expand-file-name (rmsbolt-l-starter-file-name lang-def) rmsbolt-temp-dir))
+          (expand-file-name (rmsbolt-l-starter-file-name lang-def) rmsbolt--temp-dir))
          (exists (file-exists-p file-name))
          (src-file-name
           (when rmsbolt-dir
             (expand-file-name (rmsbolt-l-starter-file-name lang-def)
-                              (expand-file-name "starters/" rmsbolt-dir ))))
+                              (expand-file-name "starters/" rmsbolt-dir))))
          (src-file-exists (when src-file-name
                             (file-exists-p src-file-name))))
     (if (not src-file-exists)
