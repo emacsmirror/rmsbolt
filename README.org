@@ -40,8 +40,9 @@ rmsbolt will almost certainly not work naively on windows as it depends on a
 unix shell for building the compilation commands. It may work through cygwin
 though.
 
-rmsbolt is not on melpa yet. If you find it useful, please let me know and I may
-add it..
+** Melpa
+
+[[http://melpa.org/#/rmsbolt][A melpa package is available for rmsbolt]].
 
 ** Quelpa
 
