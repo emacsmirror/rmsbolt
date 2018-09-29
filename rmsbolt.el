@@ -42,7 +42,7 @@
 ;;
 ;; Notable options:
 ;; `rmsbolt-command': determines the prefix of the compilation command to use
-;; `rmsbolt-dissasemble': dissasemble from a compiled binary with objdump, if supported.
+;; `rmsbolt-disassemble': disassemble from a compiled binary with objdump, if supported.
 ;; `rmsbolt-filter-*': Tweak filtering of binary output
 ;; `rmsbolt-intel-x86': Toggle between intel and att syntax if supported
 ;; `rmsbolt-demangle': Demangle the output, if supported.
@@ -341,7 +341,7 @@ Outputs assembly file if ASM."
 (cl-defun rmsbolt--lisp-compile-cmd (&key src-buffer)
   "Process a compile command for common lisp.
 
-   Assumes function name to dissasemble is 'main'."
+   Assumes function name to disassemble is 'main'."
   (let* ((cmd (buffer-local-value 'rmsbolt-command src-buffer))
          (interpreter (cl-first (split-string cmd nil t)))
          (disass-eval "\"(disassemble 'main)\"")
@@ -894,7 +894,7 @@ Argument STR compilation finish status."
     (when (not cmd)
       (setq-local rmsbolt-command (rmsbolt-l-compile-cmd lang)))
     (when (and force-disass force-asm)
-      (error "No dissasembly method found for this langauge, please double check spec"))
+      (error "No disassemble method found for this langauge, please double check spec"))
     (when force-disass
       (setq-local rmsbolt-disassemble t))
     (when force-asm
