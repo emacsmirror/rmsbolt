@@ -1112,17 +1112,23 @@ Argument STR compilation finish status."
 This mode is enabled both in modes to be compiled and output buffers."
   :global nil
   :lighter rmsbolt-mode-lighter rmsbolt-mode-map
-  ;; This idle timer always runs, even when we aren't in rmsbolt-mode
-  (unless rmsbolt--idle-timer
-    (setq rmsbolt--idle-timer (run-with-idle-timer
-                               rmsbolt-overlay-delay t
-                               #'rmsbolt-move-overlays)))
-  (unless (or rmsbolt--compile-idle-timer
-              (not rmsbolt-automatic-recompile))
-    (setq rmsbolt--compile-idle-timer (run-with-idle-timer
-                                       rmsbolt-compile-delay t
-                                       #'rmsbolt-hot-recompile)))
-  (rmsbolt--gen-temp))
+  ;; Init
+  (unless rmsbolt-mode
+    ;; This idle timer always runs, even when we aren't in rmsbolt-mode
+    ;; It won't do anything unless we are in rmsbolt-mode
+    (when rmsbolt--idle-timer
+      (setq rmsbolt--idle-timer (run-with-idle-timer
+                                 rmsbolt-overlay-delay t
+                                 #'rmsbolt-move-overlays)))
+    (unless (or rmsbolt--compile-idle-timer
+                (not rmsbolt-automatic-recompile))
+      (setq rmsbolt--compile-idle-timer (run-with-idle-timer
+                                         rmsbolt-compile-delay t
+                                         #'rmsbolt-hot-recompile)))
+    (rmsbolt--gen-temp))
+  ;; Cleanup
+  (unless rmsbolt-mode
+    (mapc #'delete-overlay rmsbolt-overlays)))
 
 (provide 'rmsbolt)
 
