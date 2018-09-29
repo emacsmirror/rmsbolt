@@ -1055,7 +1055,8 @@ Argument STR compilation finish status."
              (src-buffer
               (buffer-local-value 'rmsbolt-src-buffer (current-buffer)))
              ;; Don't run on unsaved buffers
-             (should-run (not (buffer-modified-p src-buffer)))
+             (should-run (and (not (buffer-modified-p src-buffer))
+                              (buffer-local-value 'rmsbolt-mode src-buffer)))
              (output-buffer (get-buffer-create rmsbolt-output-buffer))
              (current-line (line-number-at-pos))
              (src-current-line
