@@ -54,10 +54,10 @@ though.
 #+END_SRC
 
 * Running
- Once installed, use the ~rmsbolt-starter~ command (it will show up after
- ~(require 'rmsbolt)~) to generate starter files, or enable ~rmsbolt-mode~ in a
- supported language.  Then run ~rmsbolt-compile~ or use the default ~C-c C-c~
- binding. After the first run, the buffer should automatically update.
+ Once installed, use the ~rmsbolt-starter~ command to generate starter files, or
+ enable ~rmsbolt-mode~ in a supported language. Then run ~rmsbolt-compile~ or
+ use the default ~C-c C-c~ binding. After the first run, the buffer should
+ automatically update.
 
 * Demos
 ** C/C++

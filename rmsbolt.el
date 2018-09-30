@@ -998,6 +998,7 @@ Argument STR compilation finish status."
     ;; FIXME: Why capital letter?
     ("java" . "Rmsbolt.java")))
 
+;;;###autoload
 (defun rmsbolt-starter (lang-name)
   "Setup new file based on the sample STARTER-FILE-NAME."
   (interactive
