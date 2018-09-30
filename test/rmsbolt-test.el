@@ -1,11 +1,11 @@
-;;; rmsbolt-test.el --- Tests for rmsbolt
+;;; rmsbolt-test.el --- Tests for rmsbolt  -*- lexical-binding: t; -*-
 
 ;;; Commentary:
 ;; Tests for rmsbolt
 
 ;;; Code:
 
-(require 'el-mock)
+(require 'el-mock nil t)
 (require 'rmsbolt)
 
 (ert-deftest sanity-check-ert ()

@@ -21,9 +21,13 @@
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 ;;; Commentary:
-;; rmsbolt is a package to provide assembly or bytecode output for a source code input file.
+
+;; RMSBolt is a package to provide assembly or bytecode output for a source
+;; code input file.
 ;;
-;; It currently supports: C/C++, OCaml, Haskell, Python, Java, and (limited) Common Lisp.
+;; It currently supports: C/C++, OCaml, Haskell, Python, Java, and (limited)
+;; Common Lisp.
+;;
 ;; Adding support for more languages, if they have an easy manual compilation
 ;; path from source->assembly/bytecode with debug information, should be much
 ;; easier than in other alternatives.
@@ -47,7 +51,8 @@
 ;; `rmsbolt-intel-x86': Toggle between intel and att syntax if supported
 ;; `rmsbolt-demangle': Demangle the output, if supported.
 ;;
-;; Please see the readme at https://gitlab.com/jgkamat/rmsbolt for more information!
+;; Please see the readme at https://gitlab.com/jgkamat/rmsbolt for
+;; more information!
 ;;
 ;; Thanks:
 ;; Inspiration and some assembly parsing logic was adapted from Matt Godbolt's
@@ -57,7 +62,7 @@
 ;;; Requires:
 
 (require 'cl-lib)
-(require 'subr-x)
+(eval-when-compile (require 'subr-x))
 (require 'map)
 (require 'cc-defs)
 
@@ -184,22 +189,22 @@ Outputs assembly file if ASM."
 
 ;;;; Regexes
 
-(defvar rmsbolt-label-def  (rx bol (group (any ".a-zA-Z_$@")
-                                          (0+ (any "a-zA-Z0-9$_@.")))
+(defvar rmsbolt-label-def  (rx bol (group (any ".[:alpha:]_$@")
+                                          (0+ (any "[:alnum:]$_@.")))
                                ":"))
 (defvar rmsbolt-defines-global (rx bol (0+ space) ".glob"
                                    (opt "a") "l" (0+ space)
-                                   (group (any ".a-zA-Z_")
-                                          (0+ (any "a-zA-Z0-9$_.")))))
-(defvar rmsbolt-label-find (rx (any ".a-zA-Z_")
+                                   (group (any ".[:alpha:]_")
+                                          (0+ (any "[:alnum:]$_.")))))
+(defvar rmsbolt-label-find (rx (any ".[:alpha:]_")
                                (0+
-                                (any "a-zA-Z0-9$_."))))
+                                (any "[:alnum:]$_."))))
 (defvar rmsbolt-assignment-def (rx bol (0+ space)
-                                   (group (any ".a-zA-Z_$")
-                                          (1+ (any "a-zA-Z0-9$_.")))
+                                   (group (any ".[:alpha:]_$")
+                                          (1+ (any "[:alnum:]$_.")))
                                    (0+ space) "="))
 (defvar rmsbolt-has-opcode (rx bol (0+ space)
-                               (any "a-zA-Z")))
+                               (any "[:alpha:]")))
 
 (defvar rmsbolt-defines-function (rx bol (0+ space) ".type"
                                      (0+ any) "," (0+ space) (any "@%")
@@ -250,10 +255,6 @@ Outputs assembly file if ASM."
 
 (cl-defstruct (rmsbolt-lang
                (:conc-name rmsbolt-l-))
-  (mode
-   'fundamental-mode
-   :type 'symbol
-   :documentation "The mode(s) to activate this language in.")
   (supports-disass
    nil
    :type 'bool
@@ -270,10 +271,6 @@ Outputs assembly file if ASM."
    nil
    :type 'string
    :documentation "The command of the demangler to use for this source code.")
-  (starter-file-name
-   nil
-   :type 'string
-   :documentation "The starter filename to use")
   (disass-hidden-funcs
    nil
    :type 'string
@@ -297,7 +294,7 @@ Outputs assembly file if ASM."
 (cl-defun rmsbolt--c-compile-cmd (&key src-buffer)
   "Process a compile command for gcc/clang."
   (let* ((cmd (buffer-local-value 'rmsbolt-command src-buffer))
-         (cmd (mapconcat 'identity
+         (cmd (mapconcat #'identity
                          (list cmd
                                "-g"
                                (if (buffer-local-value 'rmsbolt-disassemble src-buffer)
@@ -317,7 +314,7 @@ Outputs assembly file if ASM."
          (output-filename (rmsbolt-output-filename src-buffer))
          (predicted-asm-filename (concat (file-name-sans-extension (buffer-file-name)) ".s"))
          (cmd (buffer-local-value 'rmsbolt-command src-buffer))
-         (cmd (mapconcat 'identity
+         (cmd (mapconcat #'identity
                          (list cmd
                                "-g"
                                (if (buffer-local-value 'rmsbolt-disassemble src-buffer)
@@ -348,7 +345,7 @@ Outputs assembly file if ASM."
          (disass-eval-unquoted "(disassemble 'main)"))
     (pcase interpreter
       ("sbcl"
-       (mapconcat 'identity
+       (mapconcat #'identity
                   (list cmd "--noinform" "--load"
                         (buffer-file-name)
                         "--eval" disass-eval "--non-interactive"
@@ -357,7 +354,7 @@ Outputs assembly file if ASM."
                         (rmsbolt-output-filename src-buffer))
                   " "))
       ("clisp"
-       (mapconcat 'identity
+       (mapconcat #'identity
                   (list cmd "-q" "-x"
                         (concat
                          "\"(load \\\"" (buffer-file-name) "\\\") " disass-eval-unquoted "\"")
@@ -368,7 +365,7 @@ Outputs assembly file if ASM."
 (cl-defun rmsbolt--rust-compile-cmd (&key src-buffer)
   "Process a compile command for rustc."
   (let* ((cmd (buffer-local-value 'rmsbolt-command src-buffer))
-         (cmd (mapconcat 'identity
+         (cmd (mapconcat #'identity
                          (list cmd
                                "-g"
                                "--emit"
@@ -384,7 +381,7 @@ Outputs assembly file if ASM."
 (cl-defun rmsbolt--py-compile-cmd (&key src-buffer)
   "Process a compile command for python3."
   (let* ((cmd (buffer-local-value 'rmsbolt-command src-buffer)))
-    (mapconcat 'identity
+    (mapconcat #'identity
                (list cmd "-m" "dis" (buffer-file-name)
                      ">" (rmsbolt-output-filename src-buffer))
                " ")))
@@ -392,7 +389,7 @@ Outputs assembly file if ASM."
 (cl-defun rmsbolt--hs-compile-cmd (&key src-buffer)
   "Process a compile command for ghc."
   (let* ((cmd (buffer-local-value 'rmsbolt-command src-buffer))
-         (cmd (mapconcat 'identity
+         (cmd (mapconcat #'identity
                          (list cmd
                                "-g"
                                (if (buffer-local-value 'rmsbolt-disassemble src-buffer)
@@ -409,7 +406,7 @@ Outputs assembly file if ASM."
   (let* ((output-filename (rmsbolt-output-filename src-buffer))
          (class-filename (concat (file-name-sans-extension (buffer-file-name)) ".class"))
          (cmd (buffer-local-value 'rmsbolt-command src-buffer))
-         (cmd (mapconcat 'identity
+         (cmd (mapconcat #'identity
                          (list cmd
                                "-g"
                                (buffer-file-name)
@@ -451,81 +448,73 @@ Outputs assembly file if ASM."
 (setq
  rmsbolt-languages
  `((c-mode
-    . ,(make-rmsbolt-lang :mode 'c
-                          :compile-cmd "gcc"
+    . ,(make-rmsbolt-lang :compile-cmd "gcc"
                           :supports-asm t
                           :supports-disass t
                           :demangler "c++filt"
-                          :starter-file-name "rmsbolt.c"
                           :compile-cmd-function #'rmsbolt--c-compile-cmd
                           :disass-hidden-funcs rmsbolt--hidden-func-c))
    (c++-mode
-    . ,(make-rmsbolt-lang :mode 'c++-mode
-                          :compile-cmd "g++"
+    . ,(make-rmsbolt-lang :compile-cmd "g++"
                           :supports-asm t
                           :supports-disass t
                           :demangler "c++filt"
-                          :starter-file-name "rmsbolt.cpp"
                           :compile-cmd-function #'rmsbolt--c-compile-cmd
                           :disass-hidden-funcs rmsbolt--hidden-func-c))
    ;; In order to parse ocaml files, you need the emacs ocaml mode, tuareg
    (tuareg-mode
-    . ,(make-rmsbolt-lang :mode 'tuareg-mode
-                          :compile-cmd "ocamlopt"
+    . ,(make-rmsbolt-lang :compile-cmd "ocamlopt"
                           :supports-asm t
                           :supports-disass t
-                          :starter-file-name "rmsbolt.ml"
                           :compile-cmd-function #'rmsbolt--ocaml-compile-cmd
                           :disass-hidden-funcs rmsbolt--hidden-func-ocaml))
    (lisp-mode
-    . ,(make-rmsbolt-lang :mode 'lisp-mode ;; Assume common lisp..
-                          :compile-cmd "sbcl"
+    . ,(make-rmsbolt-lang :compile-cmd "sbcl"
                           :supports-asm t
                           :supports-disass nil
                           :objdumper 'cat
-                          :starter-file-name "rmsbolt.lisp"
                           :compile-cmd-function #'rmsbolt--lisp-compile-cmd
                           :disass-hidden-funcs nil))
    (rust-mode
-    . ,(make-rmsbolt-lang :mode 'rust-mode
-                          :compile-cmd "rustc"
+    . ,(make-rmsbolt-lang :compile-cmd "rustc"
                           :supports-asm t
                           :supports-disass nil
                           :objdumper 'objdump
                           :demangler "rustfilt"
-                          :starter-file-name "rmsbolt.rs"
                           :compile-cmd-function #'rmsbolt--rust-compile-cmd
                           :disass-hidden-funcs nil))
    ;; ONLY SUPPORTS PYTHON 3
    (python-mode
-    . ,(make-rmsbolt-lang :mode 'python-mode
-                          :compile-cmd "python3"
+    . ,(make-rmsbolt-lang :compile-cmd "python3"
                           :supports-asm t
                           :supports-disass nil
-                          :starter-file-name "rmsbolt.py"
                           :compile-cmd-function #'rmsbolt--py-compile-cmd
                           :disass-hidden-funcs nil
                           :process-asm-custom-fn #'rmsbolt--process-python-bytecode))
    (haskell-mode
-    . ,(make-rmsbolt-lang :mode 'haskell-mode
-                          :compile-cmd "ghc"
+    . ,(make-rmsbolt-lang :compile-cmd "ghc"
                           :supports-asm t
                           :supports-disass nil
                           :demangler "haskell-demangler"
-                          :starter-file-name "rmsbolt.hs"
                           :compile-cmd-function #'rmsbolt--hs-compile-cmd
                           :disass-hidden-funcs nil))
    (java-mode
-    . ,(make-rmsbolt-lang :mode 'java-mode
-                          :compile-cmd "javac"
+    . ,(make-rmsbolt-lang :compile-cmd "javac"
                           :supports-asm t
                           :supports-disass nil
                           :objdumper 'cat
-                          :starter-file-name "Rmsbolt.java"
                           :compile-cmd-function #'rmsbolt--java-compile-cmd
                           :process-asm-custom-fn #'rmsbolt--process-java-bytecode
                           :disass-hidden-funcs nil))
    ))
+(make-obsolete-variable 'rmsbolt-languages
+                        'rmsbolt-language-descriptor "RMSBolt-0.2")
+
+(defvar-local rmsbolt-language-descriptor nil
+  ;; FIXME: Major modes can't set this without calling `make-rmsbolt-lang',
+  ;; so it forces them to require `rmsbolt', which is a bummer.
+  "Description of the language tools of current buffer for use by RMSBolt.
+This should be an object of type `rmsbolt-lang', normally set by the major mode")
 
 ;;;; Macros
 
@@ -626,8 +615,8 @@ Outputs assembly file if ASM."
 (defun rmsbolt--user-func-p (src-buffer func)
   "Return t if FUNC is a user function.
 Argument SRC-BUFFER source buffer."
-  (let* ((lang (rmsbolt--get-lang
-                (buffer-local-value 'major-mode src-buffer)))
+  (let* ((lang (with-current-buffer src-buffer
+                 (rmsbolt--get-lang)))
          (regexp (rmsbolt-l-disass-hidden-funcs lang)))
     (if regexp
         (not (string-match-p regexp func))
@@ -767,7 +756,7 @@ Argument SRC-BUFFER source buffer."
           (setq source-linum
                 (string-to-number (match-string 1 line))))
         ;; Reformat line to be more like assembly
-        (setq line (mapconcat 'identity
+        (setq line (mapconcat #'identity
                               (list (match-string 5 line)
                                     (match-string 6 line)
                                     (match-string 7 line))
@@ -856,14 +845,14 @@ Argument STR compilation finish status."
                  ;; Replace buffer contents non-destructively if possible
                  (if (functionp #'replace-buffer-contents)
                      (with-temp-buffer
-                       (insert (mapconcat 'identity lines "\n"))
+                       (insert (mapconcat #'identity lines "\n"))
                        (let ((tmp-buffer (current-buffer)))
                          (with-current-buffer output-buffer
                            (replace-buffer-contents tmp-buffer))))
                    (with-current-buffer output-buffer
                      (let ((old-point (point)))
                        (erase-buffer)
-                       (insert (mapconcat 'identity lines "\n"))
+                       (insert (mapconcat #'identity lines "\n"))
                        (goto-char old-point))))
                  (asm-mode)
                  (rmsbolt-mode 1)
@@ -880,9 +869,10 @@ Argument STR compilation finish status."
       (setq rmsbolt--automated-compile nil))))
 
 ;;;;; Parsing Options
-(defun rmsbolt--get-lang (&optional language)
+(defun rmsbolt--get-lang ()
   "Helper function to get lang def for LANGUAGE."
-  (cdr-safe (assoc (or language major-mode) rmsbolt-languages)))
+  (or rmsbolt-language-descriptor
+      (cdr-safe (assoc major-mode rmsbolt-languages))))
 (defun rmsbolt--parse-options ()
   "Parse RMS options from file."
   (hack-local-variables)
@@ -908,7 +898,7 @@ Argument STR compilation finish status."
            (demangler-exists (executable-find demangler)))
       (concat existing-cmd " "
               (mapconcat
-               'identity
+               #'identity
                (list "&&" demangler
                      "<" (rmsbolt-output-filename src-buffer t)
                      ">" (expand-file-name "tmp.s" rmsbolt--temp-dir)
@@ -942,7 +932,7 @@ Argument STR compilation finish status."
             (rmsbolt-l-objdumper lang)
           ('objdump
            (setq cmd
-                 (mapconcat 'identity
+                 (mapconcat #'identity
                             (list cmd
                                   "&&"
                                   "objdump" "-d" (rmsbolt-output-filename src-buffer)
@@ -954,7 +944,7 @@ Argument STR compilation finish status."
                             " ")))
           ('cat
            (setq cmd
-                 (mapconcat 'identity
+                 (mapconcat #'identity
                             (list cmd
                                   "&&" "mv"
                                   (rmsbolt-output-filename src-buffer)
@@ -970,11 +960,11 @@ Argument STR compilation finish status."
          (setq-local rmsbolt-src-buffer src-buffer))))))
 
 ;;;; Keymap
-(defvar rmsbolt-mode-map nil "Keymap for function `rmsbolt-mode'.")
-(when (not rmsbolt-mode-map) ; if it is not already defined
-  ;; assign command to keys
-  (setq rmsbolt-mode-map (make-sparse-keymap))
-  (define-key rmsbolt-mode-map (kbd "C-c C-c") #'rmsbolt-compile))
+(defvar rmsbolt-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "C-c C-c") #'rmsbolt-compile)
+    map)
+  "Keymap for function `rmsbolt-mode'.")
 
 ;;;; Init commands
 
@@ -992,16 +982,34 @@ Argument STR compilation finish status."
                   (delete-directory rmsbolt--temp-dir t))
                 (setq rmsbolt--temp-dir nil)))))
 
-(defun rmsbolt-starter (lang-mode)
-  "Code for fully setting up a language from LANG-MODE."
+;;;;; Starter Definitions
+
+;; IIUC, this "starter" business is not a necessary part of RMSBolt, but is
+;; a way to provide sample files with which users can try out RMSBolt.
+
+(defvar rmsbolt-starter-files
+  '(("c" . "rmsbolt.c")
+    ("c++" . "rmsbolt.cpp")
+    ("ocaml" . "rmsbolt.ml")
+    ("cl" . "rmsbolt.lisp")
+    ("rust " . "rmsbolt.rs")
+    ("python" . "rmsbolt.py")
+    ("haskell" . "rmsbolt.hs")
+    ;; FIXME: Why capital letter?
+    ("java" . "Rmsbolt.java")))
+
+(defun rmsbolt-starter (lang-name)
+  "Setup new file based on the sample STARTER-FILE-NAME."
+  (interactive
+   (list (completing-read "Language: " rmsbolt-starter-files nil t)))
   (rmsbolt--gen-temp)
-  (let* ((lang-def (rmsbolt--get-lang lang-mode))
+  (let* ((starter-file-name (cdr (assoc lang-name rmsbolt-starter-files)))
          (file-name
-          (expand-file-name (rmsbolt-l-starter-file-name lang-def) rmsbolt--temp-dir))
+          (expand-file-name starter-file-name rmsbolt--temp-dir))
          (exists (file-exists-p file-name))
          (src-file-name
           (when rmsbolt-dir
-            (expand-file-name (rmsbolt-l-starter-file-name lang-def)
+            (expand-file-name starter-file-name
                               (expand-file-name "starters/" rmsbolt-dir))))
          (src-file-exists (when src-file-name
                             (file-exists-p src-file-name))))
@@ -1015,21 +1023,6 @@ Argument STR compilation finish status."
       (unless rmsbolt-mode
         (rmsbolt-mode 1)))))
 
-;;;;; Starter Definitions
-(defmacro rmsbolt-defstarter (lang mode)
-  "Defines a starter for LANG and MODE."
-  `(defun ,(intern (concat "rmsbolt-" lang)) ()
-     ,(concat "Open a rmsbolt starter file for " lang ".")
-     (interactive)
-     (rmsbolt-starter ,mode)))
-(rmsbolt-defstarter "c" 'c-mode)
-(rmsbolt-defstarter "c++" 'c++-mode)
-(rmsbolt-defstarter "ocaml" 'tuareg-mode)
-(rmsbolt-defstarter "cl" 'lisp-mode)
-(rmsbolt-defstarter "rust " 'rust-mode)
-(rmsbolt-defstarter "python" 'python-mode)
-(rmsbolt-defstarter "java" 'java-mode)
-
 ;;;; Overlay Commands
 (defun rmsbolt--goto-line (line)
   "Goto a certain LINE."
@@ -1042,7 +1035,7 @@ Argument STR compilation finish status."
     (overlay-put o 'face 'rmsbolt-current-line-face)
     o))
 (cl-defun rmsbolt--point-visible (point)
-  "Check if the current point is visible in a winodw in the current buffer."
+  "Check if the current point is visible in a window in the current buffer."
   (dolist (w (get-buffer-window-list))
     (when (pos-visible-in-window-p point w)
       (cl-return-from rmsbolt--point-visible t)))
@@ -1145,10 +1138,11 @@ This mode is enabled both in modes to be compiled and output buffers."
   :global nil
   :lighter rmsbolt-mode-lighter rmsbolt-mode-map
   ;; Init
-  (unless rmsbolt-mode
+  (cond
+   (rmsbolt-mode
     ;; This idle timer always runs, even when we aren't in rmsbolt-mode
     ;; It won't do anything unless we are in rmsbolt-mode
-    (when rmsbolt--idle-timer
+    (unless rmsbolt--idle-timer
       (setq rmsbolt--idle-timer (run-with-idle-timer
                                  rmsbolt-overlay-delay t
                                  #'rmsbolt-move-overlays)))
@@ -1158,9 +1152,8 @@ This mode is enabled both in modes to be compiled and output buffers."
                                          rmsbolt-compile-delay t
                                          #'rmsbolt-hot-recompile)))
     (rmsbolt--gen-temp))
-  ;; Cleanup
-  (unless rmsbolt-mode
-    (mapc #'delete-overlay rmsbolt-overlays)))
+   (t ;; Cleanup
+    (mapc #'delete-overlay rmsbolt-overlays))))
 
 (provide 'rmsbolt)
 

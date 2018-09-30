@@ -1,4 +1,4 @@
-;;; rmsbolt-java.el --- A elisp library to parse javap output -*- lexical-binding: t; -*-
+;;; rmsbolt-java.el --- An Elisp library to parse javap output -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2018 Jay Kamat
 ;; Author: Jay Kamat <jaygkamat@gmail.com>
@@ -21,17 +21,18 @@
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 ;;; Commentary:
+
 ;; The java bytecode dissasembler format is rather obtuse. This library tries
 ;; to make a programatic layer for interacting with it. It's main aim is
 ;; correlating lines in source code to the generated output.
 ;;
-;; This library takes in the output of javap -c -l split into a list by lines,
+;; This library takes in the output of `javap -c -l` split into a list by lines,
 ;; which is the same format rmsbolt uses.
 
 ;;; Requires:
 
 (require 'cl-lib)
-(require 'subr-x)
+(eval-when-compile (require 'subr-x))
 
 ;;; Code:
 
@@ -122,7 +123,8 @@ Also FILTER \"useless\" lines out, optionally."
               (setq result-hold nil))
             (push line result))
         (when (and (not filter)
-                   ;; Never ouptut code, that's handled above. Code: is handled on transition
+                   ;; Never output code, that's handled above.
+                   ;; Code: is handled on transition
                    (not (eq state 'code-found)))
           (push line result-hold))))
     (nreverse result)))
