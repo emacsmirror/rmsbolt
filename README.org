@@ -62,24 +62,25 @@ though.
 * Demos
 ** C/C++
 
-[[https://s25.postimg.cc/c1zj5ghr3/sihr1g.gif]]
+[[https://i.imgur.com/Rox6y0U.gif][https://i.imgur.com/Rox6y0U.gif]]
+
 
 ** OCaml
 
-[[https://s25.postimg.cc/s088vljov/Pab_Aq2.gif]]
+[[https://i.imgur.com/369Ylxk.gif][https://i.imgur.com/369Ylxk.gif]]
 
 ** Rust
 
 demangling is done with rustfilt if available
 
-[[https://s25.postimg.cc/h7npjnnun/output-2018-08-01-19_30_52.gif][https://s25.postimg.cc/h7npjnnun/output-2018-08-01-19_30_52.gif]]
+[[https://i.imgur.com/nW1lVFM.gif][https://i.imgur.com/nW1lVFM.gif]]
 
 ** Haskell
 
 demangling is done with the compiler-explorer demangler, named
 to ~haskell-demangler~.
 
-[[https://s25.postimg.cc/4d5167yr3/output-2018-08-08-23_17_59.gif][https://s25.postimg.cc/4d5167yr3/output-2018-08-08-23_17_59.gif]]
+[[https://i.imgur.com/fAQQMJe.gif][https://i.imgur.com/fAQQMJe.gif]]
 
 ** Python
 
@@ -87,19 +88,20 @@ Support for viewing bytecode only. Python [[https://bugs.python.org/issue2506][d
 tweakables will not work. Python 3.7 is required for recursion into functions,
 otherwise only top level code will be shown. Python 2 is unsupported.
 
-[[https://s25.postimg.cc/594qd9o4v/output-2018-08-04-18_07_45.gif][https://s25.postimg.cc/594qd9o4v/output-2018-08-04-18_07_45.gif]]
+[[https://i.imgur.com/cMYfkGx.gif][https://i.imgur.com/cMYfkGx.gif]]
 
 ** Java
 
 Parses the output of ~javap~, so may be a little unreliable or buggy at the
 moment.
 
-[[https://s25.postimg.cc/57s2z9uxb/output-2018-09-01-00_29_30.gif][https://s25.postimg.cc/57s2z9uxb/output-2018-09-01-00_29_30.gif]]
+[[https://i.imgur.com/KkWEMMj.gif][https://i.imgur.com/KkWEMMj.gif]]
+
 ** Common Lisp
 
 No support for source->asm matching or filtering.
 
-[[https://s25.postimg.cc/uhk02ugfz/1_FB9k7.gif]]
+[[https://i.imgur.com/36aNVvf.gif][https://i.imgur.com/36aNVvf.gif]]
 
 * Adding a Language
 
