@@ -189,22 +189,22 @@ Outputs assembly file if ASM."
 
 ;;;; Regexes
 
-(defvar rmsbolt-label-def  (rx bol (group (any ".[:alpha:]_$@")
-                                          (0+ (any "[:alnum:]$_@.")))
+(defvar rmsbolt-label-def  (rx bol (group (any ".a-zA-Z_$@")
+                                          (0+ (any "a-zA-Z0-9$_@.")))
                                ":"))
 (defvar rmsbolt-defines-global (rx bol (0+ space) ".glob"
                                    (opt "a") "l" (0+ space)
-                                   (group (any ".[:alpha:]_")
-                                          (0+ (any "[:alnum:]$_.")))))
-(defvar rmsbolt-label-find (rx (any ".[:alpha:]_")
+                                   (group (any ".a-zA-Z_")
+                                          (0+ (any "a-zA-Z0-9$_.")))))
+(defvar rmsbolt-label-find (rx (any ".a-zA-Z_")
                                (0+
-                                (any "[:alnum:]$_."))))
+                                (any "a-zA-Z0-9$_."))))
 (defvar rmsbolt-assignment-def (rx bol (0+ space)
-                                   (group (any ".[:alpha:]_$")
-                                          (1+ (any "[:alnum:]$_.")))
+                                   (group (any ".a-zA-Z_$")
+                                          (1+ (any "a-zA-Z0-9$_.")))
                                    (0+ space) "="))
 (defvar rmsbolt-has-opcode (rx bol (0+ space)
-                               (any "[:alpha:]")))
+                               (any "a-zA-Z")))
 
 (defvar rmsbolt-defines-function (rx bol (0+ space) ".type"
                                      (0+ any) "," (0+ space) (any "@%")
@@ -214,6 +214,7 @@ Outputs assembly file if ASM."
                                          (and
                                           (optional (any "1248")) "byte")
                                          "short" "word" "long" "quad" "value" "zero"))))
+
 (defvar rmsbolt-directive (rx bol (0+ space) "." (0+ any) eol))
 (defvar rmsbolt-endblock (rx "." (or "cfi_endproc" "data" "text" "section")))
 (defvar rmsbolt-comment-only (rx bol (0+ space) (or (and (or (any "#@;") "//"))
