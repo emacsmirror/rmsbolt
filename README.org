@@ -1,6 +1,6 @@
 * RMSbolt
 
-An implementation of the [[https://github.com/mattgodbolt/compiler-explorer][godbolt compiler-explorer]] for Emacs.
+A supercharged implementation of the [[https://github.com/mattgodbolt/compiler-explorer][godbolt compiler-explorer]] for Emacs.
 
 RMSBolt tries to make it easy to see what your compiler is doing. It does this
 by showing you the assembly output of a given source code file. It also
@@ -9,6 +9,10 @@ versa. It supports more types of languages than any previous tool of it's kind.
 
 * Why RMSbolt over godbolt?
 
+- Much more flexible and powerful
+  - Supports dissasembling to bytecode as well as assembly
+  - Supports many languages that godbolt does not support, such as python,
+    common lisp, ocaml, and java.
 - No more sending your code to any server
 - Much faster turnaround time from writing code to seeing and interacting with disassembly
 - 100% usable without the mouse.
@@ -27,10 +31,6 @@ versa. It supports more types of languages than any previous tool of it's kind.
   - Customize colors and behavior through ~customize~.
   - Change tracking through magit/diff-hl/etc.
   - Nyans are fully supported with nyan-mode.
-- Much more flexible and powerful
-  - Supports dissasembling to bytecode as well as assembly
-  - Supports many languages that godbolt does not support, such as python,
-    common lisp, ocaml, and java.
 - Simpler
 - Infinitely hackable!
 
@@ -54,10 +54,10 @@ though.
 #+END_SRC
 
 * Running
- Once installed, use the ~rmsbolt-lang~ functions to generate starter files, or
- enable ~rmsbolt-mode~ in a supported language. Then run ~rmsbolt-compile~ or
- use the default ~C-c C-c~ binding. After the first run, the buffer should
- automatically update.
+ Once installed, use the ~rmsbolt-lang~ functions (they will show up after
+ ~(require 'rmsbolt)~) to generate starter files, or enable ~rmsbolt-mode~ in a
+ supported language. Then run ~rmsbolt-compile~ or use the default ~C-c C-c~
+ binding. After the first run, the buffer should automatically update.
 
 * Demos
 ** C/C++
