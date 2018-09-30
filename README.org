@@ -135,8 +135,9 @@ freenode. ~:)~
 
 If you find issues, please send me a mail or submit an issue.
 
-If you would like to submit a patch, please submit a merge request. If your
-change is non-trivial, please [[https://www.fsf.org/licensing/assigning.html][assign copyright to the FSF]] as well.
+If you would like to submit a patch, please submit a merge request, or send me a
+mail with your patch. If your change is non-trivial, please
+[[https://www.fsf.org/licensing/assigning.html][assign copyright to the FSF]] as well.
 
 * Alternatives
 - [[https://github.com/yawkat/javap][yawkat/javap]]
