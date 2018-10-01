@@ -9,20 +9,20 @@ versa. It supports more types of languages than any previous tool of its kind.
 
 * Why RMSbolt over godbolt?
 
-- Much more flexible and powerful
-  - Supports dissasembling to bytecode as well as assembly
+- Much more flexible and powerful:
+  - Supports dissasembling to bytecode as well as assembly.
   - Supports many languages that godbolt does not support, such as python,
     common lisp, ocaml, and java.
-- No more sending your code to any server
-- Much faster turnaround time from writing code to seeing and interacting with disassembly
+- No more sending your code to any server.
+- Much faster turnaround time from writing code to seeing and interacting with disassembly.
 - 100% usable without the mouse.
-- Runs entirely without node, npm, or js.
+- Runs entirely without node, npm, or js:
   - No required dependencies other than Emacs 25 and your compiler ~:)~
   - It's easy to add new languages (even those that use unique bytecode formats)
     without touching many files.
-  - Dosen't eat your ram on the 'server' or the 'client'
+  - Dosen't eat your ram on the 'server' or the 'client'.
   - No enforced limits on code size, compilation time, or processing time.
-- Benefits from living in Emacs
+- Benefits from living in Emacs:
   - Full undo tree from Emacs on disassembly/source so you don't loose work.
   - Vim bindings through evil/viper.
   - Use compile.el, flymake, or flycheck to traverse and fix errors as you
@@ -31,7 +31,7 @@ versa. It supports more types of languages than any previous tool of its kind.
   - Customize colors and behavior through ~customize~.
   - Change tracking through magit/diff-hl/etc.
   - Nyans are fully supported with nyan-mode.
-- Simpler
+- Simpler.
 - Infinitely hackable!
 
 * Installation
