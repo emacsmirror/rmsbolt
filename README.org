@@ -103,6 +103,10 @@ No support for source->asm matching or filtering.
 
 [[https://i.imgur.com/36aNVvf.gif][https://i.imgur.com/36aNVvf.gif]]
 
+** Pony
+
+Parses the output of ~ponyc -r=asm~ without good source->asm matching or filtering.
+
 * Adding a Language
 
 Adding support for a new language is fairly easy. The closer it is to existing

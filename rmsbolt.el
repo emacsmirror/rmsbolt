@@ -2,7 +2,7 @@
 
 ;; Copyright (C) 2018 Jay Kamat
 ;; Author: Jay Kamat <jaygkamat@gmail.com>
-;; Version: 0.1.0
+;; Version: 0.1.1
 ;; Keywords: compilation, tools
 ;; URL: http://gitlab.com/jgkamat/rmsbolt
 ;; Package-Requires: ((emacs "25.1"))
@@ -26,7 +26,7 @@
 ;; code input file.
 ;;
 ;; It currently supports: C/C++, OCaml, Haskell, Python, Java, and (limited)
-;; Common Lisp.
+;; Common Lisp and Pony.
 ;;
 ;; Adding support for more languages, if they have an easy manual compilation
 ;; path from source->assembly/bytecode with debug information, should be much
@@ -379,6 +379,23 @@ Outputs assembly file if ASM."
                                  "-Cllvm-args=--x86-asm-syntax=intel"))
                          " ")))
     cmd))
+(cl-defun rmsbolt--pony-compile-cmd (&key src-buffer)
+  "Process a compile command for ponyc."
+  (let* ((cmd (buffer-local-value 'rmsbolt-command src-buffer))
+         (dir (expand-file-name "pony/" rmsbolt--temp-dir))
+         (temp (copy-file (buffer-file-name) (expand-file-name dir (buffer-file-name))))
+         (dis (buffer-local-value 'rmsbolt-disassemble src-buffer))
+         (cmd (mapconcat #'identity
+                         (list cmd
+                               ; -r=ir for llvm IR
+                               (if dis
+                                   "-r=obj"
+                                 "-r=asm")
+                               dir)
+                         " "))
+         (temp (copy-file (expand-file-name (if dis "pony.o" "pony.s") rmsbolt--temp-dir)
+                          (rmsbolt-output-filename src-buffer))))
+    cmd))
 (cl-defun rmsbolt--py-compile-cmd (&key src-buffer)
   "Process a compile command for python3."
   (let* ((cmd (buffer-local-value 'rmsbolt-command src-buffer)))
@@ -483,6 +500,13 @@ Outputs assembly file if ASM."
                           :objdumper 'objdump
                           :demangler "rustfilt"
                           :compile-cmd-function #'rmsbolt--rust-compile-cmd
+                          :disass-hidden-funcs nil))
+   (pony-mode
+    . ,(make-rmsbolt-lang :compile-cmd "ponyc"
+                          :supports-asm t
+                          :supports-disass nil
+                          :objdumper 'objdump
+                          :compile-cmd-function #'rmsbolt--pony-compile-cmd
                           :disass-hidden-funcs nil))
    ;; ONLY SUPPORTS PYTHON 3
    (python-mode
@@ -996,6 +1020,7 @@ Argument STR compilation finish status."
     ("rust " . "rmsbolt.rs")
     ("python" . "rmsbolt.py")
     ("haskell" . "rmsbolt.hs")
+    ("pony" . "rmsbolt.pony")
     ;; FIXME: Why capital letter?
     ("java" . "Rmsbolt.java")))
 
