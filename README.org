@@ -5,7 +5,7 @@ A supercharged implementation of the [[https://github.com/mattgodbolt/compiler-e
 RMSBolt tries to make it easy to see what your compiler is doing. It does this
 by showing you the assembly output of a given source code file. It also
 highlights which source code a given assembly block corresponds to, and vice
-versa. It supports more types of languages than any previous tool of it's kind.
+versa. It supports more types of languages than any previous tool of its kind.
 
 * Why RMSbolt over godbolt?
 
