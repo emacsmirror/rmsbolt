@@ -1,7 +1,8 @@
 // pony rmsbolt starter file
 
 // Local Variables:
-// rmsbolt-command: "ponyc --debug"
+// rmsbolt-command: "ponyc"
+// rmsbolt-disassemble: t
 // End:
 
 actor Main
@@ -18,4 +19,3 @@ fun ref is_rms(a: U8): I32 =>
     | 'S' => 3
     else     0
   end
-

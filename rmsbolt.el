@@ -383,18 +383,32 @@ Outputs assembly file if ASM."
   "Process a compile command for ponyc."
   (let* ((cmd (buffer-local-value 'rmsbolt-command src-buffer))
          (dir (expand-file-name "pony/" rmsbolt--temp-dir))
-         (temp (copy-file (buffer-file-name) (expand-file-name dir (buffer-file-name))))
+         (_ (make-directory dir t))
+         ;; (base-filename (file-name-sans-extension
+         ;;                 (file-name-nondirectory
+         ;;                  (buffer-file-name))))
+         (base-filename "pony")
+         (base-filename (expand-file-name base-filename dir))
+         (asm-filename (concat base-filename ".s"))
+         (object-filename (concat base-filename ".o"))
+         ;; TODO should we copy this in lisp here, or pass this to the compilation command?
+         (_ (copy-file (buffer-file-name)
+                       (expand-file-name dir) t))
          (dis (buffer-local-value 'rmsbolt-disassemble src-buffer))
          (cmd (mapconcat #'identity
-                         (list cmd
-                               ; -r=ir for llvm IR
-                               (if dis
-                                   "-r=obj"
-                                 "-r=asm")
-                               dir)
-                         " "))
-         (temp (copy-file (expand-file-name (if dis "pony.o" "pony.s") rmsbolt--temp-dir)
-                          (rmsbolt-output-filename src-buffer))))
+                         (list
+                          "cd" dir "&&"
+                          cmd
+                          "-g"
+                          ;; TODO: find a good way to expose -r=ir for llvm IR
+                          (if dis
+                              "-r=obj"
+                            "-r=asm")
+                          dir
+                          "&&" "mv"
+                          (if dis object-filename asm-filename)
+                          (rmsbolt-output-filename src-buffer))
+                         " ")))
     cmd))
 (cl-defun rmsbolt--py-compile-cmd (&key src-buffer)
   "Process a compile command for python3."
@@ -501,10 +515,10 @@ Outputs assembly file if ASM."
                           :demangler "rustfilt"
                           :compile-cmd-function #'rmsbolt--rust-compile-cmd
                           :disass-hidden-funcs nil))
-   (pony-mode
+   (ponylang-mode
     . ,(make-rmsbolt-lang :compile-cmd "ponyc"
                           :supports-asm t
-                          :supports-disass nil
+                          :supports-disass t
                           :objdumper 'objdump
                           :compile-cmd-function #'rmsbolt--pony-compile-cmd
                           :disass-hidden-funcs nil))
@@ -1021,7 +1035,8 @@ Argument STR compilation finish status."
     ("python" . "rmsbolt.py")
     ("haskell" . "rmsbolt.hs")
     ("pony" . "rmsbolt.pony")
-    ;; FIXME: Why capital letter?
+    ;; Rmsbolt is capitalized here because of Java convention of Capitalized
+    ;; class names.
     ("java" . "Rmsbolt.java")))
 
 ;;;###autoload
