@@ -10,7 +10,7 @@ versa. It supports more types of languages than any previous tool of its kind.
 * Why RMSbolt over godbolt?
 
 - Much more flexible and powerful:
-  - Supports dissasembling to bytecode as well as assembly.
+  - Supports disassembly to bytecode as well as assembly.
   - Supports many languages that godbolt does not support, such as python,
     common lisp, ocaml, and java.
 - No more sending your code to any server.
