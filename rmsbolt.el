@@ -65,6 +65,7 @@
 (eval-when-compile (require 'subr-x))
 (require 'map)
 (require 'cc-defs)
+(require 'compile)
 
 (require 'rmsbolt-java)
 
@@ -161,6 +162,9 @@
   "Time in seconds to delay before recompiling if there is a change.")
 (defvar rmsbolt--automated-compile nil
   "Whether this compile was automated or not.")
+(defvar rmsbolt--shell "bash"
+  "Which shell to prefer if available.
+Used to work around inconsistencies in alternative shells.")
 
 (defvar rmsbolt--idle-timer nil
   "Idle timer for rmsbolt overlays.")
@@ -955,10 +959,12 @@ Argument STR compilation finish status."
            (error "Objdumper not recognized"))))
       (setq-local rmsbolt-src-buffer src-buffer)
       (rmsbolt-with-display-buffer-no-window
-       (with-current-buffer (compilation-start cmd)
-         (add-hook 'compilation-finish-functions
-                   #'rmsbolt--handle-finish-compile nil t)
-         (setq-local rmsbolt-src-buffer src-buffer))))))
+       (let ((shell-file-name (or (executable-find rmsbolt--shell)
+                                  shell-file-name)))
+         (with-current-buffer (compilation-start cmd)
+           (add-hook 'compilation-finish-functions
+                     #'rmsbolt--handle-finish-compile nil t)
+           (setq-local rmsbolt-src-buffer src-buffer)))))))
 
 ;;;; Keymap
 (defvar rmsbolt-mode-map
