@@ -32,7 +32,7 @@
 (ert-deftest filter-tests-all-c ()
   "Test if assembly filteration in c is working."
   (with-temp-buffer
-    (setq-local rmsbolt-dissasemble nil)
+    (setq-local rmsbolt-disassemble nil)
     (setq-local rmsbolt-filter-comment-only t)
     (setq-local rmsbolt-filter-directives t)
     (setq-local rmsbolt-filter-labels t)
@@ -40,7 +40,7 @@
 (ert-deftest filter-tests-none-c ()
   "Test if assembly filteration in c is working."
   (with-temp-buffer
-    (setq-local rmsbolt-dissasemble nil)
+    (setq-local rmsbolt-disassemble nil)
     (setq-local rmsbolt-filter-comment-only nil)
     (setq-local rmsbolt-filter-directives nil)
     (setq-local rmsbolt-filter-labels nil)
@@ -48,7 +48,7 @@
 (ert-deftest filter-tests-dir-c ()
   "Test if assembly filteration in c is working."
   (with-temp-buffer
-    (setq-local rmsbolt-dissasemble nil)
+    (setq-local rmsbolt-disassemble nil)
     (setq-local rmsbolt-filter-comment-only nil)
     (setq-local rmsbolt-filter-directives t)
     (setq-local rmsbolt-filter-labels nil)
@@ -56,7 +56,7 @@
 (ert-deftest filter-tests-weak-ref-c ()
   "Test if assembly filteration in c is working."
   (with-temp-buffer
-    (setq-local rmsbolt-dissasemble nil)
+    (setq-local rmsbolt-disassemble nil)
     (setq-local rmsbolt-filter-comment-only nil)
     (setq-local rmsbolt-filter-directives t)
     (setq-local rmsbolt-filter-labels t)
