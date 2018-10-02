@@ -177,6 +177,9 @@ Please DO NOT modify this blindly, as this directory will get deleted on Emacs e
 
 (defvar-local rmsbolt-src-buffer nil)
 
+(defvar-local rmsbolt--real-src-file nil
+  "If set, the real filename that we compiled from, probably due to a copy from this file.")
+
 ;;;; Variable-like funcs
 (defun rmsbolt-output-filename (src-buffer &optional asm)
   "Function for generating an output filename for SRC-BUFFER.
@@ -409,6 +412,11 @@ Outputs assembly file if ASM."
                           (if dis object-filename asm-filename)
                           (rmsbolt-output-filename src-buffer))
                          " ")))
+    (with-current-buffer src-buffer
+      (setq-local rmsbolt--real-src-file
+                  (expand-file-name (file-name-nondirectory
+                                     (buffer-file-name))
+                                    dir)))
     cmd))
 (cl-defun rmsbolt--py-compile-cmd (&key src-buffer)
   "Process a compile command for python3."
@@ -664,7 +672,10 @@ Argument SRC-BUFFER source buffer."
 ;; TODO godbolt does not handle disassembly with filter=off, but we should.
 (cl-defun rmsbolt--process-disassembled-lines (src-buffer asm-lines)
   "Process and filter disassembled ASM-LINES from SRC-BUFFER."
-  (let* ((result nil)
+  (let* ((src-file-name
+          (or (buffer-local-value 'rmsbolt--real-src-file src-buffer)
+              (buffer-file-name src-buffer)))
+         (result nil)
          (func nil)
          (source-linum nil))
     (dolist (line asm-lines)
@@ -675,7 +686,7 @@ Argument SRC-BUFFER source buffer."
            '("Aborting processing due to exceeding the binary limit.")))
        (when (string-match rmsbolt-disass-line line)
          ;; Don't add linums from files which we aren't inspecting
-         (if (file-equal-p (buffer-file-name src-buffer)
+         (if (file-equal-p src-file-name
                            (match-string 1 line))
              (setq source-linum (string-to-number (match-string 2 line)))
            (setq source-linum nil))
@@ -702,14 +713,13 @@ Argument SRC-BUFFER source buffer."
     (nreverse result)))
 
 (cl-defun rmsbolt--process-src-asm-lines (src-buffer asm-lines)
-  (let ((used-labels (rmsbolt--find-used-labels src-buffer asm-lines))
-        (result nil)
-        (prev-label nil)
-        (source-linum nil)
-        (source-file nil)
-        (skip-file-match
-         ;; Skip file match if we don't have a current filename
-         (not (buffer-file-name src-buffer))))
+  (let* ((used-labels (rmsbolt--find-used-labels src-buffer asm-lines))
+         (src-file-name (or (buffer-local-value 'rmsbolt--real-src-file src-buffer)
+                            (buffer-file-name src-buffer)))
+         (result nil)
+         (prev-label nil)
+         (source-linum nil)
+         (source-file nil))
     (dolist (line asm-lines)
       (let* ((raw-match (or (string-match rmsbolt-label-def line)
                             (string-match rmsbolt-assignment-def line)))
@@ -727,8 +737,8 @@ Argument SRC-BUFFER source buffer."
              (setq source-file (match-string 2 line))))
          ;; Process any line number hints
          (when (string-match rmsbolt-source-tag line)
-           (if (or skip-file-match
-                   (file-equal-p (buffer-file-name src-buffer) source-file))
+           (if (or (not src-file-name) ;; Skip file match if we don't have a current filename
+                   (file-equal-p src-file-name source-file))
                (setq source-linum (string-to-number
                                    (match-string 2 line)))
              (setq source-linum nil)))
