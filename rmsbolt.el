@@ -259,11 +259,11 @@ Outputs assembly file if ASM."
   (supports-disass
    nil
    :type 'bool
-   :documentation "If we support assembly directly. If nil, we must disassemble.")
+   :documentation "If we support assembly directly. If nil, we must use other methods.")
   (supports-asm
    nil
    :type 'bool
-   :documentation "If we support assembly directly. If nil, we must disassemble.")
+   :documentation "If we support disassembling from binaries. If nil, we must use other methods.")
   (objdumper
    'objdump
    :type 'symbol
