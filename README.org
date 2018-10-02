@@ -1,4 +1,4 @@
-* RMSbolt
+* [[https://gitlab.com/jgkamat/rmsbolt][RMSbolt]]
 
 A supercharged implementation of the [[https://github.com/mattgodbolt/compiler-explorer][godbolt compiler-explorer]] for Emacs.
 
@@ -30,7 +30,7 @@ versa. It supports more types of languages than any previous tool of its kind.
   - Use *any* libraries on your machine trivially.
   - Customize colors and behavior through ~customize~.
   - Change tracking through magit/diff-hl/etc.
-  - Nyans are fully supported with nyan-mode.
+  - Nyans are fully supported with [[https://github.com/TeMPOraL/nyan-mode][nyan-mode]].
 - Simpler.
 - Infinitely hackable!
 
