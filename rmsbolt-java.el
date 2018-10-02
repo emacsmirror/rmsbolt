@@ -22,7 +22,7 @@
 
 ;;; Commentary:
 
-;; The java bytecode dissasembler format is rather obtuse. This library tries
+;; The java bytecode disassembler format is rather obtuse. This library tries
 ;; to make a programatic layer for interacting with it. It's main aim is
 ;; correlating lines in source code to the generated output.
 ;;

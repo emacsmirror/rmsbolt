@@ -1,9 +1,9 @@
 stages:
-  - build
+  - test
 
 test:
   image: jgkamat/emacs:25.2-cask
-  stage: build
+  stage: test
   script:
     - cask
     - cask exec ert-runner
