@@ -2,7 +2,7 @@
 
 ;; Copyright (C) 2018 Jay Kamat
 ;; Author: Jay Kamat <jaygkamat@gmail.com>
-;; Version: 0.1.0
+;; Version: 0.1.1
 ;; Keywords: compilation, tools
 ;; URL: http://gitlab.com/jgkamat/rmsbolt
 ;; Package-Requires: ((emacs "25.1"))
@@ -25,8 +25,8 @@
 ;; RMSBolt is a package to provide assembly or bytecode output for a source
 ;; code input file.
 ;;
-;; It currently supports: C/C++, OCaml, Haskell, Python, Java, and (limited)
-;; Common Lisp.
+;; It currently supports: C/C++, OCaml, Haskell, Python, Java, Pony, and
+;; (limited) Common Lisp.
 ;;
 ;; Adding support for more languages, if they have an easy manual compilation
 ;; path from source->assembly/bytecode with debug information, should be much
@@ -180,6 +180,9 @@ Please DO NOT modify this blindly, as this directory will get deleted on Emacs e
   "The directory which rmsbolt is installed to.")
 
 (defvar-local rmsbolt-src-buffer nil)
+
+(defvar-local rmsbolt--real-src-file nil
+  "If set, the real filename that we compiled from, probably due to a copy from this file.")
 
 ;;;; Variable-like funcs
 (defun rmsbolt-output-filename (src-buffer &optional asm)
@@ -383,6 +386,42 @@ Outputs assembly file if ASM."
                                  "-Cllvm-args=--x86-asm-syntax=intel"))
                          " ")))
     cmd))
+(cl-defun rmsbolt--pony-compile-cmd (&key src-buffer)
+  "Process a compile command for ponyc."
+  (let* ((cmd (buffer-local-value 'rmsbolt-command src-buffer))
+         (dir (expand-file-name "pony/" rmsbolt--temp-dir))
+         (_ (make-directory dir t))
+         ;; (base-filename (file-name-sans-extension
+         ;;                 (file-name-nondirectory
+         ;;                  (buffer-file-name))))
+         (base-filename "pony")
+         (base-filename (expand-file-name base-filename dir))
+         (asm-filename (concat base-filename ".s"))
+         (object-filename (concat base-filename ".o"))
+         ;; TODO should we copy this in lisp here, or pass this to the compilation command?
+         (_ (copy-file (buffer-file-name)
+                       (expand-file-name dir) t))
+         (dis (buffer-local-value 'rmsbolt-disassemble src-buffer))
+         (cmd (mapconcat #'identity
+                         (list
+                          "cd" dir "&&"
+                          cmd
+                          "-g"
+                          ;; TODO: find a good way to expose -r=ir for llvm IR
+                          (if dis
+                              "-r=obj"
+                            "-r=asm")
+                          dir
+                          "&&" "mv"
+                          (if dis object-filename asm-filename)
+                          (rmsbolt-output-filename src-buffer))
+                         " ")))
+    (with-current-buffer src-buffer
+      (setq-local rmsbolt--real-src-file
+                  (expand-file-name (file-name-nondirectory
+                                     (buffer-file-name))
+                                    dir)))
+    cmd))
 (cl-defun rmsbolt--py-compile-cmd (&key src-buffer)
   "Process a compile command for python3."
   (let* ((cmd (buffer-local-value 'rmsbolt-command src-buffer)))
@@ -487,6 +526,13 @@ Outputs assembly file if ASM."
                           :objdumper 'objdump
                           :demangler "rustfilt"
                           :compile-cmd-function #'rmsbolt--rust-compile-cmd
+                          :disass-hidden-funcs nil))
+   (ponylang-mode
+    . ,(make-rmsbolt-lang :compile-cmd "ponyc"
+                          :supports-asm t
+                          :supports-disass t
+                          :objdumper 'objdump
+                          :compile-cmd-function #'rmsbolt--pony-compile-cmd
                           :disass-hidden-funcs nil))
    ;; ONLY SUPPORTS PYTHON 3
    (python-mode
@@ -630,7 +676,10 @@ Argument SRC-BUFFER source buffer."
 ;; TODO godbolt does not handle disassembly with filter=off, but we should.
 (cl-defun rmsbolt--process-disassembled-lines (src-buffer asm-lines)
   "Process and filter disassembled ASM-LINES from SRC-BUFFER."
-  (let* ((result nil)
+  (let* ((src-file-name
+          (or (buffer-local-value 'rmsbolt--real-src-file src-buffer)
+              (buffer-file-name src-buffer)))
+         (result nil)
          (func nil)
          (source-linum nil))
     (dolist (line asm-lines)
@@ -641,7 +690,7 @@ Argument SRC-BUFFER source buffer."
            '("Aborting processing due to exceeding the binary limit.")))
        (when (string-match rmsbolt-disass-line line)
          ;; Don't add linums from files which we aren't inspecting
-         (if (file-equal-p (buffer-file-name src-buffer)
+         (if (file-equal-p src-file-name
                            (match-string 1 line))
              (setq source-linum (string-to-number (match-string 2 line)))
            (setq source-linum nil))
@@ -668,14 +717,13 @@ Argument SRC-BUFFER source buffer."
     (nreverse result)))
 
 (cl-defun rmsbolt--process-src-asm-lines (src-buffer asm-lines)
-  (let ((used-labels (rmsbolt--find-used-labels src-buffer asm-lines))
-        (result nil)
-        (prev-label nil)
-        (source-linum nil)
-        (source-file nil)
-        (skip-file-match
-         ;; Skip file match if we don't have a current filename
-         (not (buffer-file-name src-buffer))))
+  (let* ((used-labels (rmsbolt--find-used-labels src-buffer asm-lines))
+         (src-file-name (or (buffer-local-value 'rmsbolt--real-src-file src-buffer)
+                            (buffer-file-name src-buffer)))
+         (result nil)
+         (prev-label nil)
+         (source-linum nil)
+         (source-file nil))
     (dolist (line asm-lines)
       (let* ((raw-match (or (string-match rmsbolt-label-def line)
                             (string-match rmsbolt-assignment-def line)))
@@ -693,8 +741,8 @@ Argument SRC-BUFFER source buffer."
              (setq source-file (match-string 2 line))))
          ;; Process any line number hints
          (when (string-match rmsbolt-source-tag line)
-           (if (or skip-file-match
-                   (file-equal-p (buffer-file-name src-buffer) source-file))
+           (if (or (not src-file-name) ;; Skip file match if we don't have a current filename
+                   (file-equal-p src-file-name source-file))
                (setq source-linum (string-to-number
                                    (match-string 2 line)))
              (setq source-linum nil)))
@@ -1002,7 +1050,9 @@ Argument STR compilation finish status."
     ("rust " . "rmsbolt.rs")
     ("python" . "rmsbolt.py")
     ("haskell" . "rmsbolt.hs")
-    ;; FIXME: Why capital letter?
+    ("pony" . "rmsbolt.pony")
+    ;; Rmsbolt is capitalized here because of Java convention of Capitalized
+    ;; class names.
     ("java" . "Rmsbolt.java")))
 
 ;;;###autoload
