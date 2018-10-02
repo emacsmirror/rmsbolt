@@ -1,4 +1,4 @@
-* [[https://gitlab.com/jgkamat/rmsbolt][RMSbolt]] [[http://melpa.org/#/rmsbolt][file:http://melpa.org/packages/rmsbolt-badge.svg]]
+* [[https://gitlab.com/jgkamat/rmsbolt][RMSbolt]] [[https://melpa.org/#/rmsbolt][file:https://melpa.org/packages/rmsbolt-badge.svg]]
 
 A supercharged implementation of the [[https://github.com/mattgodbolt/compiler-explorer][godbolt compiler-explorer]] for Emacs.
 
