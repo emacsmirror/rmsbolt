@@ -1,6 +1,6 @@
 // pony rmsbolt starter file
 
-// Passing '--debug' is reccomended to pony because without it LOC hints are optimized out
+// Passing '--debug' is recommended to pony because without it LOC hints are optimized out
 
 // Local Variables:
 // rmsbolt-command: "ponyc --debug"

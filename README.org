@@ -12,7 +12,7 @@ versa. It supports more types of languages than any previous tool of it's kind.
 - Much more flexible and powerful
   - Supports dissasembling to bytecode as well as assembly
   - Supports many languages that godbolt does not support, such as python,
-    common lisp, ocaml, and java.
+    common lisp, ocaml, java, and pony.
 - No more sending your code to any server
 - Much faster turnaround time from writing code to seeing and interacting with disassembly
 - 100% usable without the mouse.
@@ -54,10 +54,12 @@ though.
 #+END_SRC
 
 * Running
- Once installed, use the ~rmsbolt-starter~ command to generate starter files, or
- enable ~rmsbolt-mode~ in a supported language. Then run ~rmsbolt-compile~ or
- use the default ~C-c C-c~ binding. After the first run, the buffer should
- automatically update.
+Once installed, use the ~rmsbolt-starter~ command to generate starter files, or
+enable ~rmsbolt-mode~ in a supported language. Then run ~rmsbolt-compile~ or
+use the default ~C-c C-c~ binding. After the first run, the buffer should
+automatically update.
+
+Language-specific quirks are listed in the demos section currently.
 
 * Demos
 ** C/C++
@@ -97,15 +99,21 @@ moment.
 
 [[https://i.imgur.com/KkWEMMj.gif][https://i.imgur.com/KkWEMMj.gif]]
 
-** Common Lisp
-
-No support for source->asm matching or filtering.
-
-[[https://i.imgur.com/36aNVvf.gif][https://i.imgur.com/36aNVvf.gif]]
-
 ** Pony
 
-Parses the output of ~ponyc -r=asm~ without good source->asm matching or filtering.
+Filtering on pony is not as effective as pony asm includes references to
+machine-generated functions. This means the output will be slower to generate,
+similar to disassembly in other languages. The pony file being viewed will be
+copied into it's own directory, making it much harder to view non-toy examples.
+
+[[https://i.imgur.com/8kd6kkJ.gif][https://i.imgur.com/8kd6kkJ.gif]]
+
+** Common Lisp
+
+No support for source->asm matching or filtering. Only ~sbcl~ and ~clisp~
+supported at the moment, with ~sbcl~ giving much better results.
+
+[[https://i.imgur.com/36aNVvf.gif][https://i.imgur.com/36aNVvf.gif]]
 
 * Adding a Language
 

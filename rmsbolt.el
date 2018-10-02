@@ -25,8 +25,8 @@
 ;; RMSBolt is a package to provide assembly or bytecode output for a source
 ;; code input file.
 ;;
-;; It currently supports: C/C++, OCaml, Haskell, Python, Java, and (limited)
-;; Common Lisp and Pony.
+;; It currently supports: C/C++, OCaml, Haskell, Python, Java, Pony, and
+;; (limited) Common Lisp.
 ;;
 ;; Adding support for more languages, if they have an easy manual compilation
 ;; path from source->assembly/bytecode with debug information, should be much
