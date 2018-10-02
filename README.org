@@ -59,6 +59,30 @@ though.
  use the default ~C-c C-c~ binding. After the first run, the buffer should
  automatically update.
 
+* Configuration
+
+RMSBolt is primarily configured with Emacs local variables. This lets you change
+compiler and rmsbolt options simply by editing a local variable block. The
+starter files have this block with some common settings:
+
+#+BEGIN_SRC c
+// Local Variables:
+// rmsbolt-command: "gcc -O0"
+// rmsbolt-disassemble: nil
+// End:
+#+END_SRC
+
+Notable options:
+
+| Option                        | Description                                                                                                                   |
+|-------------------------------+-------------------------------------------------------------------------------------------------------------------------------|
+| ~rmsbolt-command~             | determines the prefix of the compilation command to use. Use this to switch between compilers or pass flags to your compiler. |
+| ~rmsbolt-disassemble~         | disassemble from a compiled binary with objdump, if supported.                                                                |
+| ~rmsbolt-filter-*~            | Tweak filtering of binary output                                                                                              |
+| ~rmsbolt-intel-x86~           | Toggle between intel and att syntax if supported                                                                              |
+| ~rmsbolt-demangle~            | Demangle the output, if supported.                                                                                            |
+| ~rmsbolt-ignore-binary-limit~ | Ignore the binary size limit for disassembly. This will almost certainly cause Emacs to hang during large processing.         |
+
 * Demos
 ** C/C++
 
