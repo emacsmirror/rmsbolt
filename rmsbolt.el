@@ -278,7 +278,7 @@ Outputs assembly file if ASM."
   (demangler
    nil
    :type 'string
-   :documentation "The command of the demangler to use for this source code.")
+   :documentation "The command of the demangler to use for this source code. If nil, don't demangle.")
   (disass-hidden-funcs
    nil
    :type 'string

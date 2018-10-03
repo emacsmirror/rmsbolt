@@ -166,8 +166,8 @@ You're done!
 
 * Community and Support
 
-There isn't a dedicated place to discuss this yet, but I hang out in ~#emacs~ on
-freenode. ~:)~
+There isn't a dedicated place to discuss this yet, but I (~jgkamat~) hang out in
+~#emacs~ on freenode. ~:)~
 
 If you find issues, please send me a mail or submit an issue.
 
