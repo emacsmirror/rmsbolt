@@ -176,8 +176,13 @@ mail with your patch. If your change is non-trivial, please
 [[https://www.fsf.org/licensing/assigning.html][assign copyright to the FSF]] as well.
 
 * Alternatives
-- [[https://github.com/yawkat/javap][yawkat/javap]]
-- [[https://github.com/mattgodbolt/compiler-explorer][mattgodbolt/compiler-explorer]]
-- [[http://reliant.colab.duke.edu/c2mips/][c2mips]]
+
+- Simpler Emacs Packages
+  - [[https://github.com/jart/disaster][disaster]]
+  - [[https://github.com/gbalats/autodisass-java-bytecode][autodisass-java]] and [[https://github.com/gbalats/autodisass-llvm-bitcode][autodisass-llvm]]
+- Similar Projects
+  - [[https://github.com/yawkat/javap][yawkat/javap]]
+  - [[https://github.com/mattgodbolt/compiler-explorer][mattgodbolt/compiler-explorer]]
+  - [[http://reliant.colab.duke.edu/c2mips/][c2mips]]
 
 Please let me know if you find other alternatives not mentioned!

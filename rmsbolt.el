@@ -296,7 +296,14 @@ Outputs assembly file if ASM."
    nil
    :type 'function
    :documentation "A custom function used for parsing asm lines
-   instead of the default assembly one." ))
+   instead of the default assembly one." )
+  (elisp-compile-override
+   nil
+   :type 'function
+   :documentation "A custom function to run instead of running any compilation command.
+Generally not useful with the sole exception of the emacs lisp disassembler.
+This function is responsible for calling `rmsbolt--handle-finish-compile'
+Please be careful when setting this, as it bypasses most logic and is generally not useful."))
 
 
 (cl-defun rmsbolt--c-compile-cmd (&key src-buffer)
@@ -463,6 +470,12 @@ Outputs assembly file if ASM."
                          " ")))
     cmd))
 
+(cl-defun rmsbolt--elisp-compile-override (&key src-buffer)
+  (let ((file-name (buffer-file-name)))
+    (with-temp-buffer
+      (rmsbolt--disassemble-file file-name (current-buffer))
+      (rmsbolt--handle-finish-compile src-buffer nil :override-buffer (current-buffer)))))
+
 (defvar rmsbolt--hidden-func-c
   (rx bol (or (and "__" (0+ any))
               (and "_" (or "init" "start" "fini"))
@@ -487,6 +500,7 @@ Outputs assembly file if ASM."
           ;; filter out any lowercase
           (and (1+ (1+ lower) (opt (or "64" "32" "8" "16")) (opt "_"))))
       eol))
+
 ;;;; Language Definitions
 (defvar rmsbolt-languages)
 (setq
@@ -557,6 +571,14 @@ Outputs assembly file if ASM."
                           :compile-cmd-function #'rmsbolt--java-compile-cmd
                           :process-asm-custom-fn #'rmsbolt--process-java-bytecode
                           :disass-hidden-funcs nil))
+   (emacs-lisp-mode
+    . ,(make-rmsbolt-lang :supports-asm t
+                          :supports-disass nil
+                          ;; Nop
+                          :process-asm-custom-fn (lambda (_src-buffer lines)
+                                                   lines)
+                          :disass-hidden-funcs nil
+                          :elisp-compile-override #'rmsbolt--elisp-compile-override))
    ))
 (make-obsolete-variable 'rmsbolt-languages
                         'rmsbolt-language-descriptor "RMSBolt-0.2")
@@ -591,6 +613,29 @@ This should be an object of type `rmsbolt-lang', normally set by the major mode"
         (push (match-string 0 string) matches)
         (setq pos (match-end 0)))
       matches)))
+
+(defun rmsbolt--disassemble-file (filename out-buffer)
+  "Disassemble an elisp FILENAME into elisp bytecode in OUT-BUFFER.
+Lifted from https://emacs.stackexchange.com/questions/35936/disassembly-of-a-bytecode-file"
+  (byte-compile-file filename)
+  ;; .el -> .elc
+  (setq filename (concat filename "c"))
+  (with-temp-buffer
+    (insert-file-contents filename)
+    (let ((inbuf (current-buffer)))
+      (goto-char (point-min))
+      (with-current-buffer out-buffer
+        (erase-buffer)
+        (condition-case ()
+            (cl-loop with cl-print-compiled = 'disassemble
+                     for expr = (read inbuf)
+                     do (pcase expr
+                          (`(byte-code ,(pred stringp) ,(pred vectorp) ,(pred natnump))
+                           (princ "TOP-LEVEL byte code:\n" (current-buffer))
+                           (disassemble-1 expr 0))
+                          (_ (cl-prin1 expr (current-buffer))))
+                     do (terpri (current-buffer)))
+          (end-of-file nil))))))
 
 ;;;;; Filter Functions
 
@@ -844,12 +889,14 @@ Argument ASM-LINES input lines."
       (rmsbolt--process-src-asm-lines src-buffer asm-lines)))))
 
 ;;;;; Handlers
-(defun rmsbolt--handle-finish-compile (buffer str)
+(cl-defun rmsbolt--handle-finish-compile (buffer str &key override-buffer)
   "Finish hook for compilations.
 Argument BUFFER compilation buffer.
-Argument STR compilation finish status."
+Argument STR compilation finish status.
+Argument OVERRIDE-BUFFER use this buffer instead of reading from the output filename."
   (let ((compilation-fail
-         (not (string-match "^finished" str)))
+         (and str
+              (not (string-match "^finished" str))))
         (default-directory (buffer-local-value 'default-directory buffer))
         (src-buffer (buffer-local-value 'rmsbolt-src-buffer buffer)))
 
@@ -861,9 +908,12 @@ Argument STR compilation finish status."
                (let ((lines
                       (rmsbolt--process-asm-lines
                        src-buffer
-                       (with-temp-buffer
-                         (insert-file-contents (rmsbolt-output-filename src-buffer t))
-                         (split-string (buffer-string) "\n" nil))))
+                       (or (when override-buffer
+                             (with-current-buffer override-buffer
+                               (split-string (buffer-string) "\n" nil)))
+                           (with-temp-buffer
+                             (insert-file-contents (rmsbolt-output-filename src-buffer t))
+                             (split-string (buffer-string) "\n" nil)))))
                      (ht (make-hash-table))
                      (linum 1)
                      (start-match nil)
@@ -966,11 +1016,19 @@ Argument STR compilation finish status."
   "Compile the current rmsbolt buffer."
   (interactive)
   (save-some-buffers nil (lambda () rmsbolt-mode))
-  (if (eq major-mode 'asm-mode)
-      ;; We cannot compile asm-mode files
-      (message "Cannot compile assembly files. Are you sure you are not in the output buffer?")
+  (rmsbolt--gen-temp)
+  ;; Current buffer = src-buffer at this point
+  (setq-local rmsbolt-src-buffer (current-buffer))
+  (cond
+   ((eq major-mode 'asm-mode)
+    ;; We cannot compile asm-mode files
+    (message "Cannot compile assembly files. Are you sure you are not in the output buffer?"))
+   ((rmsbolt-l-elisp-compile-override (rmsbolt--get-lang))
+    (funcall
+     (rmsbolt-l-elisp-compile-override (rmsbolt--get-lang))
+     :src-buffer (current-buffer)))
+   (t
     (rmsbolt--parse-options)
-    (rmsbolt--gen-temp)
     (let* ((src-buffer (current-buffer))
            (lang (rmsbolt--get-lang))
            (func (rmsbolt-l-compile-cmd-function lang))
@@ -1005,14 +1063,13 @@ Argument STR compilation finish status."
                             " ")))
           (_
            (error "Objdumper not recognized"))))
-      (setq-local rmsbolt-src-buffer src-buffer)
       (rmsbolt-with-display-buffer-no-window
        (let ((shell-file-name (or (executable-find rmsbolt--shell)
                                   shell-file-name)))
          (with-current-buffer (compilation-start cmd)
            (add-hook 'compilation-finish-functions
                      #'rmsbolt--handle-finish-compile nil t)
-           (setq-local rmsbolt-src-buffer src-buffer)))))))
+           (setq-local rmsbolt-src-buffer src-buffer))))))))
 
 ;;;; Keymap
 (defvar rmsbolt-mode-map
