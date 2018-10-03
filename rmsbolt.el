@@ -631,14 +631,15 @@ Lifted from https://emacs.stackexchange.com/questions/35936/disassembly-of-a-byt
         (with-current-buffer out-buffer
           (erase-buffer)
           (condition-case ()
-              (let ((cl-print-compiled 'disassemble))
-                (cl-loop for expr = (read inbuf)
-                         do (pcase expr
+
+              (cl-loop for expr = (read inbuf)
+                       do (let ((cl-print-compiled 'disassemble))
+                            (pcase expr
                               (`(byte-code ,(pred stringp) ,(pred vectorp) ,(pred natnump))
                                (princ "TOP-LEVEL byte code:\n" (current-buffer))
                                (disassemble-1 expr 0))
-                              (_ (cl-prin1 expr (current-buffer))))
-                         do (terpri (current-buffer))))
+                              (_ (cl-prin1 expr (current-buffer)))))
+                       do (terpri (current-buffer)))
             (end-of-file nil)))))))
 
 ;;;;; Filter Functions
@@ -907,7 +908,8 @@ Argument OVERRIDE-BUFFER use this buffer instead of reading from the output file
     (with-current-buffer (get-buffer-create rmsbolt-output-buffer)
       ;; Store src buffer value for later linking
       (cond ((not compilation-fail)
-             (if (not (file-exists-p (rmsbolt-output-filename src-buffer t)))
+             (if (and (not override-buffer)
+                      (not (file-exists-p (rmsbolt-output-filename src-buffer t))))
                  (message "Error reading from output file.")
                (let ((lines
                       (rmsbolt--process-asm-lines
