@@ -631,14 +631,16 @@ Lifted from https://emacs.stackexchange.com/questions/35936/disassembly-of-a-byt
         (with-current-buffer out-buffer
           (erase-buffer)
           (condition-case ()
-
-              (cl-loop for expr = (read inbuf)
-                       do (let ((cl-print-compiled 'disassemble))
-                            (pcase expr
-                              (`(byte-code ,(pred stringp) ,(pred vectorp) ,(pred natnump))
-                               (princ "TOP-LEVEL byte code:\n" (current-buffer))
-                               (disassemble-1 expr 0))
-                              (_ (cl-prin1 expr (current-buffer)))))
+              (cl-loop with cl-print-compiled = 'disassemble
+                       for expr = (read inbuf)
+                       do
+                       ;; FIXME Trick byte-compiler into thinking we use the variable
+                       (setq cl-print-compiled cl-print-compiled)
+                       (pcase expr
+                         (`(byte-code ,(pred stringp) ,(pred vectorp) ,(pred natnump))
+                          (princ "TOP-LEVEL byte code:\n" (current-buffer))
+                          (disassemble-1 expr 0))
+                         (_ (cl-prin1 expr (current-buffer))))
                        do (terpri (current-buffer)))
             (end-of-file nil)))))))
 
