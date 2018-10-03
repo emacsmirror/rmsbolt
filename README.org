@@ -132,6 +132,12 @@ copied into it's own directory, making it much harder to view non-toy examples.
 
 [[https://i.imgur.com/8kd6kkJ.gif][https://i.imgur.com/8kd6kkJ.gif]]
 
+** Emacs Lisp
+
+No support for source->asm matching, filtering, or automatic recompile.
+
+[[https://i.imgur.com/uYrQ7En.gif][https://i.imgur.com/uYrQ7En.gif]]
+
 ** Common Lisp
 
 No support for source->asm matching or filtering. Only ~sbcl~ and ~clisp~

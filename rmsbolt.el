@@ -88,7 +88,8 @@
   :type 'string
   :group 'rmsbolt)
 (defcustom rmsbolt-automatic-recompile t
-  "Whether to automatically recompile on source buffer changes."
+  "Whether to automatically recompile on source buffer changes.
+Emacs-lisp does not support automatic-recompilation currently."
   :type 'boolean
   :group 'rmsbolt)
 
@@ -1108,6 +1109,7 @@ Argument OVERRIDE-BUFFER use this buffer instead of reading from the output file
     ("python" . "rmsbolt.py")
     ("haskell" . "rmsbolt.hs")
     ("pony" . "rmsbolt.pony")
+    ("emacs-lisp" . "rmsbolt-starter.el")
     ;; Rmsbolt is capitalized here because of Java convention of Capitalized
     ;; class names.
     ("java" . "Rmsbolt.java")))
@@ -1234,6 +1236,9 @@ Argument OVERRIDE-BUFFER use this buffer instead of reading from the output file
              (should-hot-recompile rmsbolt-automatic-recompile)
              (output-buffer (get-buffer rmsbolt-output-buffer))
              (src-buffer (buffer-local-value 'rmsbolt-src-buffer output-buffer))
+             (is-not-elisp (not (eq 'emacs-lisp-mode
+                                    (with-current-buffer src-buffer
+                                      major-mode))))
              (modified (buffer-modified-p src-buffer)))
     (with-current-buffer src-buffer
       ;; Write to disk
