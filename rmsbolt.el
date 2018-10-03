@@ -66,6 +66,7 @@
 (require 'map)
 (require 'cc-defs)
 (require 'compile)
+(require 'disass)
 
 (require 'rmsbolt-java)
 
@@ -618,25 +619,27 @@ This should be an object of type `rmsbolt-lang', normally set by the major mode"
 (defun rmsbolt--disassemble-file (filename out-buffer)
   "Disassemble an elisp FILENAME into elisp bytecode in OUT-BUFFER.
 Lifted from https://emacs.stackexchange.com/questions/35936/disassembly-of-a-bytecode-file"
-  (byte-compile-file filename)
-  ;; .el -> .elc
-  (setq filename (concat filename "c"))
-  (with-temp-buffer
-    (insert-file-contents filename)
-    (let ((inbuf (current-buffer)))
-      (goto-char (point-min))
-      (with-current-buffer out-buffer
-        (erase-buffer)
-        (condition-case ()
-            (cl-loop with cl-print-compiled = 'disassemble
-                     for expr = (read inbuf)
-                     do (pcase expr
-                          (`(byte-code ,(pred stringp) ,(pred vectorp) ,(pred natnump))
-                           (princ "TOP-LEVEL byte code:\n" (current-buffer))
-                           (disassemble-1 expr 0))
-                          (_ (cl-prin1 expr (current-buffer))))
-                     do (terpri (current-buffer)))
-          (end-of-file nil))))))
+  (if (not (require 'cl-print nil 'noerror))
+      (error "Package cl-print or Emacs 26+ are required for the Emacs disassembler")
+    (byte-compile-file filename)
+    ;; .el -> .elc
+    (setq filename (concat filename "c"))
+    (with-temp-buffer
+      (insert-file-contents filename)
+      (let ((inbuf (current-buffer)))
+        (goto-char (point-min))
+        (with-current-buffer out-buffer
+          (erase-buffer)
+          (condition-case ()
+              (cl-loop with cl-print-compiled = 'disassemble
+                       for expr = (read inbuf)
+                       do (pcase expr
+                            (`(byte-code ,(pred stringp) ,(pred vectorp) ,(pred natnump))
+                             (princ "TOP-LEVEL byte code:\n" (current-buffer))
+                             (disassemble-1 expr 0))
+                            (_ (cl-prin1 expr (current-buffer))))
+                       do (terpri (current-buffer)))
+            (end-of-file nil)))))))
 
 ;;;;; Filter Functions
 
