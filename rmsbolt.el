@@ -772,7 +772,7 @@ Argument SRC-BUFFER source buffer."
          (result nil)
          (prev-label nil)
          (source-linum nil)
-         (source-file nil))
+         (source-file-map (make-hash-table :test #'eq)))
     (dolist (line asm-lines)
       (let* ((raw-match (or (string-match rmsbolt-label-def line)
                             (string-match rmsbolt-assignment-def line)))
@@ -784,14 +784,21 @@ Argument SRC-BUFFER source buffer."
          (when (string-match rmsbolt-source-file line)
            (if (match-string 3 line)
                ;; Clang style match
-               (setq source-file (expand-file-name
-                                  (match-string 3 line)
-                                  (match-string 2 line)))
-             (setq source-file (match-string 2 line))))
+               (puthash (string-to-number (match-string 1 line))
+                        (expand-file-name (match-string 3 line) (match-string 2 line))
+                        source-file-map)
+             (puthash (string-to-number (match-string 1 line))
+                      (match-string 2 line)
+                      source-file-map)))
          ;; Process any line number hints
          (when (string-match rmsbolt-source-tag line)
            (if (or (not src-file-name) ;; Skip file match if we don't have a current filename
-                   (file-equal-p src-file-name source-file))
+                   (file-equal-p src-file-name
+                                 (gethash
+                                  (string-to-number (match-string 1 line))
+                                  source-file-map
+                                  ;; Assume we never will compile dev null :P
+                                  "/dev/null")))
                (setq source-linum (string-to-number
                                    (match-string 2 line)))
              (setq source-linum nil)))
@@ -919,7 +926,7 @@ Argument OVERRIDE-BUFFER use this buffer instead of reading from the output file
                            (with-temp-buffer
                              (insert-file-contents (rmsbolt-output-filename src-buffer t))
                              (split-string (buffer-string) "\n" nil)))))
-                     (ht (make-hash-table))
+                     (ht (make-hash-table :test #'eq))
                      (linum 1)
                      (start-match nil)
                      (in-match nil)
