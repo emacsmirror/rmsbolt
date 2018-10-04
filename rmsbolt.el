@@ -622,12 +622,14 @@ This should be an object of type `rmsbolt-lang', normally set by the major mode"
         (setq pos (match-end 0)))
       matches)))
 
+;; Prevent byte-compilation warnings for cl-print-compiled, which is imported
+;; from cl-print
+(defvar cl-print-compiled)
 (defun rmsbolt--disassemble-file (filename out-buffer)
   "Disassemble an elisp FILENAME into elisp bytecode in OUT-BUFFER.
 Lifted from https://emacs.stackexchange.com/questions/35936/disassembly-of-a-bytecode-file"
   (if (not (require 'cl-print nil 'noerror))
       (error "Package cl-print or Emacs 26+ are required for the Emacs disassembler")
-    (require 'cl-print)
     (byte-compile-file filename)
     ;; .el -> .elc
     (setq filename (concat filename "c"))
