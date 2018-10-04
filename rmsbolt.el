@@ -663,7 +663,7 @@ Lifted from https://emacs.stackexchange.com/questions/35936/disassembly-of-a-byt
   "Find used labels in ASM-LINES generated from SRC-BUFFER."
   (let ((match nil)
         (current-label nil)
-        (labels-used nil)
+        (labels-used (make-hash-table :test #'equal))
         (weak-usages (make-hash-table :test #'equal)))
     (dolist (line asm-lines)
       (setq match (and
@@ -674,7 +674,7 @@ Lifted from https://emacs.stackexchange.com/questions/35936/disassembly-of-a-byt
       (setq match (and (string-match rmsbolt-defines-global line)
                        (match-string 1 line)))
       (when match
-        (cl-pushnew match labels-used :test #'equal))
+        (puthash match t labels-used))
       ;; When we have no line or a period started line, skip
       (unless (or (= 0 (length line))
                   (string-prefix-p "." line)
@@ -684,7 +684,7 @@ Lifted from https://emacs.stackexchange.com/questions/35936/disassembly-of-a-byt
                 (string-match-p rmsbolt-defines-function line))
             ;; Add labels indescriminantly
             (dolist (l (rmsbolt-re-seq rmsbolt-label-find line))
-              (cl-pushnew l labels-used :test #'equal))
+              (puthash l t labels-used))
 
           (when (and current-label
                      (or (string-match-p rmsbolt-data-defn line)
@@ -700,16 +700,15 @@ Lifted from https://emacs.stackexchange.com/questions/35936/disassembly-of-a-byt
                       max-label-iter)
                   (not completed))
         (let ((to-add nil))
-          (mapc
-           (lambda (label)
-             (mapc
-              (lambda(now-used)
-                (when (not (cl-find now-used labels-used :test #'equal))
-                  (cl-pushnew now-used to-add :test #'equal)))
-              (gethash label weak-usages)))
+          (maphash
+           (lambda (label _v)
+             (dolist (now-used (gethash label weak-usages))
+               (when (not (gethash now-used labels-used))
+                 (cl-pushnew now-used to-add :test #'equal))))
            labels-used)
           (if to-add
-              (mapc (lambda (l) (cl-pushnew l labels-used :test #'equal)) to-add)
+              (dolist (l to-add)
+                (puthash l t labels-used))
             (setq completed t))))
       labels-used)))
 
@@ -779,7 +778,7 @@ Argument SRC-BUFFER source buffer."
                             (string-match rmsbolt-assignment-def line)))
              (match (when raw-match
                       (match-string 1 line)))
-             (used-label (cl-find match used-labels :test #'equal)))
+             (used-label-p (gethash match used-labels)))
         (cl-tagbody
          ;; Process file name hints
          (when (string-match rmsbolt-source-file line)
@@ -814,7 +813,7 @@ Argument SRC-BUFFER source buffer."
 
          ;; continue means we don't add to the ouptut
          (when match
-           (if (not used-label)
+           (if (not used-label-p)
                ;; Unused label
                (when (buffer-local-value 'rmsbolt-filter-labels src-buffer)
                  (go continue))
