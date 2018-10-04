@@ -74,6 +74,9 @@ starter files have this block with some common settings:
 // End:
 #+END_SRC
 
+*Note*: [[https://www.gnu.org/software/emacs/manual/html_node/emacs/Specifying-File-Variables.html#Specifying-File-Variables][the Local Variable block must be 3000 characters from the end of the
+file to work]]. Any method of setting buffer-local variables will work though.
+
 Notable options:
 
 | Option                        | Description                                                                                                                   |
