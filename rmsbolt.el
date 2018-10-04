@@ -1164,10 +1164,11 @@ Argument OVERRIDE-BUFFER use this buffer instead of reading from the output file
     o))
 (cl-defun rmsbolt--point-visible (point)
   "Check if the current point is visible in a window in the current buffer."
-  (dolist (w (get-buffer-window-list))
-    (when (pos-visible-in-window-p point w)
-      (cl-return-from rmsbolt--point-visible t)))
-  nil)
+  (when (cl-find-if (lambda (w)
+                      (and (>= point (window-start w))
+                           (<= point (window-end w))))
+                    (get-buffer-window-list))
+    t))
 
 (defun rmsbolt-move-overlays ()
   "Function for moving overlays for rmsbolt."
