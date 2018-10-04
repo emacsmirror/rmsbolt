@@ -88,9 +88,15 @@
   "Lighter displayed in mode line when function `rmsbolt-mode' is active."
   :type 'string
   :group 'rmsbolt)
+(defcustom rmsbolt-large-buffer-size 500
+  "Number of lines past which a buffer is considred large."
+  :type 'integer
+  :group 'rmsbolt)
 (defcustom rmsbolt-automatic-recompile t
   "Whether to automatically recompile on source buffer changes.
-Emacs-lisp does not support automatic-recompilation currently."
+Emacs-lisp does not support automatic-recompilation currently.
+This setting is automatically disabled on large buffers, use
+'force to force-enable it."
   :type 'boolean
   :group 'rmsbolt)
 
@@ -621,6 +627,7 @@ This should be an object of type `rmsbolt-lang', normally set by the major mode"
 Lifted from https://emacs.stackexchange.com/questions/35936/disassembly-of-a-bytecode-file"
   (if (not (require 'cl-print nil 'noerror))
       (error "Package cl-print or Emacs 26+ are required for the Emacs disassembler")
+    (require 'cl-print)
     (byte-compile-file filename)
     ;; .el -> .elc
     (setq filename (concat filename "c"))
@@ -1251,6 +1258,10 @@ Argument OVERRIDE-BUFFER use this buffer instead of reading from the output file
              (is-not-elisp (not (eq 'emacs-lisp-mode
                                     (with-current-buffer src-buffer
                                       major-mode))))
+             (is-not-large (or (< (with-current-buffer src-buffer
+                                    (line-number-at-pos (point-max)))
+                                  rmsbolt-large-buffer-size)
+                               (eq rmsbolt-automatic-recompile 'force)))
              (modified (buffer-modified-p src-buffer)))
     (with-current-buffer src-buffer
       ;; Write to disk
