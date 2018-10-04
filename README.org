@@ -11,8 +11,8 @@ versa. It supports more types of languages than any previous tool of its kind.
 
 - Much more flexible and powerful:
   - Supports disassembly to bytecode as well as assembly.
-  - Supports many languages that godbolt does not support, such as python,
-    common lisp, ocaml, java, and pony.
+  - Supports many languages that godbolt does not support, such as Python,
+    Common Lisp, Emacs Lisp, Ocaml, Java, and Pony.
 - No more sending your code to any server.
 - Much faster turnaround time from writing code to seeing and interacting with disassembly.
 - 100% usable without the mouse.
