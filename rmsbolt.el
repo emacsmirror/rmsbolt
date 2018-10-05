@@ -788,70 +788,68 @@ Argument SRC-BUFFER source buffer."
              (match (when raw-match
                       (match-string 1 line)))
              (used-label-p (gethash match used-labels)))
-        (cl-tagbody
-         ;; Process file name hints
-         (when (string-match rmsbolt-source-file line)
-           (if (match-string 3 line)
-               ;; Clang style match
-               (puthash (string-to-number (match-string 1 line))
-                        (expand-file-name (match-string 3 line) (match-string 2 line))
-                        source-file-map)
-             (puthash (string-to-number (match-string 1 line))
-                      (match-string 2 line)
-                      source-file-map)))
-         ;; Process any line number hints
-         (when (string-match rmsbolt-source-tag line)
-           (if (or (not src-file-name) ;; Skip file match if we don't have a current filename
-                   (file-equal-p src-file-name
-                                 (gethash
-                                  (string-to-number (match-string 1 line))
-                                  source-file-map
-                                  ;; Assume we never will compile dev null :P
-                                  "/dev/null")))
-               (setq source-linum (string-to-number
-                                   (match-string 2 line)))
-             (setq source-linum nil)))
-         (when (string-match rmsbolt-source-stab line)
-           (pcase (string-to-number (match-string 1 line))
-             ;; http://www.math.utah.edu/docs/info/stabs_11.html
-             (68
-              (setq source-linum (match-string 2 line)))
-             ((or 100 132)
-              (setq source-linum nil))))
+        (catch 'continue
+          (cond
+           ;; Process file name hints
+           ((string-match rmsbolt-source-file line)
+            (if (match-string 3 line)
+                ;; Clang style match
+                (puthash (string-to-number (match-string 1 line))
+                         (expand-file-name (match-string 3 line) (match-string 2 line))
+                         source-file-map)
+              (puthash (string-to-number (match-string 1 line))
+                       (match-string 2 line)
+                       source-file-map)))
+           ;; Process any line number hints
+           ((string-match rmsbolt-source-tag line)
+            (if (or (not src-file-name) ;; Skip file match if we don't have a current filename
+                    (file-equal-p src-file-name
+                                  (gethash
+                                   (string-to-number (match-string 1 line))
+                                   source-file-map
+                                   ;; Assume we never will compile dev null :P
+                                   "/dev/null")))
+                (setq source-linum (string-to-number
+                                    (match-string 2 line)))
+              (setq source-linum nil)))
+           ((string-match rmsbolt-source-stab line)
+            (pcase (string-to-number (match-string 1 line))
+              ;; http://www.math.utah.edu/docs/info/stabs_11.html
+              (68
+               (setq source-linum (match-string 2 line)))
+              ((or 100 132)
+               (setq source-linum nil)))))
+          ;; End block, reset prev-label and source
+          (when (string-match-p rmsbolt-endblock line)
+            (setq prev-label nil))
 
-         ;; End block, reset prev-label and source
-         (when (string-match-p rmsbolt-endblock line)
-           (setq prev-label nil))
+          (when (and (buffer-local-value 'rmsbolt-filter-comment-only src-buffer)
+                     (string-match-p rmsbolt-comment-only line))
+            (throw 'continue t))
 
-         (when (and (buffer-local-value 'rmsbolt-filter-comment-only src-buffer)
-                    (string-match-p rmsbolt-comment-only line))
-           (go continue))
-
-         ;; continue means we don't add to the ouptut
-         (when match
-           (if (not used-label-p)
-               ;; Unused label
-               (when (buffer-local-value 'rmsbolt-filter-labels src-buffer)
-                 (go continue))
-             ;; Real label, set prev-label
-             (setq prev-label raw-match)))
-         (when (and (buffer-local-value 'rmsbolt-filter-directives src-buffer)
-                    (not match))
-           (if  (and (string-match-p rmsbolt-data-defn line)
-                     prev-label)
-               ;; data is being used
-               nil
-             (when (string-match-p rmsbolt-directive line)
-               (go continue))))
-         ;; Add line numbers to mapping
-         (when (and source-linum
-                    (rmsbolt--has-opcode-p line))
-           (add-text-properties 0 (length line)
-                                `(rmsbolt-src-line ,source-linum) line))
-         ;; Add line
-         (push line result)
-
-         continue)))
+          ;; continue means we don't add to the ouptut
+          (when match
+            (if (not used-label-p)
+                ;; Unused label
+                (when (buffer-local-value 'rmsbolt-filter-labels src-buffer)
+                  (throw 'continue t))
+              ;; Real label, set prev-label
+              (setq prev-label raw-match)))
+          (when (and (buffer-local-value 'rmsbolt-filter-directives src-buffer)
+                     (not match))
+            (if  (and (string-match-p rmsbolt-data-defn line)
+                      prev-label)
+                ;; data is being used
+                nil
+              (when (string-match-p rmsbolt-directive line)
+                (throw 'continue t))))
+          ;; Add line numbers to mapping
+          (when (and source-linum
+                     (rmsbolt--has-opcode-p line))
+            (add-text-properties 0 (length line)
+                                 `(rmsbolt-src-line ,source-linum) line))
+          ;; Add line
+          (push line result))))
     (nreverse result)))
 
 (cl-defun rmsbolt--process-python-bytecode (_src-buffer asm-lines)
