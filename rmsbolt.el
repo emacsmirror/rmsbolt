@@ -675,9 +675,9 @@ Lifted from https://emacs.stackexchange.com/questions/35936/disassembly-of-a-byt
         (labels-used (make-hash-table :test #'equal))
         (weak-usages (make-hash-table :test #'equal)))
     (dolist (line asm-lines)
-      (setq match (and
-                   (string-match rmsbolt-label-def line)
-                   (match-string 1 line)))
+      (setq line (string-trim-left line)
+            match (and (string-match rmsbolt-label-def line)
+                       (match-string 1 line)))
       (when match
         (setq current-label match))
       (setq match (and (string-match rmsbolt-defines-global line)
@@ -685,8 +685,8 @@ Lifted from https://emacs.stackexchange.com/questions/35936/disassembly-of-a-byt
       (when match
         (puthash match t labels-used))
       ;; When we have no line or a period started line, skip
-      (unless (or (= 0 (length line))
-                  (string-prefix-p "." line)
+      (unless (or (string-empty-p line)
+                  (eq (elt line 0) ?.)
                   (not (string-match-p rmsbolt-label-find line)))
         (if (or (not (buffer-local-value 'rmsbolt-filter-directives src-buffer))
                 (rmsbolt--has-opcode-p line)
@@ -694,7 +694,6 @@ Lifted from https://emacs.stackexchange.com/questions/35936/disassembly-of-a-byt
             ;; Add labels indescriminantly
             (dolist (l (rmsbolt-re-seq rmsbolt-label-find line))
               (puthash l t labels-used))
-
           (when (and current-label
                      (or (string-match-p rmsbolt-data-defn line)
                          (rmsbolt--has-opcode-p line)))
