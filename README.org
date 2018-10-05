@@ -190,6 +190,7 @@ mail with your patch. If your change is non-trivial, please
 
 - Simpler Emacs Packages
   - [[https://github.com/jart/disaster][disaster]]
+  - [[https://github.com/RAttab/iasm-mode][iasm-mode]]
   - [[https://github.com/gbalats/autodisass-java-bytecode][autodisass-java]] and [[https://github.com/gbalats/autodisass-llvm-bitcode][autodisass-llvm]]
 - Similar Projects
   - [[https://github.com/yawkat/javap][yawkat/javap]]
