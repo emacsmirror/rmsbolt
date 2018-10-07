@@ -196,7 +196,8 @@ Please DO NOT modify this blindly, as this directory will get deleted on Emacs e
 (defun rmsbolt-output-filename (src-buffer &optional asm)
   "Function for generating an output filename for SRC-BUFFER.
 
-Outputs assembly file if ASM."
+Outputs assembly file if ASM.
+This function does NOT quote the return value for use in inferior shells."
   (if (and (not asm)
            (buffer-local-value 'rmsbolt-disassemble src-buffer))
       (expand-file-name "rmsbolt.out" rmsbolt--temp-dir)
@@ -313,94 +314,111 @@ Generally not useful with the sole exception of the emacs lisp disassembler.
 This function is responsible for calling `rmsbolt--handle-finish-compile'
 Please be careful when setting this, as it bypasses most logic and is generally not useful."))
 
+(defmacro rmsbolt--with-files (src-buffer &rest body)
+  "Execute BODY with `src-filename' and `output-filename' defined.
+Args taken from SRC-BUFFER.
+Return value is quoted for passing to the shell."
+  `(let ((src-filename (shell-quote-argument
+                        (buffer-file-name)))
+         (output-filename
+          (shell-quote-argument
+           (rmsbolt-output-filename ,src-buffer))))
+     ,@body))
 
 (cl-defun rmsbolt--c-compile-cmd (&key src-buffer)
   "Process a compile command for gcc/clang."
-  (let* ((cmd (buffer-local-value 'rmsbolt-command src-buffer))
-         (cmd (mapconcat #'identity
-                         (list cmd
-                               "-g"
-                               (if (buffer-local-value 'rmsbolt-disassemble src-buffer)
-                                   ""
-                                 "-S")
-                               (buffer-file-name)
-                               "-o" (rmsbolt-output-filename src-buffer)
-                               (when (buffer-local-value 'rmsbolt-intel-x86 src-buffer)
-                                 "-masm=intel"))
-                         " ")))
-    cmd))
+  (rmsbolt--with-files
+   src-buffer
+   (let* ((cmd (buffer-local-value 'rmsbolt-command src-buffer))
+          (cmd (mapconcat #'identity
+                          (list cmd
+                                "-g"
+                                (if (buffer-local-value 'rmsbolt-disassemble src-buffer)
+                                    ""
+                                  "-S")
+                                src-filename
+                                "-o" output-filename
+                                (when (buffer-local-value 'rmsbolt-intel-x86 src-buffer)
+                                  "-masm=intel"))
+                          " ")))
+     cmd)))
 (cl-defun rmsbolt--ocaml-compile-cmd (&key src-buffer)
   "Process a compile command for ocaml.
 
   Needed as ocaml cannot output asm to a non-hardcoded file"
-  (let* ((diss (buffer-local-value 'rmsbolt-disassemble src-buffer))
-         (output-filename (rmsbolt-output-filename src-buffer))
-         (predicted-asm-filename (concat (file-name-sans-extension (buffer-file-name)) ".s"))
-         (cmd (buffer-local-value 'rmsbolt-command src-buffer))
-         (cmd (mapconcat #'identity
-                         (list cmd
-                               "-g"
-                               (if (buffer-local-value 'rmsbolt-disassemble src-buffer)
-                                   ""
-                                 "-S")
-                               (buffer-file-name)
-                               (mapconcat #'identity
-                                          (cond
-                                           (diss
-                                            (list "-o" output-filename))
-                                           ((equal predicted-asm-filename output-filename)
-                                            nil)
-                                           (t
-                                            (list "&&" "mv"
-                                                  (concat (file-name-sans-extension (buffer-file-name))
-                                                          ".s")
-                                                  output-filename)))
-                                          " "))
-                         " ")))
-    cmd))
+  (rmsbolt--with-files
+   src-buffer
+   (let* ((diss (buffer-local-value 'rmsbolt-disassemble src-buffer))
+          (predicted-asm-filename (shell-quote-argument
+                                   (concat (file-name-sans-extension (buffer-file-name)) ".s")))
+          (cmd (buffer-local-value 'rmsbolt-command src-buffer))
+          (cmd (mapconcat #'identity
+                          (list cmd
+                                "-g"
+                                (if (buffer-local-value 'rmsbolt-disassemble src-buffer)
+                                    ""
+                                  "-S")
+                                src-filename
+                                (mapconcat #'identity
+                                           (cond
+                                            (diss
+                                             (list "-o" output-filename))
+                                            ((equal predicted-asm-filename output-filename)
+                                             nil)
+                                            (t
+                                             (list "&&" "mv"
+                                                   predicted-asm-filename
+                                                   output-filename)))
+                                           " "))
+                          " ")))
+     cmd)))
 (cl-defun rmsbolt--lisp-compile-cmd (&key src-buffer)
   "Process a compile command for common lisp.
 
    Assumes function name to disassemble is 'main'."
-  (let* ((cmd (buffer-local-value 'rmsbolt-command src-buffer))
-         (interpreter (cl-first (split-string cmd nil t)))
-         (disass-eval "\"(disassemble 'main)\"")
-         (disass-eval-unquoted "(disassemble 'main)"))
-    (pcase interpreter
-      ("sbcl"
-       (mapconcat #'identity
-                  (list cmd "--noinform" "--load"
-                        (buffer-file-name)
-                        "--eval" disass-eval "--non-interactive"
-                        ;; Remove leading comments
-                        "|" "sed" "'s/^;\s//'" ">"
-                        (rmsbolt-output-filename src-buffer))
-                  " "))
-      ("clisp"
-       (mapconcat #'identity
-                  (list cmd "-q" "-x"
-                        (concat
-                         "\"(load \\\"" (buffer-file-name) "\\\") " disass-eval-unquoted "\"")
-                        ">" (rmsbolt-output-filename src-buffer))
-                  " "))
-      (_
-       (error "This Common Lisp interpreter is not supported")))))
+  (rmsbolt--with-files
+   src-buffer
+   (let* ((cmd (buffer-local-value 'rmsbolt-command src-buffer))
+          (interpreter (cl-first (split-string cmd nil t)))
+          (disass-eval "\"(disassemble 'main)\"")
+          (disass-eval-unquoted "(disassemble 'main)"))
+     (pcase interpreter
+       ("sbcl"
+        (mapconcat #'identity
+                   (list cmd "--noinform" "--load"
+                         src-filename
+                         "--eval" disass-eval "--non-interactive"
+                         ;; Remove leading comments
+                         "|" "sed" "'s/^;\s//'" ">"
+                         output-filename)
+                   " "))
+       ("clisp"
+        (mapconcat #'identity
+                   (list cmd "-q" "-x"
+                         (concat
+                          "\"(load \\\"" src-filename "\\\") " disass-eval-unquoted "\"")
+                         ">" output-filename)
+                   " "))
+       (_
+        (error "This Common Lisp interpreter is not supported"))))))
 (cl-defun rmsbolt--rust-compile-cmd (&key src-buffer)
   "Process a compile command for rustc."
-  (let* ((cmd (buffer-local-value 'rmsbolt-command src-buffer))
-         (cmd (mapconcat #'identity
-                         (list cmd
-                               "-g"
-                               "--emit"
-                               (if (buffer-local-value 'rmsbolt-disassemble src-buffer)
-                                   "link"
-                                 "asm")
-                               (buffer-file-name)
-                               "-o" (rmsbolt-output-filename src-buffer)
-                               (when (buffer-local-value 'rmsbolt-intel-x86 src-buffer)
-                                 "-Cllvm-args=--x86-asm-syntax=intel"))
-                         " ")))
-    cmd))
+  (rmsbolt--with-files
+   src-buffer
+   (let* ((cmd (buffer-local-value 'rmsbolt-command src-buffer))
+          (cmd (mapconcat #'identity
+                          (list cmd
+                                "-g"
+                                "--emit"
+                                (if (buffer-local-value 'rmsbolt-disassemble src-buffer)
+                                    "link"
+                                  "asm")
+                                src-filename
+                                "-o" output-filename
+                                (when (buffer-local-value 'rmsbolt-intel-x86 src-buffer)
+                                  "-Cllvm-args=--x86-asm-syntax=intel"))
+                          " ")))
+     cmd)))
 (cl-defun rmsbolt--pony-compile-cmd (&key src-buffer)
   "Process a compile command for ponyc."
   (let* ((cmd (buffer-local-value 'rmsbolt-command src-buffer))
@@ -411,8 +429,8 @@ Please be careful when setting this, as it bypasses most logic and is generally 
          ;;                  (buffer-file-name))))
          (base-filename "pony")
          (base-filename (expand-file-name base-filename dir))
-         (asm-filename (concat base-filename ".s"))
-         (object-filename (concat base-filename ".o"))
+         (asm-filename (shell-quote-argument (concat base-filename ".s")))
+         (object-filename (shell-quote-argument (concat base-filename ".o")))
          ;; TODO should we copy this in lisp here, or pass this to the compilation command?
          (_ (copy-file (buffer-file-name)
                        (expand-file-name dir) t))
@@ -429,7 +447,8 @@ Please be careful when setting this, as it bypasses most logic and is generally 
                           dir
                           "&&" "mv"
                           (if dis object-filename asm-filename)
-                          (rmsbolt-output-filename src-buffer))
+                          (shell-quote-argument
+                           (rmsbolt-output-filename src-buffer)))
                          " ")))
     (with-current-buffer src-buffer
       (setq-local rmsbolt--real-src-file
@@ -439,44 +458,50 @@ Please be careful when setting this, as it bypasses most logic and is generally 
     cmd))
 (cl-defun rmsbolt--py-compile-cmd (&key src-buffer)
   "Process a compile command for python3."
-  (let* ((cmd (buffer-local-value 'rmsbolt-command src-buffer)))
-    (mapconcat #'identity
-               (list cmd "-m" "dis" (buffer-file-name)
-                     ">" (rmsbolt-output-filename src-buffer))
-               " ")))
+  (rmsbolt--with-files
+   src-buffer
+   (let* ((cmd (buffer-local-value 'rmsbolt-command src-buffer)))
+     (mapconcat #'identity
+                (list cmd "-m" "dis" src-filename
+                      ">" output-filename)
+                " "))))
 
 (cl-defun rmsbolt--hs-compile-cmd (&key src-buffer)
   "Process a compile command for ghc."
-  (let* ((cmd (buffer-local-value 'rmsbolt-command src-buffer))
-         (cmd (mapconcat #'identity
-                         (list cmd
-                               "-g"
-                               (if (buffer-local-value 'rmsbolt-disassemble src-buffer)
-                                   ""
-                                 "-S")
-                               (buffer-file-name)
-                               "-o" (rmsbolt-output-filename src-buffer))
-                         " ")))
-    cmd))
+  (rmsbolt--with-files
+   src-buffer
+   (let* ((cmd (buffer-local-value 'rmsbolt-command src-buffer))
+          (cmd (mapconcat #'identity
+                          (list cmd
+                                "-g"
+                                (if (buffer-local-value 'rmsbolt-disassemble src-buffer)
+                                    ""
+                                  "-S")
+                                src-filename
+                                "-o" output-filename)
+                          " ")))
+     cmd)))
 (cl-defun rmsbolt--java-compile-cmd (&key src-buffer)
   "Process a compile command for ocaml.
 
   Needed as ocaml cannot output asm to a non-hardcoded file"
-  (let* ((output-filename (rmsbolt-output-filename src-buffer))
-         (class-filename (concat (file-name-sans-extension (buffer-file-name)) ".class"))
-         (cmd (buffer-local-value 'rmsbolt-command src-buffer))
-         (cmd (mapconcat #'identity
-                         (list cmd
-                               "-g"
-                               (buffer-file-name)
-                               "&&"
-                               "javap"
-                               "-c" "-l"
-                               class-filename
-                               ">"
-                               output-filename)
-                         " ")))
-    cmd))
+  (rmsbolt--with-files
+   src-buffer
+   (let* ((class-filename (shell-quote-argument
+                           (concat (file-name-sans-extension (buffer-file-name)) ".class")))
+          (cmd (buffer-local-value 'rmsbolt-command src-buffer))
+          (cmd (mapconcat #'identity
+                          (list cmd
+                                "-g"
+                                src-filename
+                                "&&"
+                                "javap"
+                                "-c" "-l"
+                                class-filename
+                                ">"
+                                output-filename)
+                          " ")))
+     cmd)))
 
 (cl-defun rmsbolt--elisp-compile-override (&key src-buffer)
   (let ((file-name (buffer-file-name)))
