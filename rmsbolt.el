@@ -334,7 +334,7 @@ Return value is quoted for passing to the shell."
                           (list cmd
                                 "-g"
                                 (if (buffer-local-value 'rmsbolt-disassemble src-buffer)
-                                    ""
+                                    "-c"
                                   "-S")
                                 src-filename
                                 "-o" output-filename
@@ -1077,10 +1077,8 @@ Argument OVERRIDE-BUFFER use this buffer instead of reading from the output file
            (func (rmsbolt-l-compile-cmd-function lang))
            ;; Generate command
            (cmd (funcall func :src-buffer src-buffer))
-           ;; Convert to demangle if we need to
-           (cmd (rmsbolt--demangle-command cmd lang src-buffer))
-           (default-directory rmsbolt--temp-dir))
 
+           (default-directory rmsbolt--temp-dir))
       (when (buffer-local-value 'rmsbolt-disassemble src-buffer)
         (pcase
             (rmsbolt-l-objdumper lang)
@@ -1106,6 +1104,8 @@ Argument OVERRIDE-BUFFER use this buffer instead of reading from the output file
                             " ")))
           (_
            (error "Objdumper not recognized"))))
+      ;; Convert to demangle if we need to
+      (setq cmd (rmsbolt--demangle-command cmd lang src-buffer))
       (rmsbolt-with-display-buffer-no-window
        (let ((shell-file-name (or (executable-find rmsbolt--shell)
                                   shell-file-name)))
