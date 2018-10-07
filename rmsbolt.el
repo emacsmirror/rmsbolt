@@ -765,37 +765,37 @@ Argument SRC-BUFFER source buffer."
          (func nil)
          (source-linum nil))
     (dolist (line asm-lines)
-      (cl-tagbody
-       (when (and (> (length result) rmsbolt-binary-asm-limit)
-                  (not (buffer-local-value 'rmsbolt-ignore-binary-limit src-buffer)))
-         (cl-return-from rmsbolt--process-disassembled-lines
-           '("Aborting processing due to exceeding the binary limit.")))
-       (when (string-match rmsbolt-disass-line line)
-         ;; Don't add linums from files which we aren't inspecting
-         (if (file-equal-p src-file-name
-                           (match-string 1 line))
-             (setq source-linum (string-to-number (match-string 2 line)))
-           (setq source-linum nil))
-         ;; We are just setting a linum, no data here.
-         (go continue))
+      (catch 'continue
+        (when (and (> (length result) rmsbolt-binary-asm-limit)
+                   (not (buffer-local-value 'rmsbolt-ignore-binary-limit src-buffer)))
+          (cl-return-from rmsbolt--process-disassembled-lines
+            '("Aborting processing due to exceeding the binary limit.")))
+        (when (string-match rmsbolt-disass-line line)
+          ;; Don't add linums from files which we aren't inspecting
+          (if (file-equal-p src-file-name
+                            (match-string 1 line))
+              (setq source-linum (string-to-number (match-string 2 line)))
+            (setq source-linum nil))
+          ;; We are just setting a linum, no data here.
+          (throw 'continue t))
 
-       (when (string-match rmsbolt-disass-label line)
-         (setq func (match-string 2 line))
-         (when (rmsbolt--user-func-p src-buffer func)
-           (push (concat func ":") result))
-         (go continue))
-       (unless (and func
-                    (rmsbolt--user-func-p src-buffer func))
-         (go continue))
-       (when (string-match rmsbolt-disass-opcode line)
-         (let ((line (concat "\t" (match-string 3 line))))
-           ;; Add line text property if available
-           (when source-linum
-             (add-text-properties 0 (length line)
-                                  `(rmsbolt-src-line ,source-linum) line))
-           (push line result))
-         (go continue))
-       continue))
+        (when (string-match rmsbolt-disass-label line)
+          (setq func (match-string 2 line))
+          (when (rmsbolt--user-func-p src-buffer func)
+            (push (concat func ":") result))
+          (throw 'continue t))
+        (unless (and func
+                     (rmsbolt--user-func-p src-buffer func))
+          (throw 'continue t))
+        (when (string-match rmsbolt-disass-opcode line)
+          (let ((line (concat (match-string 1 line)
+                              "\t" (match-string 3 line))))
+            ;; Add line text property if available
+            (when source-linum
+              (add-text-properties 0 (length line)
+                                   `(rmsbolt-src-line ,source-linum) line))
+            (push line result))
+          (throw 'continue t))))
     (nreverse result)))
 
 (cl-defun rmsbolt--process-src-asm-lines (src-buffer asm-lines)
