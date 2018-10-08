@@ -1034,18 +1034,18 @@ Argument OVERRIDE-BUFFER use this buffer instead of reading from the output file
          (cmd rmsbolt-command)
          (force-disass (not (rmsbolt-l-supports-asm lang)))
          (force-asm (not (rmsbolt-l-supports-disass lang))))
-    (when (not cmd)
-      (setq-local rmsbolt-command
-                  (let ((new-cmd (rmsbolt-l-compile-cmd lang)))
-                    (pcase new-cmd
-                      ((pred functionp) (funcall new-cmd src-buffer))
-                      (_ new-cmd)))))
     (when (and force-disass force-asm)
       (error "No disassemble method found for this langauge, please double check spec"))
     (when force-disass
       (setq-local rmsbolt-disassemble t))
     (when force-asm
       (setq-local rmsbolt-disassemble nil))
+    (when (not cmd)
+      (setq-local rmsbolt-command
+                  (let ((new-cmd (rmsbolt-l-compile-cmd lang)))
+                    (pcase new-cmd
+                      ((pred functionp) (funcall new-cmd src-buffer))
+                      (_ new-cmd)))))
     src-buffer))
 
 (defun rmsbolt--demangle-command (existing-cmd lang src-buffer)
