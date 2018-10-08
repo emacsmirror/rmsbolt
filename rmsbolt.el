@@ -295,7 +295,8 @@ This function does NOT quote the return value for use in inferior shells."
   (compile-cmd
    nil
    :type 'string
-   :documentation "Default compilation command to use if none is provided.")
+   :documentation "Default compilation command to use if none is provided.
+If provided a function, call that function with the source buffer to determine the compile command.")
   (compile-cmd-function
    nil
    :type 'function
@@ -324,6 +325,8 @@ Return value is quoted for passing to the shell."
           (shell-quote-argument
            (rmsbolt-output-filename ,src-buffer))))
      ,@body))
+
+;;;; Compile Commands
 
 (cl-defun rmsbolt--c-compile-cmd (&key src-buffer)
   "Process a compile command for gcc/clang."
@@ -508,6 +511,9 @@ Return value is quoted for passing to the shell."
     (with-temp-buffer
       (rmsbolt--disassemble-file file-name (current-buffer))
       (rmsbolt--handle-finish-compile src-buffer nil :override-buffer (current-buffer)))))
+
+
+;;;; Hidden Function Definitions
 
 (defvar rmsbolt--hidden-func-c
   (rx bol (or (and "__" (0+ any))
@@ -1019,6 +1025,7 @@ Argument OVERRIDE-BUFFER use this buffer instead of reading from the output file
   "Helper function to get lang def for LANGUAGE."
   (or rmsbolt-language-descriptor
       (cdr-safe (assoc major-mode rmsbolt-languages))))
+
 (defun rmsbolt--parse-options ()
   "Parse RMS options from file."
   (hack-local-variables)
@@ -1028,7 +1035,11 @@ Argument OVERRIDE-BUFFER use this buffer instead of reading from the output file
          (force-disass (not (rmsbolt-l-supports-asm lang)))
          (force-asm (not (rmsbolt-l-supports-disass lang))))
     (when (not cmd)
-      (setq-local rmsbolt-command (rmsbolt-l-compile-cmd lang)))
+      (setq-local rmsbolt-command
+                  (let ((new-cmd (rmsbolt-l-compile-cmd lang)))
+                    (pcase new-cmd
+                      ((pred functionp) (funcall new-cmd src-buffer))
+                      (_ new-cmd)))))
     (when (and force-disass force-asm)
       (error "No disassemble method found for this langauge, please double check spec"))
     (when force-disass
