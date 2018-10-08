@@ -169,16 +169,23 @@ available in the compiled form if they exist.
      assembly or an executable. See ~rmsbolt--c-compile-cmd~ for an example.
    - If the assembly is not in a standard format, you will need to define a
      ~process-asm-custom-fn~ as well (see python/java for examples).
+   - If you would like to add language tweaks in your own config (ie: take full
+     control over what rmsbolt does completely), you can use
+     ~rmsbolt-language-descriptor~ to fully override the defaults with a custom
+     language definition.
 2. [[file:rmsbolt.el::;;;;;%20Starter%20Definitions][Add a new entry into the starter file]]
    - For this, you will need to make a starter file. See [[file:starters/][this folder]] for
      existing examples.
+   - Ideally, try to pick something which is interesting to play with from an
+     disassembly point of view.
 
 You're done!
 
 * Community and Support
 
 There isn't a dedicated place to discuss this yet, but I (~jgkamat~) hang out in
-~#emacs~ on freenode. ~:)~
+~#emacs~ on freenode. If you would like a dedicated place to discuss this, let
+me know and I'll request a channel on freenode. ~:)~
 
 If you find issues, please send me a mail or submit an issue.
 
