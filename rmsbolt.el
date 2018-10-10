@@ -483,6 +483,14 @@ Return value is quoted for passing to the shell."
                       ">" output-filename)
                 " "))))
 
+(cl-defun rmsbolt--php-compile-cmd (&key src-buffer)
+  "Process a compile command for PHP it needs to have the vld.so module on."
+  (rmsbolt--with-files
+   src-buffer
+   (concat (buffer-local-value 'rmsbolt-command src-buffer)
+           " -dvld.active=1 -dvld.execute=0 -dvld.verbosity=1 "
+           src-filename " 2> " output-filename " > /dev/null")))
+
 (cl-defun rmsbolt--hs-compile-cmd (&key src-buffer)
   "Process a compile command for ghc."
   (rmsbolt--with-files
@@ -601,6 +609,13 @@ Return value is quoted for passing to the shell."
                           :objdumper 'objdump
                           :compile-cmd-function #'rmsbolt--pony-compile-cmd
                           :disass-hidden-funcs nil))
+   (php-mode
+    . ,(make-rmsbolt-lang :compile-cmd "php"
+                          :supports-asm t
+                          :supports-disass nil
+                          :compile-cmd-function #'rmsbolt--php-compile-cmd
+                          :disass-hidden-funcs nil
+                          :process-asm-custom-fn #'rmsbolt--process-php-bytecode))
    ;; ONLY SUPPORTS PYTHON 3
    (python-mode
     . ,(make-rmsbolt-lang :compile-cmd "python3"
@@ -894,6 +909,32 @@ Argument SRC-BUFFER source buffer."
                                  `(rmsbolt-src-line ,source-linum) line))
           ;; Add line
           (push line result))))
+    (nreverse result)))
+
+(cl-defun rmsbolt--process-php-bytecode (_src-buffer asm-lines)
+  (let ((source-linum nil)
+        (state 'useless)
+        (current-line nil)
+        (result nil))
+    (dolist (line asm-lines)
+      (case state
+        ((text)
+         (push line result)
+         (when (string-match "^-+$" line)
+           (setq state 'asm)))
+        ((asm)
+         (cond
+          ((equalp "" line) (setq state 'useless) (push "" result))
+          ((string-match "^ *\\([0-9]+\\) +[0-9]+" line)
+           (setq current-line (string-to-number (match-string 1 line)))
+           (add-text-properties 0 (length line) `(rmsbolt-src-line ,current-line) line)
+           (push line result))
+          (t
+           (add-text-properties 0 (length line) `(rmsbolt-src-line ,current-line) line)
+           (push line result))))
+        (otherwise
+         (when (string-match "^filename:" line)
+           (setq state 'text)))))
     (nreverse result)))
 
 (cl-defun rmsbolt--process-python-bytecode (_src-buffer asm-lines)
