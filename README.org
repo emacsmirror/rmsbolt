@@ -82,6 +82,7 @@ Notable options:
 | Option                        | Description                                                                                                                   |
 |-------------------------------+-------------------------------------------------------------------------------------------------------------------------------|
 | ~rmsbolt-command~             | determines the prefix of the compilation command to use. Use this to switch between compilers or pass flags to your compiler. |
+| ~rmsbolt-default-directory~   | determines the default-drectory to compile from.                                                                              |
 | ~rmsbolt-disassemble~         | disassemble from a compiled binary with objdump, if supported.                                                                |
 | ~rmsbolt-filter-*~            | Tweak filtering of binary output                                                                                              |
 | ~rmsbolt-intel-x86~           | Toggle between intel and att syntax if supported                                                                              |
@@ -167,6 +168,8 @@ available in the compiled form if they exist.
    - The compile-cmd-function is a function that will turn local variable
      settings into a valid command which will take in a filename and output
      assembly or an executable. See ~rmsbolt--c-compile-cmd~ for an example.
+   - When building compilation commands, please make sure to use absolute paths,
+     as the default-directory is not guaranteed to be stable.
    - If the assembly is not in a standard format, you will need to define a
      ~process-asm-custom-fn~ as well (see python/java for examples).
    - If you would like to add language tweaks in your own config (ie: take full

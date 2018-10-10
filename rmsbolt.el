@@ -45,10 +45,11 @@
 ;; change compiler and rmsbolt options simply by editing a local variable block.
 ;;
 ;; Notable options:
-;; `rmsbolt-command': determines the prefix of the compilation command to use
+;; `rmsbolt-command': determines the prefix of the compilation command to use.
+;; `rmsbolt-default-directory': determines the default-drectory to compile from.
 ;; `rmsbolt-disassemble': disassemble from a compiled binary with objdump, if supported.
-;; `rmsbolt-filter-*': Tweak filtering of binary output
-;; `rmsbolt-intel-x86': Toggle between intel and att syntax if supported
+;; `rmsbolt-filter-*': Tweak filtering of binary output.
+;; `rmsbolt-intel-x86': Toggle between intel and att syntax if supported.
 ;; `rmsbolt-demangle': Demangle the output, if supported.
 ;;
 ;; Please see the readme at https://gitlab.com/jgkamat/rmsbolt for
@@ -108,6 +109,14 @@ This setting is automatically disabled on large buffers, use
   :group 'rmsbolt)
 (defcustom rmsbolt-command nil
   "The base command to run rmsbolt from."
+  :type 'string
+  ;; nil means use default command
+  :safe (lambda (v) (or (booleanp v) (stringp v)))
+  :group 'rmsbolt)
+(defcustom rmsbolt-default-directory nil
+  "The default directory to compile from.
+This must be an absolute path if set.
+Some exporters (such as pony) may not work with this set."
   :type 'string
   ;; nil means use default command
   :safe (lambda (v) (or (booleanp v) (stringp v)))
@@ -297,6 +306,11 @@ This function does NOT quote the return value for use in inferior shells."
    :type 'string
    :documentation "Default compilation command to use if none is provided.
 If provided a function, call that function with the source buffer to determine the compile command.")
+  (default-directory
+    nil
+    :type 'string
+    :documentation "Default directory to run compilation in. By default, use rmsbolt--temp-dir.
+If provided a function, call that function with the source buffer to determine the default directory.")
   (compile-cmd-function
    nil
    :type 'function
@@ -1032,6 +1046,7 @@ Argument OVERRIDE-BUFFER use this buffer instead of reading from the output file
   (let* ((lang (rmsbolt--get-lang))
          (src-buffer (current-buffer))
          (cmd rmsbolt-command)
+         (dir rmsbolt-default-directory)
          (force-disass (not (rmsbolt-l-supports-asm lang)))
          (force-asm (not (rmsbolt-l-supports-disass lang))))
     (when (and force-disass force-asm)
@@ -1040,6 +1055,12 @@ Argument OVERRIDE-BUFFER use this buffer instead of reading from the output file
       (setq-local rmsbolt-disassemble t))
     (when force-asm
       (setq-local rmsbolt-disassemble nil))
+    (when (not dir)
+      (setq-local rmsbolt-default-directory
+                  (let ((new-dir (rmsbolt-l-default-directory lang)))
+                    (pcase new-dir
+                      ((pred functionp) (funcall new-dir src-buffer))
+                      (_ new-dir)))))
     (when (not cmd)
       (setq-local rmsbolt-command
                   (let ((new-cmd (rmsbolt-l-compile-cmd lang)))
@@ -1089,7 +1110,8 @@ Argument OVERRIDE-BUFFER use this buffer instead of reading from the output file
            ;; Generate command
            (cmd (funcall func :src-buffer src-buffer))
 
-           (default-directory rmsbolt--temp-dir))
+           (default-directory (or rmsbolt-default-directory
+                                  rmsbolt--temp-dir)))
       (when (buffer-local-value 'rmsbolt-disassemble src-buffer)
         (pcase
             (rmsbolt-l-objdumper lang)
