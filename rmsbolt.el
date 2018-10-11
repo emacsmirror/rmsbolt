@@ -487,6 +487,19 @@ Return value is quoted for passing to the shell."
                       ">" output-filename)
                 " "))))
 
+(defun rmsbolt--hack-p (src-buffer)
+  "Return non-nil if SRC-BUFFER should should use hhvm instead of php."
+  (with-current-buffer src-buffer
+    (save-excursion
+      (goto-char (point-min))
+      (re-search-forward (rx "<?hh") nil t))))
+
+(defun rmsbolt--php-default-compile-cmd (src-buffer)
+  "Return the default php compile command for SRC-BUFFER."
+  (if (rmsbolt--hack-p src-buffer)
+      "hh_single_compile"
+    "php"))
+
 (cl-defun rmsbolt--php-compile-cmd (&key src-buffer)
   "Process a compile command for PHP.
 In order to disassemble opcdoes, we need to have the vld.so
@@ -494,9 +507,12 @@ extension to php on.
 https://github.com/derickr/vld"
   (rmsbolt--with-files
    src-buffer
-   (concat (buffer-local-value 'rmsbolt-command src-buffer)
-           " -dvld.active=1 -dvld.execute=0 -dvld.verbosity=1 "
-           src-filename " 2> " output-filename " > /dev/null")))
+   (if (rmsbolt--hack-p src-buffer)
+       (concat (buffer-local-value 'rmsbolt-command src-buffer)
+               " " src-filename " > " output-filename)
+     (concat (buffer-local-value 'rmsbolt-command src-buffer)
+             " -dvld.active=1 -dvld.execute=0 -dvld.verbosity=1 "
+             src-filename " 2> " output-filename " > /dev/null"))))
 
 (cl-defun rmsbolt--hs-compile-cmd (&key src-buffer)
   "Process a compile command for ghc."
@@ -614,7 +630,7 @@ https://github.com/derickr/vld"
                           :objdumper 'objdump
                           :compile-cmd-function #'rmsbolt--pony-compile-cmd))
    (php-mode
-    . ,(make-rmsbolt-lang :compile-cmd "php"
+    . ,(make-rmsbolt-lang :compile-cmd #'rmsbolt--php-default-compile-cmd
                           :supports-asm t
                           :supports-disass nil
                           :compile-cmd-function #'rmsbolt--php-compile-cmd
@@ -910,29 +926,31 @@ Argument SRC-BUFFER source buffer."
           (push line result))))
     (nreverse result)))
 
-(cl-defun rmsbolt--process-php-bytecode (_src-buffer asm-lines)
-  (let ((state 'useless)
-        (current-line nil)
-        (result nil))
-    (dolist (line asm-lines)
-      (cl-case state
-        ((text)
-         (push line result)
-         (when (string-match "^-+$" line)
-           (setq state 'asm)))
-        ((asm)
-         (cond
-          ((string-empty-p line) (setq state 'useless))
-          ((string-match "^ *\\([0-9]+\\) +[0-9]+" line)
-           (setq current-line (string-to-number (match-string 1 line)))
-           (add-text-properties 0 (length line) `(rmsbolt-src-line ,current-line) line))
-          (t
-           (add-text-properties 0 (length line) `(rmsbolt-src-line ,current-line) line)))
-         (push line result))
-        (otherwise
-         (when (string-match "^filename:" line)
-           (setq state 'text)))))
-    (nreverse result)))
+(cl-defun rmsbolt--process-php-bytecode (src-buffer asm-lines)
+  (if (rmsbolt--hack-p src-buffer)
+      asm-lines
+    (let ((state 'useless)
+          (current-line nil)
+          (result nil))
+      (dolist (line asm-lines)
+        (cl-case state
+          ((text)
+           (push line result)
+           (when (string-match "^-+$" line)
+             (setq state 'asm)))
+          ((asm)
+           (cond
+            ((string-empty-p line) (setq state 'useless))
+            ((string-match "^ *\\([0-9]+\\) +[0-9]+" line)
+             (setq current-line (string-to-number (match-string 1 line)))
+             (add-text-properties 0 (length line) `(rmsbolt-src-line ,current-line) line))
+            (t
+             (add-text-properties 0 (length line) `(rmsbolt-src-line ,current-line) line)))
+           (push line result))
+          (otherwise
+           (when (string-match "^filename:" line)
+             (setq state 'text)))))
+      (nreverse result))))
 
 (cl-defun rmsbolt--process-python-bytecode (_src-buffer asm-lines)
   (let ((source-linum nil)

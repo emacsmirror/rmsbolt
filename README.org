@@ -130,6 +130,8 @@ moment.
 ** PHP
 Requires the [[https://github.com/derickr/vld][vld php extension]] to display PHP opcodes.
 
+If you use hack, you will not get source->asm matching or filtering.
+
 [[https://i.imgur.com/xBfzaK9.gif][https://i.imgur.com/xBfzaK9.gif]]
 ** Pony
 
