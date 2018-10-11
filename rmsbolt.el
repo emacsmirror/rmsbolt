@@ -25,8 +25,8 @@
 ;; RMSBolt is a package to provide assembly or bytecode output for a source
 ;; code input file.
 ;;
-;; It currently supports: C/C++, OCaml, Haskell, Python, Java, Pony, Emacs Lisp,
-;; and (limited) Common Lisp.
+;; It currently supports: C/C++, OCaml, Haskell, Python, Java, PHP, Pony,
+;; Emacs Lisp, and (limited) Common Lisp.
 ;;
 ;; Adding support for more languages, if they have an easy manual compilation
 ;; path from source->assembly/bytecode with debug information, should be much
@@ -51,6 +51,10 @@
 ;; `rmsbolt-filter-*': Tweak filtering of binary output.
 ;; `rmsbolt-intel-x86': Toggle between intel and att syntax if supported.
 ;; `rmsbolt-demangle': Demangle the output, if supported.
+;;
+;; For more advanced configuration (to the point where you can override almost
+;; all of RMSbolt yourself), you can set `rmsbolt-language-descriptor' with a
+;; replacement language spec.
 ;;
 ;; Please see the readme at https://gitlab.com/jgkamat/rmsbolt for
 ;; more information!
@@ -484,7 +488,10 @@ Return value is quoted for passing to the shell."
                 " "))))
 
 (cl-defun rmsbolt--php-compile-cmd (&key src-buffer)
-  "Process a compile command for PHP it needs to have the vld.so module on."
+  "Process a compile command for PHP.
+In order to disassemble opcdoes, we need to have the vld.so
+extension to php on.
+https://github.com/derickr/vld"
   (rmsbolt--with-files
    src-buffer
    (concat (buffer-local-value 'rmsbolt-command src-buffer)
@@ -1222,6 +1229,7 @@ Argument OVERRIDE-BUFFER use this buffer instead of reading from the output file
     ("rust " . "rmsbolt.rs")
     ("python" . "rmsbolt.py")
     ("haskell" . "rmsbolt.hs")
+    ("php" . "rmsbolt.php")
     ("pony" . "rmsbolt.pony")
     ("emacs-lisp" . "rmsbolt-starter.el")
     ;; Rmsbolt is capitalized here because of Java convention of Capitalized

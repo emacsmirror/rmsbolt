@@ -11,7 +11,7 @@ versa. It supports more types of languages than any previous tool of its kind.
 
 - Much more flexible and powerful:
   - Supports disassembly to bytecode as well as assembly.
-  - Supports many languages that godbolt does not support, such as Python,
+  - Supports many languages that godbolt does not support, such as Python, PHP,
     Common Lisp, Emacs Lisp, Ocaml, Java, and Pony.
 - No more sending your code to any server.
 - Much faster turnaround time from writing code to seeing and interacting with disassembly.
@@ -127,6 +127,10 @@ moment.
 
 [[https://i.imgur.com/KkWEMMj.gif][https://i.imgur.com/KkWEMMj.gif]]
 
+** PHP
+Requires the [[https://github.com/derickr/vld][vld php extension]] to display PHP opcodes.
+
+[[https://i.imgur.com/xBfzaK9.gif][https://i.imgur.com/xBfzaK9.gif]]
 ** Pony
 
 Filtering on pony is not as effective as pony asm includes references to
@@ -206,5 +210,6 @@ mail with your patch. If your change is non-trivial, please
   - [[https://github.com/yawkat/javap][yawkat/javap]]
   - [[https://github.com/mattgodbolt/compiler-explorer][mattgodbolt/compiler-explorer]]
   - [[http://reliant.colab.duke.edu/c2mips/][c2mips]]
+  - [[https://3v4l.org/][3v4l]]
 
 Please let me know if you find other alternatives not mentioned!
