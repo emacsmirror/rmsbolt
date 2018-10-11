@@ -912,26 +912,24 @@ Argument SRC-BUFFER source buffer."
     (nreverse result)))
 
 (cl-defun rmsbolt--process-php-bytecode (_src-buffer asm-lines)
-  (let ((source-linum nil)
-        (state 'useless)
+  (let ((state 'useless)
         (current-line nil)
         (result nil))
     (dolist (line asm-lines)
-      (case state
+      (cl-case state
         ((text)
          (push line result)
          (when (string-match "^-+$" line)
            (setq state 'asm)))
         ((asm)
          (cond
-          ((equalp "" line) (setq state 'useless) (push "" result))
+          ((string-empty-p line) (setq state 'useless))
           ((string-match "^ *\\([0-9]+\\) +[0-9]+" line)
            (setq current-line (string-to-number (match-string 1 line)))
-           (add-text-properties 0 (length line) `(rmsbolt-src-line ,current-line) line)
-           (push line result))
+           (add-text-properties 0 (length line) `(rmsbolt-src-line ,current-line) line))
           (t
-           (add-text-properties 0 (length line) `(rmsbolt-src-line ,current-line) line)
-           (push line result))))
+           (add-text-properties 0 (length line) `(rmsbolt-src-line ,current-line) line)))
+         (push line result))
         (otherwise
          (when (string-match "^filename:" line)
            (setq state 'text)))))
