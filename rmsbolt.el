@@ -599,29 +599,25 @@ https://github.com/derickr/vld"
                           :supports-asm t
                           :supports-disass nil
                           :objdumper 'cat
-                          :compile-cmd-function #'rmsbolt--lisp-compile-cmd
-                          :disass-hidden-funcs nil))
+                          :compile-cmd-function #'rmsbolt--lisp-compile-cmd))
    (rust-mode
     . ,(make-rmsbolt-lang :compile-cmd "rustc"
                           :supports-asm t
                           :supports-disass nil
                           :objdumper 'objdump
                           :demangler "rustfilt"
-                          :compile-cmd-function #'rmsbolt--rust-compile-cmd
-                          :disass-hidden-funcs nil))
+                          :compile-cmd-function #'rmsbolt--rust-compile-cmd))
    (ponylang-mode
     . ,(make-rmsbolt-lang :compile-cmd "ponyc"
                           :supports-asm t
                           :supports-disass t
                           :objdumper 'objdump
-                          :compile-cmd-function #'rmsbolt--pony-compile-cmd
-                          :disass-hidden-funcs nil))
+                          :compile-cmd-function #'rmsbolt--pony-compile-cmd))
    (php-mode
     . ,(make-rmsbolt-lang :compile-cmd "php"
                           :supports-asm t
                           :supports-disass nil
                           :compile-cmd-function #'rmsbolt--php-compile-cmd
-                          :disass-hidden-funcs nil
                           :process-asm-custom-fn #'rmsbolt--process-php-bytecode))
    ;; ONLY SUPPORTS PYTHON 3
    (python-mode
@@ -629,30 +625,26 @@ https://github.com/derickr/vld"
                           :supports-asm t
                           :supports-disass nil
                           :compile-cmd-function #'rmsbolt--py-compile-cmd
-                          :disass-hidden-funcs nil
                           :process-asm-custom-fn #'rmsbolt--process-python-bytecode))
    (haskell-mode
     . ,(make-rmsbolt-lang :compile-cmd "ghc"
                           :supports-asm t
                           :supports-disass nil
                           :demangler "haskell-demangler"
-                          :compile-cmd-function #'rmsbolt--hs-compile-cmd
-                          :disass-hidden-funcs nil))
+                          :compile-cmd-function #'rmsbolt--hs-compile-cmd))
    (java-mode
     . ,(make-rmsbolt-lang :compile-cmd "javac"
                           :supports-asm t
                           :supports-disass nil
                           :objdumper 'cat
                           :compile-cmd-function #'rmsbolt--java-compile-cmd
-                          :process-asm-custom-fn #'rmsbolt--process-java-bytecode
-                          :disass-hidden-funcs nil))
+                          :process-asm-custom-fn #'rmsbolt--process-java-bytecode))
    (emacs-lisp-mode
     . ,(make-rmsbolt-lang :supports-asm t
                           :supports-disass nil
                           ;; Nop
                           :process-asm-custom-fn (lambda (_src-buffer lines)
                                                    lines)
-                          :disass-hidden-funcs nil
                           :elisp-compile-override #'rmsbolt--elisp-compile-override))
    ))
 (make-obsolete-variable 'rmsbolt-languages
