@@ -49,7 +49,7 @@
 ;; `rmsbolt-default-directory': determines the default-drectory to compile from.
 ;; `rmsbolt-disassemble': disassemble from a compiled binary with objdump, if supported.
 ;; `rmsbolt-filter-*': Tweak filtering of binary output.
-;; `rmsbolt-intel-x86': Toggle between intel and att syntax if supported.
+;; `rmsbolt-asm-format': Choose between intel att, and other syntax if supported.
 ;; `rmsbolt-demangle': Demangle the output, if supported.
 ;;
 ;; For more advanced configuration (to the point where you can override almost
@@ -125,10 +125,32 @@ Some exporters (such as pony) may not work with this set."
   ;; nil means use default command
   :safe (lambda (v) (or (booleanp v) (stringp v)))
   :group 'rmsbolt)
-(defcustom rmsbolt-intel-x86 t
-  "Whether to use intel x86 format or att."
-  :type 'boolean
-  :safe 'booleanp
+(define-obsolete-variable-alias 'rmsbolt-intel-x86
+  'rmsbolt-asm-format "RMSBolt-0.2"
+  "Sorry about not providing a proper migration for this variable.
+Unfortunately the new options aren't a straightforward mapping.
+Most likely what you want:
+
+t -> \"intel\"
+nil -> \"att\"
+tool defaults -> nil
+
+This means that if you had rmsbolt-intel-x86 set manually, you
+are now getting tool defaults.")
+(defcustom rmsbolt-asm-format "intel"
+  "Which output assembly format to use.
+
+The supported values depend highly on the exporter, but typical
+values are: intel, att, <nil/t> (for using tool defaults).
+Invalid values will be passed onto the disassembly tools, which
+may throw errors.
+
+If you are not on x86, you most likely want to set this to nil.
+
+Since this defaults to 'intel, implementers must support this
+being set (at worst falling back to nil if passed 'intel)."
+  :type 'string
+  :safe (lambda (v) (or (booleanp v) (stringp v)))
   :group 'rmsbolt)
 (defcustom rmsbolt-filter-directives t
   "Whether to filter assembly directives."
@@ -350,17 +372,20 @@ Return value is quoted for passing to the shell."
   "Process a compile command for gcc/clang."
   (rmsbolt--with-files
    src-buffer
-   (let* ((cmd (buffer-local-value 'rmsbolt-command src-buffer))
+   (let* ((asm-format (buffer-local-value 'rmsbolt-asm-format src-buffer))
+          (disass (buffer-local-value 'rmsbolt-disassemble src-buffer))
+          (cmd (buffer-local-value 'rmsbolt-command src-buffer))
           (cmd (mapconcat #'identity
                           (list cmd
                                 "-g"
-                                (if (buffer-local-value 'rmsbolt-disassemble src-buffer)
+                                (if disass
                                     "-c"
                                   "-S")
                                 src-filename
                                 "-o" output-filename
-                                (when (buffer-local-value 'rmsbolt-intel-x86 src-buffer)
-                                  "-masm=intel"))
+                                (when (and (not (booleanp asm-format))
+                                           (not disass))
+                                  (concat "-masm=" asm-format)))
                           " ")))
      cmd)))
 (cl-defun rmsbolt--ocaml-compile-cmd (&key src-buffer)
@@ -426,18 +451,21 @@ Return value is quoted for passing to the shell."
   "Process a compile command for rustc."
   (rmsbolt--with-files
    src-buffer
-   (let* ((cmd (buffer-local-value 'rmsbolt-command src-buffer))
+   (let* ((asm-format (buffer-local-value 'rmsbolt-asm-format src-buffer))
+          (disass (buffer-local-value 'rmsbolt-disassemble src-buffer))
+          (cmd (buffer-local-value 'rmsbolt-command src-buffer))
           (cmd (mapconcat #'identity
                           (list cmd
                                 "-g"
                                 "--emit"
-                                (if (buffer-local-value 'rmsbolt-disassemble src-buffer)
+                                (if disass
                                     "link"
                                   "asm")
                                 src-filename
                                 "-o" output-filename
-                                (when (buffer-local-value 'rmsbolt-intel-x86 src-buffer)
-                                  "-Cllvm-args=--x86-asm-syntax=intel"))
+                                (when (and (not (booleanp asm-format))
+                                           (not disass))
+                                  (concat "-Cllvm-args=--x86-asm-syntax=" asm-format)))
                           " ")))
      cmd)))
 (cl-defun rmsbolt--pony-compile-cmd (&key src-buffer)
@@ -461,7 +489,7 @@ Return value is quoted for passing to the shell."
                           "cd" dir "&&"
                           cmd
                           "-g"
-                          ;; TODO: find a good way to expose -r=ir for llvm IR
+                          ;; FIXME: test this properly and use rmsbolt-asm-format to expose it.
                           (if dis
                               "-r=obj"
                             "-r=asm")
@@ -1165,7 +1193,8 @@ Argument OVERRIDE-BUFFER use this buffer instead of reading from the output file
            (func (rmsbolt-l-compile-cmd-function lang))
            ;; Generate command
            (cmd (funcall func :src-buffer src-buffer))
-
+           (asm-format
+            (buffer-local-value 'rmsbolt-asm-format src-buffer))
            (default-directory (or rmsbolt-default-directory
                                   rmsbolt--temp-dir)))
       (when (buffer-local-value 'rmsbolt-disassemble src-buffer)
@@ -1178,9 +1207,8 @@ Argument OVERRIDE-BUFFER use this buffer instead of reading from the output file
                                   "&&"
                                   "objdump" "-d" (rmsbolt-output-filename src-buffer)
                                   "-C" "--insn-width=16" "-l"
-                                  "-M" (if (buffer-local-value 'rmsbolt-intel-x86 src-buffer)
-                                           "intel"
-                                         "att")
+                                  (when (not (booleanp asm-format))
+                                    (concat "-M " asm-format))
                                   ">" (rmsbolt-output-filename src-buffer t))
                             " ")))
           ('cat

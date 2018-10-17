@@ -85,7 +85,7 @@ Notable options:
 | ~rmsbolt-default-directory~   | determines the default-drectory to compile from.                                                                              |
 | ~rmsbolt-disassemble~         | disassemble from a compiled binary with objdump, if supported.                                                                |
 | ~rmsbolt-filter-*~            | Tweak filtering of binary output                                                                                              |
-| ~rmsbolt-intel-x86~           | Toggle between intel and att syntax if supported                                                                              |
+| ~rmsbolt-asm-format~          | Switch between different output formats. Most binary formats support "att" and "intel"                                        |
 | ~rmsbolt-demangle~            | Demangle the output, if supported.                                                                                            |
 | ~rmsbolt-ignore-binary-limit~ | Ignore the binary size limit for disassembly. This will almost certainly cause Emacs to hang during large processing.         |
 
