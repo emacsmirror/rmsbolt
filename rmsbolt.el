@@ -147,8 +147,8 @@ may throw errors.
 
 If you are not on x86, you most likely want to set this to nil.
 
-Since this defaults to 'intel, implementers must support this
-being set (at worst falling back to nil if passed 'intel)."
+Since this defaults to \"intel\", implementers must support this
+being set (at worst falling back to nil if passed \"intel\")."
   :type 'string
   :safe (lambda (v) (or (booleanp v) (stringp v)))
   :group 'rmsbolt)
