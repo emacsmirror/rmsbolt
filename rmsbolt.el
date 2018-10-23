@@ -1406,8 +1406,13 @@ Argument OVERRIDE-BUFFER use this buffer instead of reading from the output file
                                (eq rmsbolt-automatic-recompile 'force)))
              (modified (buffer-modified-p src-buffer)))
     (with-current-buffer src-buffer
-      ;; Write to disk
-      (save-buffer)
+      ;; Clear `before-save-hook' to prevent things like whitespace cleanup or
+      ;; aggressive indent from running (this is a hot recompile):
+      ;; https://github.com/syl20bnr/spacemacs/blob/c7a103a772d808101d7635ec10f292ab9202d9ee/layers/%2Bspacemacs/spacemacs-editing/local/spacemacs-whitespace-cleanup/spacemacs-whitespace-cleanup.el#L72
+      ;; TODO does anyone want before-save-hook to run on a hot recompile?
+      (let ((before-save-hook nil))
+        ;; Write to disk
+        (save-buffer))
       ;; Recompile
       (setq rmsbolt--automated-compile t)
       (rmsbolt-compile))))
