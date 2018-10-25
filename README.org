@@ -13,6 +13,9 @@ versa. It supports more types of languages than any previous tool of its kind.
   - Supports disassembly to bytecode as well as assembly.
   - Supports many languages that godbolt does not support, such as Python, PHP,
     Common Lisp, Emacs Lisp, Ocaml, Java, and Pony.
+  - Allows targeting custom compilers - which means disassembly for niche
+    assembly targets, specific commits of compilers, and patched libraries or
+    compilers is possible.
 - No more sending your code to any server.
 - Much faster turnaround time from writing code to seeing and interacting with disassembly.
 - 100% usable without the mouse.
