@@ -23,7 +23,7 @@ versa. It supports more types of languages than any previous tool of its kind.
   - Dosen't eat your ram on the 'server' or the 'client'.
   - No enforced limits on code size, compilation time, or processing time.
 - Benefits from living in Emacs:
-  - Full undo tree from Emacs on disassembly/source so you don't loose work.
+  - Full undo tree from Emacs on disassembly/source so you don't lose work.
   - Vim bindings through evil/viper.
   - Use compile.el, flymake, or flycheck to traverse and fix errors as you
     would normally.
