@@ -1,0 +1,324 @@
+\input texinfo    @c -*- texinfo -*-
+@c %**start of header
+@setfilename ./rmsbolt.info
+@settitle RMSbolt User Manual
+@documentencoding UTF-8
+@documentlanguage en
+@c %**end of header
+
+@dircategory Emacs
+@direntry
+* RMSbolt: (rmsbolt).   Viewing disassembly in Emacs with RMSbolt.
+@end direntry
+
+@finalout
+@titlepage
+@title RMSbolt User Manual
+@author Jay Kamat
+@end titlepage
+
+@contents
+
+@ifnottex
+@node Top
+@top RMSbolt User Manual
+@end ifnottex
+
+@menu
+* Installation::
+* Running::
+* Configuring::
+* Languages::
+* Developing::
+
+@detailmenu
+--- The Detailed Node Listing ---
+
+Installation
+
+* Quelpa::
+
+Configuring
+
+* Option List::
+
+Languages
+
+* C/C++::
+* OCaml::
+* Rust::
+* Haskell::
+* Python::
+* Java::
+* PHP::
+* Pony::
+* Emacs Lisp::
+* Common Lisp::
+
+Developing
+
+* Adding a Language::
+@end detailmenu
+@end menu
+
+:PREAMBLE:
+RMSbolt is a compiler output viewer in Emacs.
+
+RMSbolt tries to make it easy to see what your compiler is doing. It does this
+by showing you the assembly output of a given source code file. It also
+highlights which source code a given assembly block corresponds to, and vice
+versa. It supports more types of languages than any previous tool of its kind.
+
+@node Installation
+@chapter Installation
+
+A @uref{https://melpa.org/#/rmsbolt,melpa package} is available for rmsbolt.
+
+No dependencies are required, other than an Emacs newer than 25.1
+@menu
+* Quelpa::
+@end menu
+
+@node Quelpa
+@section Quelpa
+
+This is a quelpa formula for RMSbolt
+
+@lisp
+(quelpa '(rmsbolt
+	  :files (:defaults "starters")
+	  :fetcher gitlab
+	  :repo "jgkamat/rmsbolt"))
+@end lisp
+
+@node Running
+@chapter Running
+
+Once installed, use the @code{rmsbolt-starter} command to generate starter files, or
+enable @code{rmsbolt-mode} in a supported language. Then run @code{rmsbolt-compile} or use
+the default @code{C-c C-c} binding to pop open a disassembly buffer. After the first
+run, the buffer should automatically update.
+
+@node Configuring
+@chapter Configuring
+
+RMSbolt is primarily configured with Emacs local variables. This lets you change
+compiler and rmsbolt options simply by editing a local variable block. The
+starter files have this block with some common settings:
+
+@example
+// Local Variables:
+// rmsbolt-command: "gcc -O0"
+// rmsbolt-disassemble: nil
+// End:
+@end example
+
+@strong{Note}: @uref{https://www.gnu.org/software/emacs/manual/html_node/emacs/Specifying-File-Variables.html#Specifying-File-Variables,the Local Variable block must be 3000 characters from the end of the
+file to work}. Any method of setting buffer-local variables will work though.
+@menu
+* Option List::
+@end menu
+
+@node Option List
+@section Option List
+
+@itemize
+@item
+Local Option: rmsbolt-command
+
+Determines the prefix of the compilation command to use. Use this to switch
+between compilers or pass flags to your compiler.
+
+@item
+Local Option: rmsbolt-default-directory
+
+Determines the default directory to compile from, which is useful if you are
+building with a build-system.
+
+@item
+Local Option: rmsbolt-disassemble
+
+Disassemble from a compiled binary with objdump, if supported.
+
+@item
+Local Option: rmsbolt-filter-directives
+
+Whether to filter unused assembly directives out of final output.
+
+@item
+Local Option: rmsbolt-filter-labels
+
+Whether to filter unused labels from final output
+
+@item
+Local Option: rmsbolt-filter-comment-only
+
+Whether to filter lines that are comment-only.
+
+@item
+Local Option: rmsbolt-asm-format
+
+Which output format to use. Supported values vary between languages. In
+general, ~"intel"~ and ~"att"~ are supported. @code{nil} means to use the tool's
+defaults. Other values may work as well, depending on your compiler.
+
+@item
+Local Option: rmsbolt-demangle
+
+Demangle the output, if supported.
+
+@item
+Local Option: rmsbolt-ignore-binary-limit
+
+Ignore the binary size limit for disassembly. This will almost certainly cause
+Emacs to hang during large processing.
+
+@item
+Local Option: rmsbolt-demangle
+
+Enable or disable demangling, if the language supports it.
+@end itemize
+
+@node Languages
+@chapter Languages
+
+This section covers languages-specific quirks and features.
+@menu
+* C/C++::
+* OCaml::
+* Rust::
+* Haskell::
+* Python::
+* Java::
+* PHP::
+* Pony::
+* Emacs Lisp::
+* Common Lisp::
+@end menu
+
+@node C/C++
+@section C/C++
+
+C/C++ is the primary focus of support, and will get new features and support
+first.
+
+Demangling is enabled if @code{c++filt} is available on the path.
+
+@node OCaml
+@section OCaml
+
+OCaml disassembly is supported through both @code{ocamlopt} and through disassembly
+with objdump.
+
+@node Rust
+@section Rust
+
+Demangling is done with @code{rustfilt} if it is on the path.
+
+@node Haskell
+@section Haskell
+
+Demangling is done with the compiler-explorer demangler, named
+to @code{haskell-demangler} and placed on the path.
+
+@node Python
+@section Python
+
+Support for viewing bytecode only. Python @uref{https://bugs.python.org/issue2506,doesn't have many options}, so most
+tweakables will not work. Python 3.7 is required for recursion into functions,
+otherwise only top level code will be shown. Python 2 is completely unsupported.
+
+@node Java
+@section Java
+
+Parses the output of @code{javap} to get debug information and disassembly.
+
+@node PHP
+@section PHP
+
+Requires the @uref{https://github.com/derickr/vld,vld php extension} to display PHP opcodes. Without that, you will
+not get any output.
+
+If you use hack (denoted by @code{<hh?} at the top of your file), you will not get
+source->asm matching or filtering.
+
+@node Pony
+@section Pony
+
+Filtering on pony is not as effective as pony asm includes references to
+machine-generated functions. This means the output will be slower to generate,
+similar to disassembly in other languages. The pony file being viewed will be
+copied into it's own directory, making it much harder to view non-toy examples.
+
+@node Emacs Lisp
+@section Emacs Lisp
+
+No support for source->asm matching, filtering, or automatic recompile.
+
+Emacs 26 or the @code{cl-print} package are required.
+
+@node Common Lisp
+@section Common Lisp
+
+No support for source->asm matching or filtering. Only @code{sbcl} and @code{clisp}
+supported at the moment, with @code{sbcl} giving much better results.
+
+@node Developing
+@chapter Developing
+
+These are some tips which will help people working on developing or customizing RMSbolt.
+@menu
+* Adding a Language::
+@end menu
+
+@node Adding a Language
+@section Adding a Language
+
+Adding support for a new language is fairly easy. The closer it is to existing
+compilers, the easier it will be (to the point where a clone of a C compiler is
+just a couple copy-paste lines). However, it is not excessively hard to add
+support for completely foreign compilers and bytecode/assembly formats.
+
+As a minimum starting point, you must know how to compile a source file to
+assembly or bytecode on the command line, and know how the line numbers are
+available in the compiled form if they exist.
+
+@enumerate
+@item
+@uref{rmsbolt.el,Add a new entry to the language definitions statement.}
+@itemize
+@item
+To do this, you will need to (at a minimum) add a mode, compile-command, a
+compile-cmd-function, and a starter file name.
+@item
+The compile-cmd-function is a function that will turn local variable
+settings into a valid command which will take in a filename and output
+assembly or an executable. See @code{rmsbolt--c-compile-cmd} for an example.
+@item
+When building compilation commands, please make sure to use absolute paths,
+as the default-directory is not guaranteed to be stable.
+@item
+If the assembly is not in a standard format, you will need to define a
+@code{process-asm-custom-fn} as well (see python/java for examples).
+@item
+If you would like to add language tweaks in your own config (ie: take full
+control over what rmsbolt does completely), you can use
+@code{rmsbolt-language-descriptor} to fully override the defaults with a custom
+language definition.
+@end itemize
+@item
+@uref{rmsbolt.el,Add a new entry into the starter file}
+@itemize
+@item
+For this, you will need to make a starter file. See @uref{starters/,this folder} for
+existing examples.
+@item
+Ideally, try to pick something which is interesting to play with from an
+disassembly point of view.
+@end itemize
+@end enumerate
+
+You're done!
+
+@c Emacs 25.1.1 (Org mode 8.2.10)
+@bye
