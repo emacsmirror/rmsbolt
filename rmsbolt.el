@@ -72,6 +72,7 @@
 (require 'cc-defs)
 (require 'compile)
 (require 'disass)
+(require 'json)
 
 (require 'rmsbolt-java)
 
@@ -626,6 +627,34 @@ https://github.com/derickr/vld"
           (and (1+ (1+ lower) (opt (or "64" "32" "8" "16")) (opt "_"))))
       eol))
 
+;;;;; Language Integrations
+(defun rmsbolt--parse-compile-commands (comp-cmds file)
+  "Parse COMP-CMDS and extract a compilation dir and command for FILE."
+  (when-let* ((json-object-type 'alist)
+              (json-array-type 'vector)
+              (cmds (json-read-file comp-cmds))
+              (stripped-file (file-name-nondirectory file))
+              (entry (cl-find-if
+                      (lambda (elt)
+                        (string=
+                         stripped-file
+                         (file-name-nondirectory
+                          (alist-get 'file elt ""))))
+                      cmds))
+              (dir (alist-get 'directory entry))
+              (cmd (alist-get 'command entry)))
+    (list dir cmd)))
+(defun rmsbolt--default-c-compile-cmd (src-buffer)
+  "Handle compile_commands.json for c/c++ for a given SRC-BUFFER."
+  (when-let* ((ccj "compile_commands.json")
+              (compile-cmd-file
+               (locate-dominating-file
+                (buffer-file-name src-buffer)
+                ccj))
+              (compile-cmd-file (expand-file-name ccj compile-cmd-file))
+              (to-ret (rmsbolt--parse-compile-commands
+                       compile-cmd-file (buffer-file-name src-buffer))))
+    to-ret))
 ;;;; Language Definitions
 (defvar rmsbolt-languages)
 (setq
