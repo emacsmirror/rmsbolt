@@ -226,6 +226,12 @@ Please DO NOT modify this blindly, as this directory will get deleted on Emacs e
 
 (defvar-local rmsbolt--real-src-file nil
   "If set, the real filename that we compiled from, probably due to a copy from this file.")
+;; FIXME should we be unbinding the list here, or is setting nil good enough.
+(defvar-local rmsbolt--default-variables nil
+  "A list of the buffer-local variables we filled in with defaults.
+Useful for determining if the user overrode things like `rmsbolt-command'.
+
+This list of variables will automatically be restored to nil.")
 
 ;;;; Variable-like funcs
 (defun rmsbolt-output-filename (src-buffer &optional asm)
@@ -355,6 +361,7 @@ Generally not useful with the sole exception of the emacs lisp disassembler.
 This function is responsible for calling `rmsbolt--handle-finish-compile'
 Please be careful when setting this, as it bypasses most logic and is generally not useful."))
 
+;;;; Helper Functions
 (defmacro rmsbolt--with-files (src-buffer &rest body)
   "Execute BODY with `src-filename' and `output-filename' defined.
 Args taken from SRC-BUFFER.
@@ -366,7 +373,13 @@ Return value is quoted for passing to the shell."
            (rmsbolt-output-filename ,src-buffer))))
      ,@body))
 
-;;;; Compile Commands
+(defmacro rmsbolt--set-local (var val)
+  "Set unquoted variable VAR to value VAL in current buffer."
+  (declare (debug (symbolp form)))
+  `(set (make-local-variable ,var) ,val))
+
+;;;; Language Functions
+;;;;; Compile Commands
 
 (cl-defun rmsbolt--c-compile-cmd (&key src-buffer)
   "Process a compile command for gcc/clang."
@@ -586,7 +599,7 @@ https://github.com/derickr/vld"
       (rmsbolt--handle-finish-compile src-buffer nil :override-buffer (current-buffer)))))
 
 
-;;;; Hidden Function Definitions
+;;;;; Hidden Function Definitions
 
 (defvar rmsbolt--hidden-func-c
   (rx bol (or (and "__" (0+ any))
@@ -1046,6 +1059,12 @@ Argument OVERRIDE-BUFFER use this buffer instead of reading from the output file
         (default-directory (buffer-local-value 'default-directory buffer))
         (src-buffer (buffer-local-value 'rmsbolt-src-buffer buffer)))
 
+    ;; Clear out default-set variables
+    (with-current-buffer src-buffer
+      (dolist (var rmsbolt--default-variables)
+        (rmsbolt--set-local var nil))
+      (setq-local rmsbolt--default-variables nil))
+
     (with-current-buffer (get-buffer-create rmsbolt-output-buffer)
       ;; Store src buffer value for later linking
       (cond ((not compilation-fail)
@@ -1133,6 +1152,11 @@ Argument OVERRIDE-BUFFER use this buffer instead of reading from the output file
          (dir rmsbolt-default-directory)
          (force-disass (not (rmsbolt-l-supports-asm lang)))
          (force-asm (not (rmsbolt-l-supports-disass lang))))
+    ;; If this is non-nil, most likely we are running two compiles at once.
+    ;; This is not exactly ideal, as it causes a race condition.
+    (when rmsbolt--default-variables
+      (message "It looks like RMSbolt state wasn't cleaned up properly.
+Are you running two compilations at the same time?"))
     (when (and force-disass force-asm)
       (error "No disassemble method found for this langauge, please double check spec"))
     (when force-disass
@@ -1140,12 +1164,14 @@ Argument OVERRIDE-BUFFER use this buffer instead of reading from the output file
     (when force-asm
       (setq-local rmsbolt-disassemble nil))
     (when (not dir)
+      (add-to-list 'rmsbolt--default-variables 'rmsbolt-default-directory)
       (setq-local rmsbolt-default-directory
                   (let ((new-dir (rmsbolt-l-default-directory lang)))
                     (pcase new-dir
                       ((pred functionp) (funcall new-dir src-buffer))
                       (_ new-dir)))))
     (when (not cmd)
+      (add-to-list 'rmsbolt--default-variables 'rmsbolt-command)
       (setq-local rmsbolt-command
                   (let ((new-cmd (rmsbolt-l-compile-cmd lang)))
                     (pcase new-cmd

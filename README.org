@@ -77,10 +77,10 @@ compiler and rmsbolt options simply by editing a local variable block. The
 starter files have this block with some common settings:
 
 #+BEGIN_SRC c
-// Local Variables:
-// rmsbolt-command: "gcc -O0"
-// rmsbolt-disassemble: nil
-// End:
+  // Local Variables:
+  // rmsbolt-command: "gcc -O0"
+  // rmsbolt-disassemble: nil
+  // End:
 #+END_SRC
 
 *Note*: [[https://www.gnu.org/software/emacs/manual/html_node/emacs/Specifying-File-Variables.html#Specifying-File-Variables][the Local Variable block must be 3000 characters from the end of the
