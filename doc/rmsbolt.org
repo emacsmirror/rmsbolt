@@ -164,6 +164,45 @@ Emacs 26 or the ~cl-print~ package are required.
 No support for source->asm matching or filtering. Only ~sbcl~ and ~clisp~
 supported at the moment, with ~sbcl~ giving much better results.
 
+* Integrations
+This section covers integrations that RMSbolt provides, which make it easier to
+use RMSbolt with complex projects with many dependencies.
+
+Integrations are very new, and as such, may be highly buggy and require extra
+work to debug.
+
+Most integrations only take effect when ~rmsbolt-command~ and
+~rmsbolt-default-directory~ are nil! Setting either of these will disable any
+attempt at using the integration system.
+
+** C/C++
+
+C/C++ will look for a ~compile_commands.json~ file in any directory higher than
+the source file. Once it finds one, it will parse the file trying to find a
+match for the current file, and if it finds one, it will compile using the flags
+present there. Many files (like headers) are not present in
+~compile_commands.json~ and will not work (at this time).
+
+Because the compilation commands in ~compile_commands.json~ assume the files are
+compiled in order, please make sure to fully compile the project before
+beginning, otherwise, you could see compiler errors.
+
+In order to transform the given file, some flags are removed. This is the most
+brittle part of the current system, and could cause compile errors.
+
+On projects with a lot of imports, the resulting assembly file might be large,
+which may cause Emacs to hang.
+
+*** QuickStart Guide
+1. Generate a ~compile_commands.json~ file, and ensure it is in a domineering directory.
+   #+BEGIN_SRC sh
+   cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=1 .
+   #+END_SRC
+2. Compile the project completely. If you pass flags to your build system, make
+   sure they are passed when generating ~compile_commands.json~ as well.
+3. Open the file in question, and enable ~rmsbolt-mode~.
+4. Run ~rmsbolt-compile~.
+
 * Developing
 
 These are some tips which will help people working on developing or customizing RMSbolt.

@@ -29,6 +29,7 @@
 * Running::
 * Configuring::
 * Languages::
+* Integrations::
 * Developing::
 
 @detailmenu
@@ -55,6 +56,13 @@ Languages
 * Emacs Lisp::
 * Common Lisp::
 
+Integrations
+
+* C/C++: C/C++x. 
+
+C/C++
+
+* QuickStart Guide::
 Developing
 
 * Adding a Language::
@@ -263,6 +271,62 @@ Emacs 26 or the @code{cl-print} package are required.
 No support for source->asm matching or filtering. Only @code{sbcl} and @code{clisp}
 supported at the moment, with @code{sbcl} giving much better results.
 
+@node Integrations
+@chapter Integrations
+
+This section covers integrations that RMSbolt provides, which make it easier to
+use RMSbolt with complex projects with many dependencies.
+
+Integrations are very new, and as such, may be highly buggy and require extra
+work to debug.
+
+Most integrations only take effect when @code{rmsbolt-command} and
+@code{rmsbolt-default-directory} are nil! Setting either of these will disable any
+attempt at using the integration system.
+@menu
+* C/C++: C/C++x. 
+@end menu
+
+@node C/C++x
+@section C/C++
+
+C/C++ will look for a @code{compile_commands.json} file in any directory higher than
+the source file. Once it finds one, it will parse the file trying to find a
+match for the current file, and if it finds one, it will compile using the flags
+present there. Many files (like headers) are not present in
+@code{compile_commands.json} and will not work (at this time).
+
+Because the compilation commands in @code{compile_commands.json} assume the files are
+compiled in order, please make sure to fully compile the project before
+beginning, otherwise, you could see compiler errors.
+
+In order to transform the given file, some flags are removed. This is the most
+brittle part of the current system, and could cause compile errors.
+
+On projects with a lot of imports, the resulting assembly file might be large,
+which may cause Emacs to hang.
+@menu
+* QuickStart Guide::
+@end menu
+
+@node QuickStart Guide
+@subsection QuickStart Guide
+
+@enumerate
+@item
+Generate a @code{compile_commands.json} file, and ensure it is in a domineering directory.
+@example
+cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=1 .
+@end example
+@item
+Compile the project completely. If you pass flags to your build system, make
+sure they are passed when generating @code{compile_commands.json} as well.
+@item
+Open the file in question, and enable @code{rmsbolt-mode}.
+@item
+Run @code{rmsbolt-compile}.
+@end enumerate
+
 @node Developing
 @chapter Developing
 
@@ -285,7 +349,7 @@ available in the compiled form if they exist.
 
 @enumerate
 @item
-@uref{rmsbolt.el,Add a new entry to the language definitions statement.}
+@uref{../rmsbolt.el,Add a new entry to the language definitions statement.}
 @itemize
 @item
 To do this, you will need to (at a minimum) add a mode, compile-command, a
@@ -307,10 +371,10 @@ control over what rmsbolt does completely), you can use
 language definition.
 @end itemize
 @item
-@uref{rmsbolt.el,Add a new entry into the starter file}
+@uref{../rmsbolt.el,Add a new entry into the starter file}
 @itemize
 @item
-For this, you will need to make a starter file. See @uref{starters/,this folder} for
+For this, you will need to make a starter file. See @uref{./../starters/,this folder} for
 existing examples.
 @item
 Ideally, try to pick something which is interesting to play with from an
