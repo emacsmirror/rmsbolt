@@ -108,3 +108,4 @@
 
 
 ;;; rmsbolt-test.el ends here
+(provide 'rmsbolt-test)
