@@ -66,5 +66,6 @@
                    cmd)
      " ")))
 
-;;; rmsbolt-split.el ends here
 (provide 'rmsbolt-split)
+
+;;; rmsbolt-split.el ends here

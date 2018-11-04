@@ -75,6 +75,7 @@
 (require 'json)
 
 (require 'rmsbolt-java)
+(require 'rmsbolt-split)
 
 ;;; Code:
 ;;;; Customize:
@@ -384,9 +385,12 @@ Return value is quoted for passing to the shell."
 
 (cl-defun rmsbolt--c-compile-cmd (&key src-buffer)
   "Process a compile command for gcc/clang."
+
   (rmsbolt--with-files
    src-buffer
-   (let* ((asm-format (buffer-local-value 'rmsbolt-asm-format src-buffer))
+   (let* ( ;; Turn off passing the source file if we find compile_commands
+          (no-src-filename (rmsbolt--handle-c-compile-cmd src-buffer))
+          (asm-format (buffer-local-value 'rmsbolt-asm-format src-buffer))
           (disass (buffer-local-value 'rmsbolt-disassemble src-buffer))
           (cmd (buffer-local-value 'rmsbolt-command src-buffer))
           (cmd (mapconcat #'identity
@@ -395,13 +399,16 @@ Return value is quoted for passing to the shell."
                                 (if disass
                                     "-c"
                                   "-S")
-                                src-filename
+                                (if no-src-filename
+                                    ""
+                                  src-filename)
                                 "-o" output-filename
                                 (when (and (not (booleanp asm-format))
                                            (not disass))
                                   (concat "-masm=" asm-format)))
                           " ")))
      cmd)))
+
 (cl-defun rmsbolt--ocaml-compile-cmd (&key src-buffer)
   "Process a compile command for ocaml.
 
@@ -644,9 +651,13 @@ https://github.com/derickr/vld"
               (dir (alist-get 'directory entry))
               (cmd (alist-get 'command entry)))
     (list dir cmd)))
-(defun rmsbolt--default-c-compile-cmd (src-buffer)
-  "Handle compile_commands.json for c/c++ for a given SRC-BUFFER."
-  (when-let* ((ccj "compile_commands.json")
+(defun rmsbolt--handle-c-compile-cmd (src-buffer)
+  "Handle compile_commands.json for c/c++ for a given SRC-BUFFER.
+return t if successful."
+  (when-let* ((defaults (buffer-local-value 'rmsbolt--default-variables src-buffer))
+              (default-dir (cl-find 'rmsbolt-default-directory defaults))
+              (default-cmd (cl-find 'rmsbolt-command defaults))
+              (ccj "compile_commands.json")
               (compile-cmd-file
                (locate-dominating-file
                 (buffer-file-name src-buffer)
@@ -654,7 +665,16 @@ https://github.com/derickr/vld"
               (compile-cmd-file (expand-file-name ccj compile-cmd-file))
               (to-ret (rmsbolt--parse-compile-commands
                        compile-cmd-file (buffer-file-name src-buffer))))
-    to-ret))
+    (with-current-buffer src-buffer
+      (setq-local rmsbolt-default-directory (cl-first to-ret))
+      (setq-local rmsbolt-command
+                  ;; Remove -c, -S, and -o <arg> if present,
+                  ;; as we will add them back
+                  (thread-first (cl-second to-ret)
+                    (rmsbolt-split-rm-single "-c")
+                    (rmsbolt-split-rm-single "-S")
+                    (rmsbolt-split-rm-double "-o")))
+      t)))
 ;;;; Language Definitions
 (defvar rmsbolt-languages)
 (setq
