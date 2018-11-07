@@ -55,6 +55,7 @@ Languages
 * Pony::
 * Emacs Lisp::
 * Common Lisp::
+* D::
 
 Integrations
 
@@ -202,6 +203,7 @@ This section covers languages-specific quirks and features.
 * Pony::
 * Emacs Lisp::
 * Common Lisp::
+* D::
 @end menu
 
 @node C/C++
@@ -270,6 +272,11 @@ Emacs 26 or the @code{cl-print} package are required.
 
 No support for source->asm matching or filtering. Only @code{sbcl} and @code{clisp}
 supported at the moment, with @code{sbcl} giving much better results.
+
+@node D
+@section D
+
+Assembly listing is supported through @code{ldc}
 
 @node Integrations
 @chapter Integrations
