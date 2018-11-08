@@ -1,5 +1,5 @@
 // Local Variables:
-// rmsbolt-command: "ldc2"
+// rmsbolt-command: "ldc2 -O0"
 // End:
 
 import std.stdio : writeln;
@@ -24,4 +24,3 @@ int main() {
     }
     return 0;
 }
-

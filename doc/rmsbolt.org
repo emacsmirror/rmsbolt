@@ -127,7 +127,6 @@ Demangling is done with ~rustfilt~ if it is on the path.
 Demangling is done with the compiler-explorer demangler, named
 to ~haskell-demangler~ and placed on the path.
 
-
 ** Python
 
 Support for viewing bytecode only. Python [[https://bugs.python.org/issue2506][doesn't have many options]], so most
@@ -137,7 +136,6 @@ otherwise only top level code will be shown. Python 2 is completely unsupported.
 ** Java
 
 Parses the output of ~javap~ to get debug information and disassembly.
-
 
 ** PHP
 Requires the [[https://github.com/derickr/vld][vld php extension]] to display PHP opcodes. Without that, you will
@@ -152,6 +150,13 @@ Filtering on pony is not as effective as pony asm includes references to
 machine-generated functions. This means the output will be slower to generate,
 similar to disassembly in other languages. The pony file being viewed will be
 copied into it's own directory, making it much harder to view non-toy examples.
+
+** D
+
+Assembly is provided through the ~ldc~ tool.
+
+Please report bugs if matching does not work for you, as D's file format for
+designating files is a little different.
 
 ** Emacs Lisp
 

@@ -53,9 +53,9 @@ Languages
 * Java::
 * PHP::
 * Pony::
+* D::
 * Emacs Lisp::
 * Common Lisp::
-* D::
 
 Integrations
 
@@ -201,9 +201,9 @@ This section covers languages-specific quirks and features.
 * Java::
 * PHP::
 * Pony::
+* D::
 * Emacs Lisp::
 * Common Lisp::
-* D::
 @end menu
 
 @node C/C++
@@ -260,6 +260,14 @@ machine-generated functions. This means the output will be slower to generate,
 similar to disassembly in other languages. The pony file being viewed will be
 copied into it's own directory, making it much harder to view non-toy examples.
 
+@node D
+@section D
+
+Assembly is provided through the @code{ldc} tool.
+
+Please report bugs if matching does not work for you, as D's file format for
+designating files is a little different.
+
 @node Emacs Lisp
 @section Emacs Lisp
 
@@ -272,11 +280,6 @@ Emacs 26 or the @code{cl-print} package are required.
 
 No support for source->asm matching or filtering. Only @code{sbcl} and @code{clisp}
 supported at the moment, with @code{sbcl} giving much better results.
-
-@node D
-@section D
-
-Assembly listing is supported through @code{ldc}
 
 @node Integrations
 @chapter Integrations
