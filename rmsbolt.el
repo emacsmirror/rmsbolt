@@ -493,17 +493,13 @@ Return value is quoted for passing to the shell."
   "Process a compile command for d"
   (rmsbolt--with-files
    src-buffer
-   (let* ((language (rmsbolt--get-lang))
-          (compiler (or (buffer-local-value 'rmsbolt-command src-buffer)
-                        (rmsbolt-l-cmd-function language)))
-          (demangle-off (not (buffer-local-value 'rmsbolt-demangle src-buffer)))
-          (demangle-tmp-file (string-join (list rmsbolt--temp-dir "/demangled")))
-          (demangler (rmsbolt-l-demangler language))
-          (cmd (string-join (list compiler "-g" "-output-s" src-filename "-of" output-filename) " "))
-          (cmd (if demangle-off
-                   cmd
-                 (string-join (list cmd "&&" demangler output-filename ">" demangle-tmp-file "&&" "mv" demangle-tmp-file output-filename) " "))))
+   (let* ((compiler (buffer-local-value 'rmsbolt-command src-buffer))
+          (cmd (mapconcat
+                #'identity
+                (list compiler "-g" "-output-s" src-filename "-of" output-filename)
+                " ")))
      cmd)))
+
 (cl-defun rmsbolt--pony-compile-cmd (&key src-buffer)
   "Process a compile command for ponyc."
   (let* ((cmd (buffer-local-value 'rmsbolt-command src-buffer))
@@ -711,7 +707,7 @@ return t if successful."
    (d-mode
     . ,(make-rmsbolt-lang :compile-cmd "ldc2"
                           :supports-asm t
-                          :supports-disass t
+                          :supports-disass nil
                           :demangler "ddemangle"
                           :compile-cmd-function #'rmsbolt--d-compile-cmd))
    ;; In order to parse ocaml files, you need the emacs ocaml mode, tuareg
@@ -1366,7 +1362,7 @@ Are you running two compilations at the same time?"))
     ("php" . "rmsbolt.php")
     ("pony" . "rmsbolt.pony")
     ("emacs-lisp" . "rmsbolt-starter.el")
-    ("d" . "rmsbolt-starter.d")
+    ("d" . "rmsbolt.d")
     ;; Rmsbolt is capitalized here because of Java convention of Capitalized
     ;; class names.
     ("java" . "Rmsbolt.java")))
