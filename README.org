@@ -115,7 +115,7 @@ The main knobs are described in the full documentation.
 * Community and Support
 
 If you need help, have questions, or just want to chat about compilers, feel
-free to drop by ~#rmsbolt~ on Freenode ([[https://webchat.freenode.net/?channels=#qutebrowser][webchat]]). Please be sure to stick
+free to drop by ~#rmsbolt~ on [[https://freenode.net/][Freenode]] ([[https://webchat.freenode.net/?channels=#rmsbolt][webchat]]). Please be sure to stick
 around, for a reply.
 
 If you find issues, please send me a mail or submit an issue.
