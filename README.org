@@ -114,9 +114,9 @@ The main knobs are described in the full documentation.
 
 * Community and Support
 
-There isn't a dedicated place to discuss this yet, but I (~jgkamat~) hang out in
-~#emacs~ on freenode. If you would like a dedicated place to discuss this, let
-me know and I'll request a channel on freenode. ~:)~
+If you need help, have questions, or just want to chat about compilers, feel
+free to drop by ~#rmsbolt~ on Freenode ([[https://webchat.freenode.net/?channels=#qutebrowser][webchat]]). Please be sure to stick
+around, for a reply.
 
 If you find issues, please send me a mail or submit an issue.
 
