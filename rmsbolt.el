@@ -929,10 +929,12 @@ Argument SRC-BUFFER source buffer."
             '("Aborting processing due to exceeding the binary limit.")))
         (when (string-match rmsbolt-disass-line line)
           ;; Don't add linums from files which we aren't inspecting
-          (if (file-equal-p src-file-name
-                            (match-string 1 line))
-              (setq source-linum (string-to-number (match-string 2 line)))
-            (setq source-linum nil))
+          ;; If we get a non-absolute .file path, treat it like we are in the src directory.
+          (let ((default-directory (file-name-directory src-file-name)))
+            (if (file-equal-p src-file-name
+                              (match-string 1 line))
+                (setq source-linum (string-to-number (match-string 2 line)))
+              (setq source-linum nil)))
           ;; We are just setting a linum, no data here.
           (throw 'continue t))
 
@@ -984,12 +986,14 @@ Argument SRC-BUFFER source buffer."
            ;; Process any line number hints
            ((string-match rmsbolt-source-tag line)
             (if (or (not src-file-name) ;; Skip file match if we don't have a current filename
-                    (file-equal-p src-file-name
-                                  (gethash
-                                   (string-to-number (match-string 1 line))
-                                   source-file-map
-                                   ;; Assume we never will compile dev null :P
-                                   "/dev/null")))
+                    ;; If we get a non-absolute .file path, treat it like we are in the src directory.
+                    (let ((default-directory (file-name-directory src-file-name)))
+                      (file-equal-p src-file-name
+                                    (gethash
+                                     (string-to-number (match-string 1 line))
+                                     source-file-map
+                                     ;; Assume we never will compile dev null :P
+                                     "/dev/null"))))
                 (setq source-linum (string-to-number
                                     (match-string 2 line)))
               (setq source-linum nil)))
