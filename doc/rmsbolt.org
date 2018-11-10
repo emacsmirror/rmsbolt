@@ -153,7 +153,8 @@ copied into it's own directory, making it much harder to view non-toy examples.
 
 ** D
 
-Assembly is provided through the ~ldc~ tool.
+Assembly is generated through the ~ldc~ tool, and demangling is provided by
+~ddemangler~.
 
 Please report bugs if matching does not work for you, as D's file format for
 designating files is a little different.
