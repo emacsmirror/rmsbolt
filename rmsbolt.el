@@ -648,34 +648,34 @@ https://github.com/derickr/vld"
 ;;;;; Language Integrations
 (defun rmsbolt--parse-compile-commands (comp-cmds file)
   "Parse COMP-CMDS and extract a compilation dir and command for FILE."
-  (when-let* ((json-object-type 'alist)
-              (json-array-type 'vector)
-              (cmds (json-read-file comp-cmds))
-              (stripped-file (file-name-nondirectory file))
-              (entry (cl-find-if
-                      (lambda (elt)
-                        (string=
-                         stripped-file
-                         (file-name-nondirectory
-                          (alist-get 'file elt ""))))
-                      cmds))
-              (dir (alist-get 'directory entry))
-              (cmd (alist-get 'command entry)))
+  (when-let ((json-object-type 'alist)
+             (json-array-type 'vector)
+             (cmds (json-read-file comp-cmds))
+             (stripped-file (file-name-nondirectory file))
+             (entry (cl-find-if
+                     (lambda (elt)
+                       (string=
+                        stripped-file
+                        (file-name-nondirectory
+                         (alist-get 'file elt ""))))
+                     cmds))
+             (dir (alist-get 'directory entry))
+             (cmd (alist-get 'command entry)))
     (list dir cmd)))
 (defun rmsbolt--handle-c-compile-cmd (src-buffer)
   "Handle compile_commands.json for c/c++ for a given SRC-BUFFER.
 return t if successful."
-  (when-let* ((defaults (buffer-local-value 'rmsbolt--default-variables src-buffer))
-              (default-dir (cl-find 'rmsbolt-default-directory defaults))
-              (default-cmd (cl-find 'rmsbolt-command defaults))
-              (ccj "compile_commands.json")
-              (compile-cmd-file
-               (locate-dominating-file
-                (buffer-file-name src-buffer)
-                ccj))
-              (compile-cmd-file (expand-file-name ccj compile-cmd-file))
-              (to-ret (rmsbolt--parse-compile-commands
-                       compile-cmd-file (buffer-file-name src-buffer))))
+  (when-let ((defaults (buffer-local-value 'rmsbolt--default-variables src-buffer))
+             (default-dir (cl-find 'rmsbolt-default-directory defaults))
+             (default-cmd (cl-find 'rmsbolt-command defaults))
+             (ccj "compile_commands.json")
+             (compile-cmd-file
+              (locate-dominating-file
+               (buffer-file-name src-buffer)
+               ccj))
+             (compile-cmd-file (expand-file-name ccj compile-cmd-file))
+             (to-ret (rmsbolt--parse-compile-commands
+                      compile-cmd-file (buffer-file-name src-buffer))))
     (with-current-buffer src-buffer
       (setq-local rmsbolt-default-directory (cl-first to-ret))
       (setq-local rmsbolt-command
