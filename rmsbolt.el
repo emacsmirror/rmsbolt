@@ -1416,6 +1416,7 @@ Are you running two compilations at the same time?"))
     ("pony" . "rmsbolt.pony")
     ("emacs-lisp" . "rmsbolt-starter.el")
     ("d" . "rmsbolt.d")
+    ("zig" . "rmsbolt.zig")
     ;; Rmsbolt is capitalized here because of Java convention of Capitalized
     ;; class names.
     ("java" . "Rmsbolt.java")))
