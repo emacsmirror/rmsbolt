@@ -817,7 +817,8 @@ return t if successful."
                           :supports-asm t
                           :supports-disass t
                           :objdumper 'objdump
-                          :compile-cmd-function #'rmsbolt--zig-compile-cmd))
+                          :compile-cmd-function #'rmsbolt--zig-compile-cmd
+                          :disass-hidden-funcs rmsbolt--hidden-func-zig))
    ))
 (make-obsolete-variable 'rmsbolt-languages
                         'rmsbolt-language-descriptor "RMSBolt-0.2")
