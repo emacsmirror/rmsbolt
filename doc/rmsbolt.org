@@ -170,6 +170,10 @@ Emacs 26 or the ~cl-print~ package are required.
 No support for source->asm matching or filtering. Only ~sbcl~ and ~clisp~
 supported at the moment, with ~sbcl~ giving much better results.
 
+** Zig
+
+Assembly is generated through the ~zig~ compiler.
+
 * Integrations
 This section covers integrations that RMSbolt provides, which make it easier to
 use RMSbolt with complex projects with many dependencies.

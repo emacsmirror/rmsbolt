@@ -617,6 +617,42 @@ https://github.com/derickr/vld"
       (rmsbolt--disassemble-file file-name (current-buffer))
       (rmsbolt--handle-finish-compile src-buffer nil :override-buffer (current-buffer)))))
 
+(cl-defun rmsbolt--zig-compile-cmd (&key src-buffer)
+  "Process a compile command for zig."
+  (rmsbolt--with-files
+   src-buffer
+   (let* ((asm-format (buffer-local-value 'rmsbolt-asm-format src-buffer))
+          (predicted-asm-filename (shell-quote-argument
+                                   (concat (file-name-directory output-filename)
+                                           (file-name-as-directory "zig-cache")
+                                           (file-name-sans-extension (file-name-nondirectory (buffer-file-name)))
+                                           ".s")))
+          (disass (buffer-local-value 'rmsbolt-disassemble src-buffer))
+          (cmd (buffer-local-value 'rmsbolt-command src-buffer))
+          (cmd (mapconcat #'identity
+                          (list cmd
+                                "build-exe"
+                                src-filename
+                                "--emit"
+                                (if disass
+                                    "bin"
+                                  "asm")
+                                (when (and (not (booleanp asm-format))
+                                           (not disass))
+                                  (concat "-mllvm --x86-asm-syntax=" asm-format))
+                                (mapconcat #'identity
+                                           (cond
+                                            (disass
+                                             (list "--output" output-filename))
+                                            ((equal predicted-asm-filename output-filename)
+                                             nil)
+                                            (t
+                                             (list "&&" "mv"
+                                                   predicted-asm-filename
+                                                   output-filename)))
+                                           " "))
+                          " ")))
+     cmd)))
 
 ;;;;; Hidden Function Definitions
 
@@ -643,6 +679,13 @@ https://github.com/derickr/vld"
           ;; Ocaml likes to make labels following camlModule__,
           ;; filter out any lowercase
           (and (1+ (1+ lower) (opt (or "64" "32" "8" "16")) (opt "_"))))
+      eol))
+(defvar rmsbolt--hidden-func-zig
+  (rx bol (or (and "_" (0+ any))
+              (and (opt "de") "register_tm_clones")
+              "call_gmon_start"
+              "frame_dummy"
+              (and (0+ any) "@plt" (0+ any)))
       eol))
 
 ;;;;; Language Integrations
@@ -769,6 +812,12 @@ return t if successful."
                           :process-asm-custom-fn (lambda (_src-buffer lines)
                                                    lines)
                           :elisp-compile-override #'rmsbolt--elisp-compile-override))
+   (zig-mode
+    . ,(make-rmsbolt-lang :compile-cmd "zig"
+                          :supports-asm t
+                          :supports-disass t
+                          :objdumper 'objdump
+                          :compile-cmd-function #'rmsbolt--zig-compile-cmd))
    ))
 (make-obsolete-variable 'rmsbolt-languages
                         'rmsbolt-language-descriptor "RMSBolt-0.2")
