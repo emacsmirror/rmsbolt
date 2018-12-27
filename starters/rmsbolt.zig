@@ -22,3 +22,10 @@ pub fn main() void {
         std.debug.warn("{c}\n", a);
     }
 }
+
+// Zig embeds a panic handler that prints stack traces, causing a disassembly much larger than normal.
+// You can optionally place this function in files you disassemble to make them easier to digest.
+pub fn panic(msg: []const u8, error_return_trace: ?*@import("builtin").StackTrace) noreturn {
+    while (true) {
+    }
+}

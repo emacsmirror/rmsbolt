@@ -290,6 +290,17 @@ supported at the moment, with @code{sbcl} giving much better results.
 Assembly is generated through the @code{zig} compiler. Due to large binary sizes,
 disassembly is discouraged.
 
+Zig embeds a panic handler which inflates the size of binaries. In order to
+reduce this to a manageable level, you can add the following snippet to your
+file:
+
+@example
+pub fn panic(msg: []const u8, error_return_trace: ?*@@import("builtin").StackTrace) noreturn @{
+    while (true) @{
+    @}
+@}
+@end example
+
 @node Integrations
 @chapter Integrations
 
