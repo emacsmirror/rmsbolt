@@ -56,6 +56,7 @@ Languages
 * D::
 * Emacs Lisp::
 * Common Lisp::
+* Zig::
 
 Integrations
 
@@ -204,6 +205,7 @@ This section covers languages-specific quirks and features.
 * D::
 * Emacs Lisp::
 * Common Lisp::
+* Zig::
 @end menu
 
 @node C/C++
@@ -263,7 +265,8 @@ copied into it's own directory, making it much harder to view non-toy examples.
 @node D
 @section D
 
-Assembly is provided through the @code{ldc} tool.
+Assembly is generated through the @code{ldc} tool, and demangling is provided by
+@code{ddemangler}.
 
 Please report bugs if matching does not work for you, as D's file format for
 designating files is a little different.
@@ -280,6 +283,12 @@ Emacs 26 or the @code{cl-print} package are required.
 
 No support for source->asm matching or filtering. Only @code{sbcl} and @code{clisp}
 supported at the moment, with @code{sbcl} giving much better results.
+
+@node Zig
+@section Zig
+
+Assembly is generated through the @code{zig} compiler. Due to large binary sizes,
+disassembly is discouraged.
 
 @node Integrations
 @chapter Integrations
@@ -394,5 +403,5 @@ disassembly point of view.
 
 You're done!
 
-@c Emacs 25.1.1 (Org mode 8.2.10)
+@c Emacs 25.2.2 (Org mode 8.2.10)
 @bye

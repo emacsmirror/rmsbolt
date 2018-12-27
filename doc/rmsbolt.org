@@ -172,7 +172,8 @@ supported at the moment, with ~sbcl~ giving much better results.
 
 ** Zig
 
-Assembly is generated through the ~zig~ compiler.
+Assembly is generated through the ~zig~ compiler. Due to large binary sizes,
+disassembly is discouraged.
 
 * Integrations
 This section covers integrations that RMSbolt provides, which make it easier to
