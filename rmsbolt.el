@@ -1238,8 +1238,9 @@ Argument OVERRIDE-BUFFER use this buffer instead of reading from the output file
                         (old-window-start (window-start window)))
                    (erase-buffer)
                    (insert (mapconcat #'identity lines "\n"))
-                   (set-window-start window old-window-start)
-                   (set-window-point window old-point))
+                   (when window
+                     (set-window-start window old-window-start)
+                     (set-window-point window old-point)))
                  (asm-mode)
                  (rmsbolt-mode 1)
                  (setq-local rmsbolt-src-buffer src-buffer)
