@@ -1231,18 +1231,15 @@ Argument OVERRIDE-BUFFER use this buffer instead of reading from the output file
 
                  (with-current-buffer src-buffer
                    (setq-local rmsbolt-line-mapping ht))
-                 ;; Replace buffer contents non-destructively if possible
-                 (if (functionp #'replace-buffer-contents)
-                     (with-temp-buffer
-                       (insert (mapconcat #'identity lines "\n"))
-                       (let ((tmp-buffer (current-buffer)))
-                         (with-current-buffer output-buffer
-                           (replace-buffer-contents tmp-buffer))))
-                   (with-current-buffer output-buffer
-                     (let ((old-point (point)))
-                       (erase-buffer)
-                       (insert (mapconcat #'identity lines "\n"))
-                       (goto-char old-point))))
+
+                 ;; Replace buffer contents but save point and scroll
+                 (let* ((window (get-buffer-window output-buffer))
+                        (old-point (window-point window))
+                        (old-window-start (window-start window)))
+                   (erase-buffer)
+                   (insert (mapconcat #'identity lines "\n"))
+                   (set-window-start window old-window-start)
+                   (set-window-point window old-point))
                  (asm-mode)
                  (rmsbolt-mode 1)
                  (setq-local rmsbolt-src-buffer src-buffer)
