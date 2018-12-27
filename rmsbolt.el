@@ -1545,6 +1545,7 @@ Are you running two compilations at the same time?"))
              (should-hot-recompile rmsbolt-automatic-recompile)
              (output-buffer (get-buffer rmsbolt-output-buffer))
              (src-buffer (buffer-local-value 'rmsbolt-src-buffer output-buffer))
+             (src-buffer-live (buffer-live-p src-buffer))
              (is-not-elisp (not (eq 'emacs-lisp-mode
                                     (with-current-buffer src-buffer
                                       major-mode))))
