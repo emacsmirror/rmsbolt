@@ -186,6 +186,10 @@ file:
   }
 #+END_SRC
 
+** Go
+
+Uses Go's objdump tool to produce viewing-only bytecode. Go must be on the path.
+
 * Integrations
 This section covers integrations that RMSbolt provides, which make it easier to
 use RMSbolt with complex projects with many dependencies.

@@ -57,6 +57,7 @@ Languages
 * Emacs Lisp::
 * Common Lisp::
 * Zig::
+* Go::
 
 Integrations
 
@@ -206,6 +207,7 @@ This section covers languages-specific quirks and features.
 * Emacs Lisp::
 * Common Lisp::
 * Zig::
+* Go::
 @end menu
 
 @node C/C++
@@ -300,6 +302,11 @@ pub fn panic(msg: []const u8, error_return_trace: ?*@@import("builtin").StackTra
     @}
 @}
 @end example
+
+@node Go
+@section Go
+
+Uses Go's objdump tool to produce viewing-only bytecode. Go must be on the path.
 
 @node Integrations
 @chapter Integrations
