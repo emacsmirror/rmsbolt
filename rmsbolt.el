@@ -489,6 +489,21 @@ Return value is quoted for passing to the shell."
                                   (concat "-Cllvm-args=--x86-asm-syntax=" asm-format)))
                           " ")))
      cmd)))
+(cl-defun rmsbolt--go-compile-cmd (&key src-buffer)
+  "Process a compile command for go."
+  (rmsbolt--with-files
+   src-buffer
+   (let* ((asm-format (buffer-local-value 'rmsbolt-asm-format src-buffer))
+          (disass (buffer-local-value 'rmsbolt-disassemble src-buffer))
+          (cmd (buffer-local-value 'rmsbolt-command src-buffer))
+          (cmd (mapconcat #'identity
+                          (list cmd
+				"tool" "compile"
+                                "-S"
+				"-o" output-filename
+                                src-filename)
+                          " ")))
+     cmd)))
 (cl-defun rmsbolt--d-compile-cmd (&key src-buffer)
   "Process a compile command for d"
   (rmsbolt--with-files
@@ -819,6 +834,13 @@ return t if successful."
                           :objdumper 'objdump
                           :compile-cmd-function #'rmsbolt--zig-compile-cmd
                           :disass-hidden-funcs rmsbolt--hidden-func-zig))
+   (go-mode
+    . ,(make-rmsbolt-lang :compile-cmd "go"
+			  :supports-asm nil
+			  :supports-disass t
+			  :objdumper 'go-objdump
+			  :compile-cmd-function #'rmsbolt--go-compile-cmd
+			  :process-asm-custom-fn #'rmsbolt--process-go-asm-lines))
    ))
 (make-obsolete-variable 'rmsbolt-languages
                         'rmsbolt-language-descriptor "RMSBolt-0.2")
@@ -1167,6 +1189,37 @@ Argument ASM-LINES input lines."
      (t
       (rmsbolt--process-src-asm-lines src-buffer asm-lines)))))
 
+(cl-defun rmsbolt--process-go-asm-lines (src-buffer asm-lines)
+  (let ((source-linum nil)
+        (result nil))
+    (dolist (line asm-lines)
+      (if (not
+	   (string-match (rx bol (repeat 2 space)
+			     (group (opt (0+ any))) ":"
+			     (group (opt (1+ digit)) (1+ "\t"))
+			     (group (opt "0x" (0+ hex)) (1+ "\t"))
+			     (group (1+ xdigit) (1+ "\t"))
+			     (group (opt (0+ any)) (1+ "\t")))
+			 line))
+          ;; just push the var with no linum
+          (push line result)
+        ;; Grab line numbers
+        (unless (string-empty-p (match-string 2 line))
+          (setq source-linum
+                (string-to-number (match-string 2 line))))
+        ;; Reformat line to be more like assembly
+        (setq line (mapconcat #'identity
+                              (list (match-string 3 line)
+                                    (match-string 4 line)
+                                    (match-string 5 line))
+                              "\t"))
+        (when source-linum
+          (add-text-properties 0 (length line)
+                               `(rmsbolt-src-line ,source-linum) line))
+        ;; Add line
+        (push line result)))
+    (nreverse result)))
+
 ;;;;; Handlers
 (cl-defun rmsbolt--handle-finish-compile (buffer str &key override-buffer)
   "Finish hook for compilations.
@@ -1355,6 +1408,15 @@ Are you running two compilations at the same time?"))
                                     (concat "-M " asm-format))
                                   ">" (rmsbolt-output-filename src-buffer t))
                             " ")))
+          ('go-objdump
+           (setq cmd
+                 (mapconcat #'identity
+                            (list cmd
+                                  "&&"
+				  "go" "tool"
+                                  "objdump" (rmsbolt-output-filename src-buffer)
+                                  ">" (rmsbolt-output-filename src-buffer t))
+                            " ")))
           ('cat
            (setq cmd
                  (mapconcat #'identity
@@ -1416,6 +1478,7 @@ Are you running two compilations at the same time?"))
     ("emacs-lisp" . "rmsbolt-starter.el")
     ("d" . "rmsbolt.d")
     ("zig" . "rmsbolt.zig")
+    ("go" . "rmsbolt.go")
     ;; Rmsbolt is capitalized here because of Java convention of Capitalized
     ;; class names.
     ("java" . "Rmsbolt.java")))
