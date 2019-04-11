@@ -25,8 +25,8 @@
 ;; RMSBolt is a package to provide assembly or bytecode output for a source
 ;; code input file.
 ;;
-;; It currently supports: C/C++, OCaml, Haskell, Python, Java, PHP, D, Pony,
-;; Zig, Emacs Lisp, and (limited) Common Lisp.
+;; It currently supports: C/C++, OCaml, Haskell, Python, Java, Go, PHP, D,
+;; Pony, Zig, Emacs Lisp, and (limited) Common Lisp.
 ;;
 ;; Adding support for more languages, if they have an easy manual compilation
 ;; path from source->assembly/bytecode with debug information, should be much
@@ -493,14 +493,12 @@ Return value is quoted for passing to the shell."
   "Process a compile command for go."
   (rmsbolt--with-files
    src-buffer
-   (let* ((asm-format (buffer-local-value 'rmsbolt-asm-format src-buffer))
-          (disass (buffer-local-value 'rmsbolt-disassemble src-buffer))
-          (cmd (buffer-local-value 'rmsbolt-command src-buffer))
+   (let* ((cmd (buffer-local-value 'rmsbolt-command src-buffer))
           (cmd (mapconcat #'identity
                           (list cmd
-				"tool" "compile"
+                                "tool" "compile"
                                 "-S"
-				"-o" output-filename
+                                "-o" output-filename
                                 src-filename)
                           " ")))
      cmd)))
@@ -1189,7 +1187,7 @@ Argument ASM-LINES input lines."
      (t
       (rmsbolt--process-src-asm-lines src-buffer asm-lines)))))
 
-(cl-defun rmsbolt--process-go-asm-lines (src-buffer asm-lines)
+(cl-defun rmsbolt--process-go-asm-lines (_src-buffer asm-lines)
   (let ((source-linum nil)
         (result nil))
     (dolist (line asm-lines)
@@ -1413,7 +1411,7 @@ Are you running two compilations at the same time?"))
                  (mapconcat #'identity
                             (list cmd
                                   "&&"
-				  "go" "tool"
+                                  "go" "tool"
                                   "objdump" (rmsbolt-output-filename src-buffer)
                                   ">" (rmsbolt-output-filename src-buffer t))
                             " ")))
