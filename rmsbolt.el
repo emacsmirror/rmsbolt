@@ -723,19 +723,30 @@ https://github.com/derickr/vld"
 (defun rmsbolt--path-to-swift-demangler ()
   "Return the path to the configured Swift demangler, depending
   on the active toolchain."
-  (let* ((swift-demangle-binary "swift-demangle")
-         (swift-demangle-toolchain-path (shell-command-to-string (format "echo -n `xcrun --find %s`" swift-demangle-binary))))
-    ;; If we have swift-demangle in PATH, just return it (this is the
+  (rmsbolt--path-to-swift-tool "swift-demangle"))
+
+;;;;; Language Integrations
+
+(defun rmsbolt--path-to-swift-compiler ()
+  "Return the path to the configured Swift compiler, depending on
+  the active toolchain."
+  (rmsbolt--path-to-swift-tool "swiftc"))
+
+(defun rmsbolt--path-to-swift-tool (swift-tool)
+  "Return the path to SWIFT-TOOL, depending on the active
+toolchain."
+  (let* ((swift-tool-binary swift-tool)
+         (swift-tool-toolchain-path (shell-command-to-string (format "echo -n `xcrun --find %s`" swift-tool-binary))))
+    ;; If we have the Swift tool in PATH, just return it (this is the
     ;; typical case in Linux systems). If it's not in PATH, look for a
     ;; toolchain-specific path.
     (cond
-     ((executable-find swift-demangle-binary)
-      swift-demangle-binary)
-     ((executable-find swift-demangle-toolchain-path)
-      swift-demangle-toolchain-path)
+     ((executable-find swift-tool-binary)
+      swift-tool-binary)
+     ((executable-find swift-tool-toolchain-path)
+      swift-tool-toolchain-path)
      (t nil))))
 
-;;;;; Language Integrations
 (defun rmsbolt--parse-compile-commands (comp-cmds file)
   "Parse COMP-CMDS and extract a compilation dir and command for FILE."
   (when-let ((json-object-type 'alist)
@@ -874,7 +885,7 @@ return t if successful."
 			  :compile-cmd-function #'rmsbolt--go-compile-cmd
 			  :process-asm-custom-fn #'rmsbolt--process-go-asm-lines))
    (swift-mode
-    . ,(make-rmsbolt-lang :compile-cmd "swiftc"
+    . ,(make-rmsbolt-lang :compile-cmd (rmsbolt--path-to-swift-compiler)
                           :supports-asm t
                           :supports-disass nil
                           :objdumper 'objdump
