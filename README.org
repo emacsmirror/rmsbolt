@@ -114,7 +114,7 @@ The main knobs are described in the full documentation.
 ** Common Lisp
 [[https://i.imgur.com/36aNVvf.gif][https://i.imgur.com/36aNVvf.gif]]
 ** Swift
-https://gitlab.com/jgkamat/rmsbolt/uploads/80d38e840a149c77951891c3623ca2f2/lFG72Lv_-_Imgur.gif
+[[https://gitlab.com/jgkamat/rmsbolt/uploads/80d38e840a149c77951891c3623ca2f2/lFG72Lv_-_Imgur.gif][https://gitlab.com/jgkamat/rmsbolt/uploads/80d38e840a149c77951891c3623ca2f2/lFG72Lv_-_Imgur.gif]]
 
 * Community and Support
 
