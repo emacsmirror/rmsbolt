@@ -726,13 +726,14 @@ https://github.com/derickr/vld"
   (let* ((swift-demangle-binary "swift-demangle")
          (swift-demangle-toolchain-path (shell-command-to-string (format "echo -n `xcrun --find %s`" swift-demangle-binary))))
     ;; If we have swift-demangle in PATH, just return it (this is the
-    ;; typical case in Linux systems).
-    (if (executable-find swift-demangle-binary)
-        swift-demangle-binary
-      ;; If it's not in PATH, look for a toolchain-specific path.
-      (if (executable-find swift-demangle-toolchain-path)
-          swift-demangle-toolchain-path
-        nil))))
+    ;; typical case in Linux systems). If it's not in PATH, look for a
+    ;; toolchain-specific path.
+    (cond
+     ((executable-find swift-demangle-binary)
+      swift-demangle-binary)
+     ((executable-find swift-demangle-toolchain-path)
+      swift-demangle-toolchain-path)
+     (t nil))))
 
 ;;;;; Language Integrations
 (defun rmsbolt--parse-compile-commands (comp-cmds file)
