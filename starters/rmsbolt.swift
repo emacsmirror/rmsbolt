@@ -3,7 +3,6 @@ import Foundation
 // Swift rmsbolt starter file
 
 // Local Variables:
-// rmsbolt-command: "swiftc"
 // rmsbolt-disassemble: nil
 // End:
 
