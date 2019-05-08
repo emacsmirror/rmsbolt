@@ -159,6 +159,15 @@ Assembly is generated through the ~ldc~ tool, and demangling is provided by
 Please report bugs if matching does not work for you, as D's file format for
 designating files is a little different.
 
+** Swift
+
+Swift support is a little bit non-standard. Since swift is used primarily on
+apple devices, the default value for ~swiftc~ and ~swift-demangle~ is populated
+from the active toolchain in addition to the path. Overriding the compile
+command will not currently search the toolchain for the compiler (only the path).
+
+~swift-demangle~ is used for demangling support if available.
+
 ** Emacs Lisp
 
 No support for source->asm matching, filtering, or automatic recompile.

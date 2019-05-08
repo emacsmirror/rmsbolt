@@ -1,6 +1,6 @@
 \input texinfo    @c -*- texinfo -*-
 @c %**start of header
-@setfilename ./rmsbolt.info
+@setfilename rmsbolt.info
 @settitle RMSbolt User Manual
 @documentencoding UTF-8
 @documentlanguage en
@@ -22,6 +22,14 @@
 @ifnottex
 @node Top
 @top RMSbolt User Manual
+
+:PREAMBLE:
+RMSbolt is a compiler output viewer in Emacs.
+
+RMSbolt tries to make it easy to see what your compiler is doing. It does this
+by showing you the assembly output of a given source code file. It also
+highlights which source code a given assembly block corresponds to, and vice
+versa. It supports more types of languages than any previous tool of its kind.
 @end ifnottex
 
 @menu
@@ -54,6 +62,7 @@ Languages
 * PHP::
 * Pony::
 * D::
+* Swift::
 * Emacs Lisp::
 * Common Lisp::
 * Zig::
@@ -61,31 +70,27 @@ Languages
 
 Integrations
 
-* C/C++: C/C++x. 
+* C/C++: C/C++ 1. 
 
 C/C++
 
 * QuickStart Guide::
+
+
 Developing
 
 * Adding a Language::
+
 @end detailmenu
 @end menu
-
-:PREAMBLE:
-RMSbolt is a compiler output viewer in Emacs.
-
-RMSbolt tries to make it easy to see what your compiler is doing. It does this
-by showing you the assembly output of a given source code file. It also
-highlights which source code a given assembly block corresponds to, and vice
-versa. It supports more types of languages than any previous tool of its kind.
 
 @node Installation
 @chapter Installation
 
-A @uref{https://melpa.org/#/rmsbolt,melpa package} is available for rmsbolt.
+A @uref{https://melpa.org/#/rmsbolt, melpa package} is available for rmsbolt.
 
 No dependencies are required, other than an Emacs newer than 25.1
+
 @menu
 * Quelpa::
 @end menu
@@ -97,9 +102,9 @@ This is a quelpa formula for RMSbolt
 
 @lisp
 (quelpa '(rmsbolt
-	  :files (:defaults "starters")
-	  :fetcher gitlab
-	  :repo "jgkamat/rmsbolt"))
+          :files (:defaults "starters")
+          :fetcher gitlab
+          :repo "jgkamat/rmsbolt"))
 @end lisp
 
 @node Running
@@ -124,8 +129,9 @@ starter files have this block with some common settings:
 // End:
 @end example
 
-@strong{Note}: @uref{https://www.gnu.org/software/emacs/manual/html_node/emacs/Specifying-File-Variables.html#Specifying-File-Variables,the Local Variable block must be 3000 characters from the end of the
+@strong{Note}: @uref{https://www.gnu.org/software/emacs/manual/html_node/emacs/Specifying-File-Variables.html#Specifying-File-Variables, the Local Variable block must be 3000 characters from the end of the
 file to work}. Any method of setting buffer-local variables will work though.
+
 @menu
 * Option List::
 @end menu
@@ -170,7 +176,7 @@ Whether to filter lines that are comment-only.
 Local Option: rmsbolt-asm-format
 
 Which output format to use. Supported values vary between languages. In
-general, ~"intel"~ and ~"att"~ are supported. @code{nil} means to use the tool's
+general, @code{"intel"} and @code{"att"} are supported. @code{nil} means to use the tool's
 defaults. Other values may work as well, depending on your compiler.
 
 @item
@@ -194,6 +200,7 @@ Enable or disable demangling, if the language supports it.
 @chapter Languages
 
 This section covers languages-specific quirks and features.
+
 @menu
 * C/C++::
 * OCaml::
@@ -204,6 +211,7 @@ This section covers languages-specific quirks and features.
 * PHP::
 * Pony::
 * D::
+* Swift::
 * Emacs Lisp::
 * Common Lisp::
 * Zig::
@@ -238,7 +246,7 @@ to @code{haskell-demangler} and placed on the path.
 @node Python
 @section Python
 
-Support for viewing bytecode only. Python @uref{https://bugs.python.org/issue2506,doesn't have many options}, so most
+Support for viewing bytecode only. Python @uref{https://bugs.python.org/issue2506, doesn't have many options}, so most
 tweakables will not work. Python 3.7 is required for recursion into functions,
 otherwise only top level code will be shown. Python 2 is completely unsupported.
 
@@ -250,7 +258,7 @@ Parses the output of @code{javap} to get debug information and disassembly.
 @node PHP
 @section PHP
 
-Requires the @uref{https://github.com/derickr/vld,vld php extension} to display PHP opcodes. Without that, you will
+Requires the @uref{https://github.com/derickr/vld, vld php extension} to display PHP opcodes. Without that, you will
 not get any output.
 
 If you use hack (denoted by @code{<hh?} at the top of your file), you will not get
@@ -272,6 +280,16 @@ Assembly is generated through the @code{ldc} tool, and demangling is provided by
 
 Please report bugs if matching does not work for you, as D's file format for
 designating files is a little different.
+
+@node Swift
+@section Swift
+
+Swift support is a little bit non-standard. Since swift is used primarily on
+apple devices, the default value for @code{swiftc} and @code{swift-demangle} is populated
+from the active toolchain in addition to the path. Overriding the compile
+command will not currently search the toolchain for the compiler (only the path).
+
+@code{swift-demangle} is used for demangling support if available.
 
 @node Emacs Lisp
 @section Emacs Lisp
@@ -320,11 +338,12 @@ work to debug.
 Most integrations only take effect when @code{rmsbolt-command} and
 @code{rmsbolt-default-directory} are nil! Setting either of these will disable any
 attempt at using the integration system.
+
 @menu
-* C/C++: C/C++x. 
+* C/C++: C/C++ 1. 
 @end menu
 
-@node C/C++x
+@node C/C++ 1
 @section C/C++
 
 C/C++ will look for a @code{compile_commands.json} file in any directory higher than
@@ -342,6 +361,7 @@ brittle part of the current system, and could cause compile errors.
 
 On projects with a lot of imports, the resulting assembly file might be large,
 which may cause Emacs to hang.
+
 @menu
 * QuickStart Guide::
 @end menu
@@ -368,6 +388,7 @@ Run @code{rmsbolt-compile}.
 @chapter Developing
 
 These are some tips which will help people working on developing or customizing RMSbolt.
+
 @menu
 * Adding a Language::
 @end menu
@@ -386,7 +407,7 @@ available in the compiled form if they exist.
 
 @enumerate
 @item
-@uref{../rmsbolt.el,Add a new entry to the language definitions statement.}
+@uref{../rmsbolt.el, Add a new entry to the language definitions statement.}
 @itemize
 @item
 To do this, you will need to (at a minimum) add a mode, compile-command, a
@@ -408,10 +429,10 @@ control over what rmsbolt does completely), you can use
 language definition.
 @end itemize
 @item
-@uref{../rmsbolt.el,Add a new entry into the starter file}
+@uref{../rmsbolt.el, Add a new entry into the starter file}
 @itemize
 @item
-For this, you will need to make a starter file. See @uref{./../starters/,this folder} for
+For this, you will need to make a starter file. See @uref{./../starters/, this folder} for
 existing examples.
 @item
 Ideally, try to pick something which is interesting to play with from an
@@ -421,5 +442,4 @@ disassembly point of view.
 
 You're done!
 
-@c Emacs 25.2.2 (Org mode 8.2.10)
 @bye

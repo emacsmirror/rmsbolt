@@ -26,7 +26,7 @@
 ;; code input file.
 ;;
 ;; It currently supports: C/C++, OCaml, Haskell, Python, Java, Go, PHP, D,
-;; Pony, Zig, Emacs Lisp, and (limited) Common Lisp.
+;; Pony, Zig, Swift, Emacs Lisp, and (limited) Common Lisp.
 ;;
 ;; Adding support for more languages, if they have an easy manual compilation
 ;; path from source->assembly/bytecode with debug information, should be much
