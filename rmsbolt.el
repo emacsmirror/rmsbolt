@@ -667,6 +667,23 @@ https://github.com/derickr/vld"
                           " ")))
      cmd)))
 
+(cl-defun rmsbolt--swift-compile-cmd (&key src-buffer)
+  "Process a compile command for swiftc."
+  (rmsbolt--with-files
+   src-buffer
+   (let* ((asm-format (buffer-local-value 'rmsbolt-asm-format src-buffer))
+          (cmd (buffer-local-value 'rmsbolt-command src-buffer))
+          (cmd (mapconcat #'identity
+                          (list cmd
+                                "-g"
+                                "-emit-assembly"
+                                src-filename
+                                "-o" output-filename
+                                (when (not (booleanp asm-format))
+                                  (concat "-Xllvm --x86-asm-syntax=" asm-format)))
+                          " ")))
+     cmd)))
+
 ;;;;; Hidden Function Definitions
 
 (defvar rmsbolt--hidden-func-c
@@ -701,7 +718,35 @@ https://github.com/derickr/vld"
               (and (0+ any) "@plt" (0+ any)))
       eol))
 
+;;;;; Demangling Functions
+
+(defun rmsbolt--path-to-swift-demangler ()
+  "Return the path to the configured Swift demangler, depending
+  on the active toolchain."
+  (rmsbolt--path-to-swift-tool "swift-demangle"))
+
 ;;;;; Language Integrations
+
+(defun rmsbolt--path-to-swift-compiler ()
+  "Return the path to the configured Swift compiler, depending on
+  the active toolchain."
+  (rmsbolt--path-to-swift-tool "swiftc"))
+
+(defun rmsbolt--path-to-swift-tool (swift-tool)
+  "Return the path to SWIFT-TOOL, depending on the active
+toolchain."
+  (let* ((swift-tool-binary swift-tool)
+         (swift-tool-toolchain-path (shell-command-to-string (format "echo -n `xcrun --find %s`" swift-tool-binary))))
+    ;; If we have the Swift tool in PATH, just return it (this is the
+    ;; typical case in Linux systems). If it's not in PATH, look for a
+    ;; toolchain-specific path.
+    (cond
+     ((executable-find swift-tool-binary)
+      swift-tool-binary)
+     ((executable-find swift-tool-toolchain-path)
+      swift-tool-toolchain-path)
+     (t nil))))
+
 (defun rmsbolt--parse-compile-commands (comp-cmds file)
   "Parse COMP-CMDS and extract a compilation dir and command for FILE."
   (when-let ((json-object-type 'alist)
@@ -839,6 +884,13 @@ return t if successful."
 			  :objdumper 'go-objdump
 			  :compile-cmd-function #'rmsbolt--go-compile-cmd
 			  :process-asm-custom-fn #'rmsbolt--process-go-asm-lines))
+   (swift-mode
+    . ,(make-rmsbolt-lang :compile-cmd (rmsbolt--path-to-swift-compiler)
+                          :supports-asm t
+                          :supports-disass nil
+                          :objdumper 'objdump
+                          :demangler (rmsbolt--path-to-swift-demangler)
+                          :compile-cmd-function #'rmsbolt--swift-compile-cmd))
    ))
 (make-obsolete-variable 'rmsbolt-languages
                         'rmsbolt-language-descriptor "RMSBolt-0.2")
@@ -1477,6 +1529,7 @@ Are you running two compilations at the same time?"))
     ("d" . "rmsbolt.d")
     ("zig" . "rmsbolt.zig")
     ("go" . "rmsbolt.go")
+    ("swift" . "rmsbolt.swift")
     ;; Rmsbolt is capitalized here because of Java convention of Capitalized
     ;; class names.
     ("java" . "Rmsbolt.java")))
