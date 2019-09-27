@@ -29,7 +29,7 @@ please start at the docs (also available through info).]]
   - No required dependencies other than Emacs 25 and your compiler ~:)~
   - It's easy to add new languages (even those that use unique bytecode formats)
     without touching many files.
-  - Dosen't eat your ram on the 'server' or the 'client'.
+  - Doesn't eat your ram on the 'server' or the 'client'.
   - No enforced limits on code size, compilation time, or processing time.
 - Benefits from living in Emacs:
   - Full undo tree from Emacs on disassembly/source so you don't lose work.
