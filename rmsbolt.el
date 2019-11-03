@@ -1276,6 +1276,8 @@ Argument ASM-LINES input lines."
 Argument BUFFER compilation buffer.
 Argument STR compilation finish status.
 Argument OVERRIDE-BUFFER use this buffer instead of reading from the output filename."
+  (when (not (buffer-live-p buffer))
+    (error "Dead buffer passed to compilation-finish-function! RMSBolt cannot continue."))
   (let ((compilation-fail
          (and str
               (not (string-match "^finished" str))))
