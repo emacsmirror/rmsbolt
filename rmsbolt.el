@@ -1592,7 +1592,7 @@ Are you running two compilations at the same time?"))
              ;; Don't run on unsaved buffers
              (should-run (and (not (buffer-modified-p src-buffer))
                               (buffer-local-value 'rmsbolt-mode src-buffer)))
-             (output-buffer (get-buffer-create rmsbolt-output-buffer))
+             (output-buffer (get-buffer rmsbolt-output-buffer))
              (current-line (line-number-at-pos))
              (src-current-line
               (if (eq (current-buffer) src-buffer)
