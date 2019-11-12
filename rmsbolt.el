@@ -1482,7 +1482,9 @@ Are you running two compilations at the same time?"))
       (rmsbolt-with-display-buffer-no-window
        (let ((shell-file-name (or (executable-find rmsbolt--shell)
                                   shell-file-name)))
-         (with-current-buffer (compilation-start cmd)
+         (with-current-buffer
+             ;; TODO should this be configurable?
+             (compilation-start cmd nil (lambda (&rest _) "*rmsbolt-compilation*"))
            (add-hook 'compilation-finish-functions
                      #'rmsbolt--handle-finish-compile nil t)
            (setq-local rmsbolt-src-buffer src-buffer))))))))
