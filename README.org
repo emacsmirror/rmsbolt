@@ -17,8 +17,8 @@ please start at the docs (also available through info).]]
 
 - Much more flexible and powerful:
   - Supports disassembly to bytecode as well as assembly.
-  - Supports many languages that godbolt does not support, such as Python, PHP,
-    Common Lisp, Emacs Lisp, Ocaml, Java, and Pony.
+  - Supports many languages that godbolt does not support, such as PHP,
+    Common Lisp, Emacs Lisp, Java, and Pony.
   - Allows targeting custom compilers - which means disassembly for niche
     assembly targets, specific commits of compilers, and patched libraries or
     compilers is possible.
@@ -29,7 +29,7 @@ please start at the docs (also available through info).]]
   - No required dependencies other than Emacs 25 and your compiler ~:)~
   - It's easy to add new languages (even those that use unique bytecode formats)
     without touching many files.
-  - Dosen't eat your ram on the 'server' or the 'client'.
+  - Doesn't eat your ram on the 'server' or the 'client'.
   - No enforced limits on code size, compilation time, or processing time.
 - Benefits from living in Emacs:
   - Full undo tree from Emacs on disassembly/source so you don't lose work.
