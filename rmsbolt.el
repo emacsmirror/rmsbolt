@@ -1648,10 +1648,19 @@ Are you running two compilations at the same time?"))
                   (rmsbolt--goto-line line-scroll)
                   ;; If we scrolled, recenter
                   (recenter))))))
-      (mapc #'delete-overlay rmsbolt-overlays)
-      (setq rmsbolt-overlays nil))
+      (rmsbolt--cleanup-overlays))
     ;; If not in rmsbolt-mode, don't do anything
     ))
+
+(defun rmsbolt--cleanup-overlays ()
+  "Clean up overlays, assuming they are no longer needed."
+  (mapc #'delete-overlay rmsbolt-overlays)
+  (setq rmsbolt-overlays nil))
+
+(defun rmsbolt--kill-buffer-cleanup ()
+  "A simple hook to listen for the output buffer close so we can clean up overlays."
+  (when (eq (current-buffer) (get-buffer rmsbolt-output-buffer))
+    (rmsbolt--cleanup-overlays)))
 
 (defun rmsbolt-hot-recompile ()
   "Recompile source buffer if we need to."
@@ -1698,7 +1707,8 @@ This mode is enabled both in modes to be compiled and output buffers."
     (unless rmsbolt--idle-timer
       (setq rmsbolt--idle-timer (run-with-idle-timer
                                  rmsbolt-overlay-delay t
-                                 #'rmsbolt-move-overlays)))
+                                 #'rmsbolt-move-overlays))
+      (add-hook 'kill-buffer-hook #'rmsbolt--kill-buffer-cleanup))
     (unless (or rmsbolt--compile-idle-timer
                 (not rmsbolt-automatic-recompile))
       (setq rmsbolt--compile-idle-timer (run-with-idle-timer
@@ -1706,7 +1716,7 @@ This mode is enabled both in modes to be compiled and output buffers."
                                          #'rmsbolt-hot-recompile)))
     (rmsbolt--gen-temp))
    (t ;; Cleanup
-    (mapc #'delete-overlay rmsbolt-overlays))))
+    (rmsbolt--cleanup-overlays))))
 
 (provide 'rmsbolt)
 
