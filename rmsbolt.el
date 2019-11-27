@@ -1350,9 +1350,12 @@ Argument OVERRIDE-BUFFER use this buffer instead of reading from the output file
                  (rmsbolt-mode 1)
                  (setq-local rmsbolt-src-buffer src-buffer)
                  (display-buffer (current-buffer))
-                 ;; Attempt to replace overlays
-                 (with-current-buffer src-buffer
-                   (rmsbolt-move-overlays)))))
+                 ;; Attempt to replace overlays.
+                 ;; TODO find a way to do this without a timer hack
+                 (run-with-timer rmsbolt-overlay-delay nil
+                                 (lambda ()
+                                   (with-current-buffer src-buffer
+                                     (rmsbolt-move-overlays)))))))
             ((and t
                   (not rmsbolt--automated-compile))
              ;; Display compilation output
