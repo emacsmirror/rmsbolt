@@ -1356,7 +1356,11 @@ Argument OVERRIDE-BUFFER use this buffer instead of reading from the output file
             ((and t
                   (not rmsbolt--automated-compile))
              ;; Display compilation output
-             (display-buffer buffer)))
+             (display-buffer buffer)
+             ;; TODO find a cleaner way to disable overlays.
+             (with-current-buffer src-buffer
+               (setq-local rmsbolt-line-mapping nil))
+             (rmsbolt--cleanup-overlays)))
       ;; Reset automated recompile
       (setq rmsbolt--automated-compile nil))))
 
