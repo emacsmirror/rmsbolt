@@ -1588,8 +1588,11 @@ Are you running two compilations at the same time?"))
                     (get-buffer-window-list))
     t))
 
-(defun rmsbolt-move-overlays ()
-  "Function for moving overlays for rmsbolt."
+(cl-defun rmsbolt-move-overlays (&key (force nil))
+  "Function for moving overlays for rmsbolt.
+  If FORCE, always scroll overlay, even when one is visible.
+  FORCE also scrolls to the first line, instead of the first line
+  of the last block."
   (when rmsbolt-mode
     (if-let ((should-run rmsbolt-use-overlays)
              (src-buffer
@@ -1641,14 +1644,17 @@ Are you running two compilations at the same time?"))
                       (setq line-visible visible))
                     (push (rmsbolt--setup-overlay start-pt end-pt output-buffer)
                           rmsbolt-overlays)))))
-            (unless line-visible
+            (when (or (not line-visible) force)
               ;; Scroll buffer to first line
               (when-let ((scroll-buffer (if src-buffer-selected
                                             output-buffer
                                           src-buffer))
                          (line-scroll (if src-buffer-selected
                                           (car-safe
-                                           (cl-first asm-lines))
+                                           ;; If forcing, pick the min line instead
+                                           (if force
+                                               (car-safe (last asm-lines))
+                                             (cl-first asm-lines)))
                                         src-current-line))
                          (window (get-buffer-window scroll-buffer)))
                 (with-selected-window window
