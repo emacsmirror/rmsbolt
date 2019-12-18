@@ -179,6 +179,18 @@ being set (at worst falling back to nil if passed \"intel\")."
   :type 'boolean
   :safe 'booleanp
   :group 'rmsbolt)
+(defcustom rmsbolt-flag-quirks t
+  "Whether to tweak flags to enable as many features as possible.
+
+In most cases, we will try to honor flags in rmsbolt-command as
+much as possible. However, some features may be disabled with
+some odd combinations of flags. This variable controls
+removing/adding flags to handle those cases.
+
+Note that basic flags to ensure basic usage are always modified."
+  :type 'boolean
+  :safe 'booleanp
+  :group 'rmsbolt)
 
 ;;;; Faces
 
@@ -383,6 +395,16 @@ Return value is quoted for passing to the shell."
 ;;;; Language Functions
 ;;;;; Compile Commands
 
+(defun rmsbolt--c-quirks (cmd &key src-buffer)
+  "Handle quirks in CMD, and return unchanged or modified CMD.
+
+Use SRC-BUFFER as buffer for local variables."
+  (if (and (buffer-local-value 'rmsbolt-flag-quirks src-buffer)
+           (string-match-p (rx "-save-temps") cmd)
+           (string-match-p (rx "-P") cmd))
+      (rmsbolt-split-rm-single cmd "-save-temps")
+    cmd))
+
 (cl-defun rmsbolt--c-compile-cmd (&key src-buffer)
   "Process a compile command for gcc/clang."
 
@@ -406,7 +428,8 @@ Return value is quoted for passing to the shell."
                                 (when (and (not (booleanp asm-format))
                                            (not disass))
                                   (concat "-masm=" asm-format)))
-                          " ")))
+                          " "))
+          (cmd (rmsbolt--c-quirks cmd :src-buffer src-buffer)))
      cmd)))
 
 (cl-defun rmsbolt--ocaml-compile-cmd (&key src-buffer)
