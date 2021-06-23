@@ -1462,16 +1462,21 @@ Are you running two compilations at the same time?"))
     ;; We cannot compile asm-mode files
     (message "Cannot compile assembly files. Are you sure you are not in the output buffer?"))
    ((rmsbolt-l-elisp-compile-override (rmsbolt--get-lang))
-    (funcall
-     (rmsbolt-l-elisp-compile-override (rmsbolt--get-lang))
-     :src-buffer (current-buffer)))
+    (with-current-buffer (or (buffer-base-buffer) (current-buffer))
+      (funcall
+       (rmsbolt-l-elisp-compile-override (rmsbolt--get-lang))
+       :src-buffer (current-buffer))))
    (t
     (rmsbolt--parse-options)
     (let* ((src-buffer (current-buffer))
            (lang (rmsbolt--get-lang))
            (func (rmsbolt-l-compile-cmd-function lang))
            ;; Generate command
-           (cmd (funcall func :src-buffer src-buffer))
+           (cmd
+            ;; Compilation commands assume the current buffer is a real file
+            ;; currently - this works around that.
+            (with-current-buffer (or (buffer-base-buffer) (current-buffer))
+              (funcall func :src-buffer src-buffer)))
            (asm-format
             (buffer-local-value 'rmsbolt-asm-format src-buffer))
            (default-directory (or rmsbolt-default-directory
