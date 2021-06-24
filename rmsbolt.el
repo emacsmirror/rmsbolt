@@ -902,11 +902,11 @@ return t if successful."
                           :disass-hidden-funcs rmsbolt--hidden-func-zig))
    (go-mode
     . ,(make-rmsbolt-lang :compile-cmd "go"
-			  :supports-asm nil
-			  :supports-disass t
-			  :objdumper 'go-objdump
-			  :compile-cmd-function #'rmsbolt--go-compile-cmd
-			  :process-asm-custom-fn #'rmsbolt--process-go-asm-lines))
+			                    :supports-asm nil
+			                    :supports-disass t
+			                    :objdumper 'go-objdump
+			                    :compile-cmd-function #'rmsbolt--go-compile-cmd
+			                    :process-asm-custom-fn #'rmsbolt--process-go-asm-lines))
    (swift-mode
     . ,(make-rmsbolt-lang :compile-cmd (rmsbolt--path-to-swift-compiler)
                           :supports-asm t
