@@ -1065,7 +1065,10 @@ Argument SRC-BUFFER source buffer."
               (buffer-file-name src-buffer)))
          (result nil)
          (func nil)
-         (source-linum nil))
+         (source-linum nil)
+         (def-dir (or (buffer-local-value 'rmsbolt-default-directory src-buffer)
+                      (and src-file-name
+                           (file-name-directory src-file-name)))))
     (dolist (line asm-lines)
       (catch 'continue
         (when (and (> (length result) rmsbolt-binary-asm-limit)
@@ -1077,9 +1080,7 @@ Argument SRC-BUFFER source buffer."
           ;; If we get a non-absolute .file path, check to see if we
           ;; have a default dir. If not, treat it like we are in the
           ;; src directory.
-          (let ((default-directory (or
-                                    (buffer-local-value 'rmsbolt-default-directory src-buffer)
-                                    (file-name-directory src-file-name))))
+          (let ((default-directory def-dir))
             (if (file-equal-p src-file-name
                               (match-string 1 line))
                 (setq source-linum (string-to-number (match-string 2 line)))
@@ -1113,7 +1114,10 @@ Argument SRC-BUFFER source buffer."
          (result nil)
          (prev-label nil)
          (source-linum nil)
-         (source-file-map (make-hash-table :test #'eq)))
+         (source-file-map (make-hash-table :test #'eq))
+         (def-dir (or (buffer-local-value 'rmsbolt-default-directory src-buffer)
+                      (and src-file-name
+                           (file-name-directory src-file-name)))))
     (dolist (line asm-lines)
       (let* ((raw-match (or (string-match rmsbolt-label-def line)
                             (string-match rmsbolt-assignment-def line)))
@@ -1138,9 +1142,7 @@ Argument SRC-BUFFER source buffer."
                     ;; If we get a non-absolute .file path, check to see if we
                     ;; have a default dir. If not, treat it like we are in the
                     ;; src directory.
-                    (let ((default-directory (or
-                                              (buffer-local-value 'rmsbolt-default-directory src-buffer)
-                                              (file-name-directory src-file-name))))
+                    (let ((default-directory def-dir))
                       (file-equal-p src-file-name
                                     (gethash
                                      (string-to-number (match-string 1 line))
