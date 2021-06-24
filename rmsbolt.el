@@ -1,8 +1,8 @@
 ;;; rmsbolt.el --- A compiler output viewer -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2018 Jay Kamat
+;; Copyright (C) 2018-2021 Jay Kamat
 ;; Author: Jay Kamat <jaygkamat@gmail.com>
-;; Version: 0.1.1
+;; Version: 0.1.2
 ;; Keywords: compilation, tools
 ;; URL: http://gitlab.com/jgkamat/rmsbolt
 ;; Package-Requires: ((emacs "25.1"))
