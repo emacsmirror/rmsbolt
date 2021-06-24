@@ -801,7 +801,7 @@ return t if successful."
              (to-ret (rmsbolt--parse-compile-commands
                       compile-cmd-file (buffer-file-name src-buffer))))
     (with-current-buffer src-buffer
-      (setq-local rmsbolt-default-directory (cl-first to-ret))
+      (setq-local rmsbolt-default-directory (file-name-as-directory (cl-first to-ret)))
       (setq-local rmsbolt-command
                   ;; Remove -c, -S, and -o <arg> if present,
                   ;; as we will add them back
@@ -1074,8 +1074,12 @@ Argument SRC-BUFFER source buffer."
             '("Aborting processing due to exceeding the binary limit.")))
         (when (string-match rmsbolt-disass-line line)
           ;; Don't add linums from files which we aren't inspecting
-          ;; If we get a non-absolute .file path, treat it like we are in the src directory.
-          (let ((default-directory (file-name-directory src-file-name)))
+          ;; If we get a non-absolute .file path, check to see if we
+          ;; have a default dir. If not, treat it like we are in the
+          ;; src directory.
+          (let ((default-directory (or
+                                    (buffer-local-value 'rmsbolt-default-directory src-buffer)
+                                    (file-name-directory src-file-name))))
             (if (file-equal-p src-file-name
                               (match-string 1 line))
                 (setq source-linum (string-to-number (match-string 2 line)))
@@ -1131,8 +1135,12 @@ Argument SRC-BUFFER source buffer."
            ;; Process any line number hints
            ((string-match rmsbolt-source-tag line)
             (if (or (not src-file-name) ;; Skip file match if we don't have a current filename
-                    ;; If we get a non-absolute .file path, treat it like we are in the src directory.
-                    (let ((default-directory (file-name-directory src-file-name)))
+                    ;; If we get a non-absolute .file path, check to see if we
+                    ;; have a default dir. If not, treat it like we are in the
+                    ;; src directory.
+                    (let ((default-directory (or
+                                              (buffer-local-value 'rmsbolt-default-directory src-buffer)
+                                              (file-name-directory src-file-name))))
                       (file-equal-p src-file-name
                                     (gethash
                                      (string-to-number (match-string 1 line))
