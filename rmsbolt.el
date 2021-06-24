@@ -1307,12 +1307,6 @@ Argument OVERRIDE-BUFFER use this buffer instead of reading from the output file
         (default-directory (buffer-local-value 'default-directory buffer))
         (src-buffer (buffer-local-value 'rmsbolt-src-buffer buffer)))
 
-    ;; Clear out default-set variables
-    (with-current-buffer src-buffer
-      (dolist (var rmsbolt--default-variables)
-        (rmsbolt--set-local var nil))
-      (setq-local rmsbolt--default-variables nil))
-
     (with-current-buffer (get-buffer-create rmsbolt-output-buffer)
       ;; Store src buffer value for later linking
       (cond ((not compilation-fail)
@@ -1388,7 +1382,12 @@ Argument OVERRIDE-BUFFER use this buffer instead of reading from the output file
                (setq-local rmsbolt-line-mapping nil))
              (rmsbolt--cleanup-overlays)))
       ;; Reset automated recompile
-      (setq rmsbolt--automated-compile nil))))
+      (setq rmsbolt--automated-compile nil))
+    ;; Clear out default-set variables
+    (with-current-buffer src-buffer
+      (dolist (var rmsbolt--default-variables)
+        (rmsbolt--set-local var nil))
+      (setq-local rmsbolt--default-variables nil))))
 
 ;;;;; Parsing Options
 (defun rmsbolt--get-lang ()
