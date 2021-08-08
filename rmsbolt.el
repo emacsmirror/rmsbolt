@@ -1748,7 +1748,8 @@ Are you running two compilations at the same time?"))
 
 This mode is enabled both in modes to be compiled and output buffers."
   :global nil
-  :lighter rmsbolt-mode-lighter rmsbolt-mode-map
+  :lighter rmsbolt-mode-lighter
+  :keymap rmsbolt-mode-map
   ;; Init
   (cond
    (rmsbolt-mode
