@@ -805,9 +805,11 @@ return t if successful."
       (setq-local rmsbolt-command
                   ;; Remove -c, -S, and -o <arg> if present,
                   ;; as we will add them back
+                  ;; Remove args starting with -flto, as -flto breaks asm output.
                   (thread-first (cl-second to-ret)
                     (rmsbolt-split-rm-single "-c")
                     (rmsbolt-split-rm-single "-S")
+                    (rmsbolt-split-rm-single "-flto" #'string-prefix-p)
                     (rmsbolt-split-rm-double "-o")))
       t)))
 ;;;; Language Definitions

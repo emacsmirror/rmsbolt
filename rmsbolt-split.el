@@ -41,12 +41,15 @@
 
 ;;; Code:
 
-(defun rmsbolt-split-rm-single (cmd flag)
-  "Remove a single FLAG from CMD."
-  (let ((cmd (split-string cmd rmsbolt-split--regexp)))
+(defun rmsbolt-split-rm-single (cmd flag &optional comparator)
+  "Remove a single FLAG from CMD.
+
+Optionally compares using COMPARATOR."
+  (let ((cmd (split-string cmd rmsbolt-split--regexp))
+        (comparator (or comparator #'string=)))
     (mapconcat
      #'identity
-     (cl-remove-if (apply-partially #'string= flag) cmd)
+     (cl-remove-if (apply-partially comparator flag) cmd)
      " ")))
 
 (defun rmsbolt-split-rm-double (cmd flag)
