@@ -856,6 +856,14 @@ return t if successful."
                           :objdumper 'objdump
                           :demangler "rustfilt"
                           :compile-cmd-function #'rmsbolt--rust-compile-cmd))
+   ;; Copy of above
+   (rustic-mode
+    . ,(make-rmsbolt-lang :compile-cmd "rustc"
+                          :supports-asm t
+                          :supports-disass nil
+                          :objdumper 'objdump
+                          :demangler "rustfilt"
+                          :compile-cmd-function #'rmsbolt--rust-compile-cmd))
    (ponylang-mode
     . ,(make-rmsbolt-lang :compile-cmd "ponyc"
                           :supports-asm t
