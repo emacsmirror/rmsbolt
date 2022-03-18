@@ -1779,6 +1779,16 @@ This mode is enabled both in modes to be compiled and output buffers."
    (t ;; Cleanup
     (rmsbolt--cleanup-overlays))))
 
+;;;###autoload
+(defun rmsbolt ()
+  "Start a rmsbolt compilation and enable `rmsbolt-mode' for code region
+highlighting and automatic recompilation."
+  (interactive)
+  (if rmsbolt-mode
+      (rmsbolt-compile)
+    (rmsbolt-mode)
+    (run-at-time 0 nil (lambda () (rmsbolt-compile)))))
+
 (provide 'rmsbolt)
 
 ;;; rmsbolt.el ends here

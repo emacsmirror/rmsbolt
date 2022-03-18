@@ -110,10 +110,15 @@ This is a quelpa formula for RMSbolt
 @node Running
 @chapter Running
 
-Once installed, use the @code{rmsbolt-starter} command to generate starter files, or
-enable @code{rmsbolt-mode} in a supported language. Then run @code{rmsbolt-compile} or use
-the default @code{C-c C-c} binding to pop open a disassembly buffer. After the first
-run, the buffer should automatically update.
+Once installed, run @code{rmsbolt} to compile the current buffer.
+This enables @code{rmsbolt-mode} for code region highlighting and
+automatic recompilation on buffer changes.
+
+@code{rmsbolt-mode} also adds the key binding @code{C-c C-c} to run a compilation.
+
+Run @code{rmsbolt-starter} to generate an example source file for one of the supported languages.
+
+Run @code{rmsbolt-compile} to start a compilation without enabling @code{rmsbolt-mode}.
 
 @node Configuring
 @chapter Configuring
