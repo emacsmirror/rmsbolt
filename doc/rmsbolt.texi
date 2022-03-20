@@ -110,10 +110,15 @@ This is a quelpa formula for RMSbolt
 @node Running
 @chapter Running
 
-Once installed, use the @code{rmsbolt-starter} command to generate starter files, or
-enable @code{rmsbolt-mode} in a supported language. Then run @code{rmsbolt-compile} or use
-the default @code{C-c C-c} binding to pop open a disassembly buffer. After the first
-run, the buffer should automatically update.
+Once installed, run @code{rmsbolt} to compile the current buffer.
+This enables @code{rmsbolt-mode} for code region highlighting and
+automatic recompilation on buffer changes.
+
+@code{rmsbolt-mode} also adds the key binding @code{C-c C-c} to run a compilation.
+
+Run @code{rmsbolt-starter} to generate an example source file for one of the supported languages.
+
+Run @code{rmsbolt-compile} to start a compilation without enabling @code{rmsbolt-mode}.
 
 @node Configuring
 @chapter Configuring
@@ -310,14 +315,15 @@ supported at the moment, with @code{sbcl} giving much better results.
 Assembly is generated through the @code{zig} compiler. Due to large binary sizes,
 disassembly is discouraged.
 
-Zig embeds a panic handler which inflates the size of binaries. In order to
-reduce this to a manageable level, you can add the following snippet to your
-file:
+In some cases, Zig embeds a panic handler which inflates the size of binaries.
+In order to reduce this to a manageable level, you can add the following snippet to
+your file:
 
 @example
-pub fn panic(msg: []const u8, error_return_trace: ?*@@import("builtin").StackTrace) noreturn @{
-    while (true) @{
-    @}
+pub fn panic(msg: []const u8, error_return_trace: ?*std.builtin.StackTrace) noreturn @{
+    _ = msg;
+    _ = error_return_trace;
+    while (true) @{@}
 @}
 @end example
 

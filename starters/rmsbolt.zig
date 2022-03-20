@@ -3,29 +3,38 @@ const std = @import("std");
 // Zig rmsbolt starter file
 
 // Local Variables:
-// rmsbolt-command: "zig"
+// rmsbolt-command: "zig build-obj -O ReleaseFast"
 // rmsbolt-disassemble: nil
 // End:
 
-fn isRMS(a: u8) u8 {
-    switch (a) {
-        'R' => {return 1;},
-        'M' => {return 2;},
-        'S' => {return 3;},
-        else => {return 0;},
-    }
+export fn isRMS(a: u8) u8 {
+    return switch (a) {
+        'R' => 1,
+        'M' => 2,
+        'S' => 3,
+        else => 0,
+    };
 }
 
-pub fn main() void {
-    const a: u8 = 1 + 1;
-    if (isRMS(a) != 0) {
-        std.debug.warn("{c}\n", a);
+// Functions marked with `export` use the C calling convention, so its parameters and
+// return value can only have C types.
+// To export a native Zig fn, use the following pattern:
+fn zigFn(xs: []u8) []u8 {
+    for (xs) |*x| {
+        x.* *= 2;
     }
+    return xs;
 }
 
-// Zig embeds a panic handler that prints stack traces, causing a disassembly much larger than normal.
+export fn exportZigFn() usize {
+    return @ptrToInt(zigFn);
+}
+
+// In some cases, Zig embeds a panic handler that prints stack traces, causing a
+// disassembly much larger than normal.
 // You can optionally place this function in files you disassemble to make them easier to digest.
-pub fn panic(msg: []const u8, error_return_trace: ?*@import("builtin").StackTrace) noreturn {
-    while (true) {
-    }
+pub fn panic(msg: []const u8, error_return_trace: ?*std.builtin.StackTrace) noreturn {
+    _ = msg;
+    _ = error_return_trace;
+    while (true) {}
 }

@@ -657,37 +657,17 @@ https://github.com/derickr/vld"
   "Process a compile command for zig."
   (rmsbolt--with-files
    src-buffer
-   (let* ((asm-format (buffer-local-value 'rmsbolt-asm-format src-buffer))
-          (predicted-asm-filename (shell-quote-argument
-                                   (concat (file-name-directory output-filename)
-                                           (file-name-as-directory "zig-cache")
-                                           (file-name-sans-extension (file-name-nondirectory (buffer-file-name)))
-                                           ".s")))
-          (disass (buffer-local-value 'rmsbolt-disassemble src-buffer))
+   (let* ((disass (buffer-local-value 'rmsbolt-disassemble src-buffer))
           (cmd (buffer-local-value 'rmsbolt-command src-buffer))
-          (cmd (mapconcat #'identity
-                          (list cmd
-                                "build-exe"
-                                src-filename
-                                "--emit"
-                                (if disass
-                                    "bin"
-                                  "asm")
-                                (when (and (not (booleanp asm-format))
-                                           (not disass))
-                                  (concat "-mllvm --x86-asm-syntax=" asm-format))
-                                (mapconcat #'identity
-                                           (cond
-                                            (disass
-                                             (list "--output" output-filename))
-                                            ((equal predicted-asm-filename output-filename)
-                                             nil)
-                                            (t
-                                             (list "&&" "mv"
-                                                   predicted-asm-filename
-                                                   output-filename)))
-                                           " "))
-                          " ")))
+          (cmd (string-join
+                (list cmd
+                      src-filename
+                      "--cache-dir" (expand-file-name "zig-cache" rmsbolt--temp-dir)
+                      (concat (if disass
+                                  "-femit-bin="
+                                "-fno-emit-bin -femit-asm=")
+                              output-filename))
+                " ")))
      cmd)))
 
 (cl-defun rmsbolt--swift-compile-cmd (&key src-buffer)
@@ -904,7 +884,7 @@ return t if successful."
                                                    lines)
                           :elisp-compile-override #'rmsbolt--elisp-compile-override))
    (zig-mode
-    . ,(make-rmsbolt-lang :compile-cmd "zig"
+    . ,(make-rmsbolt-lang :compile-cmd "zig build-obj -O ReleaseFast"
                           :supports-asm t
                           :supports-disass t
                           :objdumper 'objdump
@@ -1778,6 +1758,16 @@ This mode is enabled both in modes to be compiled and output buffers."
     (rmsbolt--gen-temp))
    (t ;; Cleanup
     (rmsbolt--cleanup-overlays))))
+
+;;;###autoload
+(defun rmsbolt ()
+  "Start a rmsbolt compilation and enable `rmsbolt-mode' for code region
+highlighting and automatic recompilation."
+  (interactive)
+  (if rmsbolt-mode
+      (rmsbolt-compile)
+    (rmsbolt-mode)
+    (run-at-time 0 nil (lambda () (rmsbolt-compile)))))
 
 (provide 'rmsbolt)
 
