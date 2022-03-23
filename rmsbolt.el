@@ -247,6 +247,10 @@ Useful for determining if the user overrode things like `rmsbolt-command'.
 
 This list of variables will automatically be restored to nil.")
 
+(defvar-local rmsbolt-objdump-binary "objdump"
+  "A binary to use for objdumping when using `rmsbolt-disassemble'.
+Useful if you have multiple objdumpers and want to select between them")
+
 ;;;; Variable-like funcs
 (defun rmsbolt-output-filename (src-buffer &optional asm)
   "Function for generating an output filename for SRC-BUFFER.
@@ -1488,7 +1492,7 @@ Are you running two compilations at the same time?"))
                  (mapconcat #'identity
                             (list cmd
                                   "&&"
-                                  "objdump" "-d" (rmsbolt-output-filename src-buffer)
+                                  rmsbolt-objdump-binary "-d" (rmsbolt-output-filename src-buffer)
                                   "-C" "--insn-width=16" "-l"
                                   (when (not (booleanp asm-format))
                                     (concat "-M " asm-format))
