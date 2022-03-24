@@ -192,6 +192,15 @@ Note that basic flags to ensure basic usage are always modified."
   :safe 'booleanp
   :group 'rmsbolt)
 
+(defcustom rmsbolt-after-parse-hook nil
+  "Hook after all parsing is done, but before compile command is run.
+
+Exercise caution when setting variables in this hook - doing so
+can disrupt rmsbolt state and cause issues. Variables set here
+may not be cleared to default as variables are usually."
+  :group 'rmsbolt
+  :type 'hook)
+
 ;;;; Faces
 
 (defface rmsbolt-current-line-face
@@ -1519,6 +1528,7 @@ Are you running two compilations at the same time?"))
            (error "Objdumper not recognized"))))
       ;; Convert to demangle if we need to
       (setq cmd (rmsbolt--demangle-command cmd lang src-buffer))
+      (run-hooks 'rmsbolt-after-parse-hook)
       (rmsbolt-with-display-buffer-no-window
        (let ((shell-file-name (or (executable-find rmsbolt--shell)
                                   shell-file-name)))
