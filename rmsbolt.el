@@ -1493,6 +1493,7 @@ Are you running two compilations at the same time?"))
             (buffer-local-value 'rmsbolt-asm-format src-buffer))
            (default-directory (or rmsbolt-default-directory
                                   rmsbolt--temp-dir)))
+      (run-hooks 'rmsbolt-after-parse-hook)
       (when (buffer-local-value 'rmsbolt-disassemble src-buffer)
         (pcase
             (rmsbolt-l-objdumper lang)
@@ -1528,7 +1529,6 @@ Are you running two compilations at the same time?"))
            (error "Objdumper not recognized"))))
       ;; Convert to demangle if we need to
       (setq cmd (rmsbolt--demangle-command cmd lang src-buffer))
-      (run-hooks 'rmsbolt-after-parse-hook)
       (rmsbolt-with-display-buffer-no-window
        (let ((shell-file-name (or (executable-find rmsbolt--shell)
                                   shell-file-name)))
