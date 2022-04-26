@@ -1533,15 +1533,15 @@ Are you running two compilations at the same time?"))
            (error "Objdumper not recognized"))))
       ;; Convert to demangle if we need to
       (setq cmd (rmsbolt--demangle-command cmd lang src-buffer))
-      (rmsbolt-with-display-buffer-no-window
-       (let ((shell-file-name (or (executable-find rmsbolt--shell)
-                                  shell-file-name)))
-         (with-current-buffer
-             ;; TODO should this be configurable?
-             (compilation-start cmd nil (lambda (&rest _) "*rmsbolt-compilation*"))
-           (add-hook 'compilation-finish-functions
-                     #'rmsbolt--handle-finish-compile nil t)
-           (setq-local rmsbolt-src-buffer src-buffer))))))))
+      (let ((shell-file-name (or (executable-find rmsbolt--shell)
+                                 shell-file-name)))
+        (with-current-buffer
+            ;; TODO should this be configurable?
+            (rmsbolt-with-display-buffer-no-window
+             (compilation-start cmd nil (lambda (&rest _) "*rmsbolt-compilation*")))
+          (add-hook 'compilation-finish-functions
+                    #'rmsbolt--handle-finish-compile nil t)
+          (setq rmsbolt-src-buffer src-buffer)))))))
 
 ;;;; Keymap
 (defvar rmsbolt-mode-map
