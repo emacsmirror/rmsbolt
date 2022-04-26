@@ -248,7 +248,8 @@ Please DO NOT modify this blindly, as this directory will get deleted on Emacs e
 (defvar-local rmsbolt-src-buffer nil)
 
 (defvar-local rmsbolt--real-src-file nil
-  "If set, the real filename that we compiled from, probably due to a copy from this file.")
+  "If set, the real filename that we compiled from,
+probably due to a copy from this file.")
 ;; FIXME should we be unbinding the list here, or is setting nil good enough.
 (defvar-local rmsbolt--default-variables nil
   "A list of the buffer-local variables we filled in with defaults.
@@ -364,12 +365,14 @@ This function does NOT quote the return value for use in inferior shells."
    nil
    :type 'string
    :documentation "Default compilation command to use if none is provided.
-If provided a function, call that function with the source buffer to determine the compile command.")
+If provided a function, call that function with the source buffer to determine
+the compile command.")
   (default-directory
     nil
     :type 'string
     :documentation "Default directory to run compilation in. By default, use rmsbolt--temp-dir.
-If provided a function, call that function with the source buffer to determine the default directory.")
+If provided a function, call that function with the source buffer to determine
+the default directory.")
   (compile-cmd-function
    nil
    :type 'function
@@ -386,7 +389,8 @@ If provided a function, call that function with the source buffer to determine t
    :documentation "A custom function to run instead of running any compilation command.
 Generally not useful with the sole exception of the emacs lisp disassembler.
 This function is responsible for calling `rmsbolt--handle-finish-compile'
-Please be careful when setting this, as it bypasses most logic and is generally not useful."))
+Please be careful when setting this, as it bypasses most logic and is
+generally not useful."))
 
 ;;;; Helper Functions
 (defmacro rmsbolt--with-files (src-buffer &rest body)
