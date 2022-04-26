@@ -1390,8 +1390,7 @@ Argument OVERRIDE-BUFFER use this buffer instead of reading from the output file
                                  (lambda ()
                                    (with-current-buffer src-buffer
                                      (rmsbolt-move-overlays)))))))
-            ((and t
-                  (not rmsbolt--automated-compile))
+            ((not rmsbolt--automated-compile)
              ;; Display compilation output
              (display-buffer buffer)
              ;; TODO find a cleaner way to disable overlays.
