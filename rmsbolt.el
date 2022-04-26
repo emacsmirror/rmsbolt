@@ -1660,9 +1660,8 @@ Are you running two compilations at the same time?"))
                   (cl-values (c-point 'bol) (c-point 'bonl))))))
         (let ((line-visible (not rmsbolt-goto-match))
               (src-buffer-selected (eq (current-buffer) src-buffer)))
-          ;; Clear out overlays in case they are used
-          (mapc #'delete-overlay rmsbolt-overlays)
-          (setq rmsbolt-overlays nil)
+          ;; Remove existing overlays
+          (rmsbolt--cleanup-overlays)
           (push (rmsbolt--setup-overlay (cl-first src-pts) (cl-second src-pts) src-buffer)
                 rmsbolt-overlays)
           (unless src-buffer-selected
