@@ -1692,6 +1692,7 @@ Are you running two compilations at the same time?"))
               (when-let ((scroll-buffer (if scroll-src-buffer-p
                                             src-buffer
                                           output-buffer))
+                         (window (get-buffer-window scroll-buffer))
                          (line-scroll (if scroll-src-buffer-p
                                           src-current-line
                                         (progn
@@ -1699,8 +1700,7 @@ Are you running two compilations at the same time?"))
                                            ;; If forcing, pick the min line instead
                                            (if force
                                                (car-safe (last asm-lines))
-                                             (cl-first asm-lines))))))
-                         (window (get-buffer-window scroll-buffer)))
+                                             (cl-first asm-lines)))))))
                 (with-selected-window window
                   (rmsbolt--goto-line line-scroll)
                   ;; If we scrolled, recenter
