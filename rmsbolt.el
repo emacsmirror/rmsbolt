@@ -1658,15 +1658,17 @@ Are you running two compilations at the same time?"))
                 (save-excursion
                   (rmsbolt--goto-line src-current-line)
                   (cl-values (c-point 'bol) (c-point 'bonl))))))
-        (let ((line-visible (not rmsbolt-goto-match))
-              (src-buffer-selected (eq (current-buffer) src-buffer)))
+        (let*
+            ;; If nil, output-buffer is scrolled instead
+            ((scroll-src-buffer-p (not (eq (current-buffer) src-buffer)))
+             (line-visible (or (not rmsbolt-goto-match)
+                               (when scroll-src-buffer-p
+                                 (with-current-buffer src-buffer
+                                   (rmsbolt--point-visible (cl-first src-pts)))))))
           ;; Remove existing overlays
           (rmsbolt--cleanup-overlays)
           (push (rmsbolt--setup-overlay (cl-first src-pts) (cl-second src-pts) src-buffer)
                 rmsbolt-overlays)
-          (unless src-buffer-selected
-            (with-current-buffer src-buffer
-              (setq line-visible (rmsbolt--point-visible (cl-first src-pts)))))
           (with-current-buffer output-buffer
             (let ((saved-pt (point)))
               (save-excursion
@@ -1676,29 +1678,28 @@ Are you running two compilations at the same time?"))
                          (start-pt (progn (rmsbolt--goto-line start)
                                           (c-point 'bol)))
                          (end-pt (progn (rmsbolt--goto-line end)
-                                        (c-point 'bonl)))
-                         (visible (or line-visible
-                                      (rmsbolt--point-visible start-pt)
-                                      (rmsbolt--point-visible end-pt)
-                                      (and (> saved-pt start-pt)
-                                           (< saved-pt end-pt)))))
-                    ;; check if line is visible and set line-visible
-                    (unless (or line-visible (not src-buffer-selected))
-                      (setq line-visible visible))
+                                        (c-point 'bonl))))
+                    (when (and (not line-visible)
+                               (not scroll-src-buffer-p))
+                      (setq line-visible (or (rmsbolt--point-visible start-pt)
+                                             (rmsbolt--point-visible end-pt)
+                                             (and (> saved-pt start-pt)
+                                                  (< saved-pt end-pt)))))
                     (push (rmsbolt--setup-overlay start-pt end-pt output-buffer)
                           rmsbolt-overlays)))))
             (when (or (not line-visible) force)
               ;; Scroll buffer to first line
-              (when-let ((scroll-buffer (if src-buffer-selected
-                                            output-buffer
-                                          src-buffer))
-                         (line-scroll (if src-buffer-selected
+              (when-let ((scroll-buffer (if scroll-src-buffer-p
+                                            src-buffer
+                                          output-buffer))
+                         (line-scroll (if scroll-src-buffer-p
+                                          src-current-line
+                                        (progn
                                           (car-safe
                                            ;; If forcing, pick the min line instead
                                            (if force
                                                (car-safe (last asm-lines))
-                                             (cl-first asm-lines)))
-                                        src-current-line))
+                                             (cl-first asm-lines))))))
                          (window (get-buffer-window scroll-buffer)))
                 (with-selected-window window
                   (rmsbolt--goto-line line-scroll)
