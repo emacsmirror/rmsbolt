@@ -1754,7 +1754,7 @@ Are you running two compilations at the same time?"))
 (define-minor-mode rmsbolt-mode
   "Toggle rmsbolt-mode.
 
-This mode is enabled both in modes to be compiled and output buffers."
+This mode is enabled in both src and assembly output buffers."
   :global nil
   :lighter rmsbolt-mode-lighter
   :keymap rmsbolt-mode-map
