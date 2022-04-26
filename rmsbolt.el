@@ -585,10 +585,10 @@ Use SRC-BUFFER as buffer for local variables."
                            (rmsbolt-output-filename src-buffer)))
                          " ")))
     (with-current-buffer src-buffer
-      (setq-local rmsbolt--real-src-file
-                  (expand-file-name (file-name-nondirectory
-                                     (buffer-file-name))
-                                    dir)))
+      (setq rmsbolt--real-src-file
+            (expand-file-name (file-name-nondirectory
+                               (buffer-file-name))
+                              dir)))
     cmd))
 (cl-defun rmsbolt--py-compile-cmd (&key src-buffer)
   "Process a compile command for python3."
@@ -1369,7 +1369,7 @@ Argument OVERRIDE-BUFFER use this buffer instead of reading from the output file
                    (cl-incf linum))
 
                  (with-current-buffer src-buffer
-                   (setq-local rmsbolt-line-mapping ht))
+                   (setq rmsbolt-line-mapping ht))
 
                  ;; Replace buffer contents but save point and scroll
                  (let* ((window (get-buffer-window output-buffer))
@@ -1382,7 +1382,7 @@ Argument OVERRIDE-BUFFER use this buffer instead of reading from the output file
                      (set-window-point window old-point)))
                  (asm-mode)
                  (rmsbolt-mode 1)
-                 (setq-local rmsbolt-src-buffer src-buffer)
+                 (setq rmsbolt-src-buffer src-buffer)
                  (display-buffer (current-buffer))
                  ;; Attempt to replace overlays.
                  ;; TODO find a way to do this without a timer hack
@@ -1396,7 +1396,7 @@ Argument OVERRIDE-BUFFER use this buffer instead of reading from the output file
              (display-buffer buffer)
              ;; TODO find a cleaner way to disable overlays.
              (with-current-buffer src-buffer
-               (setq-local rmsbolt-line-mapping nil))
+               (setq rmsbolt-line-mapping nil))
              (rmsbolt--cleanup-overlays)))
       ;; Reset automated recompile
       (setq rmsbolt--automated-compile nil))
@@ -1404,7 +1404,7 @@ Argument OVERRIDE-BUFFER use this buffer instead of reading from the output file
     (with-current-buffer src-buffer
       (dolist (var rmsbolt--default-variables)
         (rmsbolt--set-local var nil))
-      (setq-local rmsbolt--default-variables nil))))
+      (setq rmsbolt--default-variables nil))))
 
 ;;;;; Parsing Options
 (defun rmsbolt--get-lang ()
@@ -1472,7 +1472,7 @@ Are you running two compilations at the same time?"))
   (save-some-buffers nil (lambda () rmsbolt-mode))
   (rmsbolt--gen-temp)
   ;; Current buffer = src-buffer at this point
-  (setq-local rmsbolt-src-buffer (current-buffer))
+  (setq rmsbolt-src-buffer (current-buffer))
   (cond
    ((eq major-mode 'asm-mode)
     ;; We cannot compile asm-mode files
