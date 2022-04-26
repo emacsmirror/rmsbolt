@@ -1650,8 +1650,8 @@ Are you running two compilations at the same time?"))
               (if (eq (current-buffer) src-buffer)
                   current-line
                 (get-text-property (point) 'rmsbolt-src-line)))
-             (hash-table (buffer-local-value 'rmsbolt-line-mapping src-buffer))
-             (asm-lines (gethash src-current-line hash-table))
+             (line-mappings (buffer-local-value 'rmsbolt-line-mapping src-buffer))
+             (asm-regions (gethash src-current-line line-mappings))
              ;; TODO also consider asm
              (src-pts
               (with-current-buffer src-buffer
@@ -1672,21 +1672,19 @@ Are you running two compilations at the same time?"))
           (with-current-buffer output-buffer
             (let ((saved-pt (point)))
               (save-excursion
-                (dolist (l asm-lines)
-                  (let* ((start (car l))
-                         (end (cdr l))
-                         (start-pt (progn (rmsbolt--goto-line start)
-                                          (c-point 'bol)))
-                         (end-pt (progn (rmsbolt--goto-line end)
-                                        (c-point 'bonl))))
-                    (when (and (not line-visible)
-                               (not scroll-src-buffer-p))
-                      (setq line-visible (or (rmsbolt--point-visible start-pt)
-                                             (rmsbolt--point-visible end-pt)
-                                             (and (> saved-pt start-pt)
-                                                  (< saved-pt end-pt)))))
-                    (push (rmsbolt--setup-overlay start-pt end-pt output-buffer)
-                          rmsbolt-overlays)))))
+                (cl-loop for (start . end) in asm-regions
+                         do (let ((start-pt (progn (rmsbolt--goto-line start)
+                                                   (c-point 'bol)))
+                                  (end-pt (progn (rmsbolt--goto-line end)
+                                                 (c-point 'bonl))))
+                              (when (and (not line-visible)
+                                         (not scroll-src-buffer-p))
+                                (setq line-visible (or (rmsbolt--point-visible start-pt)
+                                                       (rmsbolt--point-visible end-pt)
+                                                       (and (> saved-pt start-pt)
+                                                            (< saved-pt end-pt)))))
+                              (push (rmsbolt--setup-overlay start-pt end-pt output-buffer)
+                                    rmsbolt-overlays)))))
             (when (or (not line-visible) force)
               ;; Scroll buffer to first line
               (when-let ((scroll-buffer (if scroll-src-buffer-p
@@ -1697,10 +1695,10 @@ Are you running two compilations at the same time?"))
                                           src-current-line
                                         (progn
                                           (car-safe
-                                           ;; If forcing, pick the min line instead
+                                           ;; If forcing, pick the last region instead
                                            (if force
-                                               (car-safe (last asm-lines))
-                                             (cl-first asm-lines)))))))
+                                               (car-safe (last asm-regions))
+                                             (cl-first asm-regions)))))))
                 (with-selected-window window
                   (rmsbolt--goto-line line-scroll)
                   ;; If we scrolled, recenter
