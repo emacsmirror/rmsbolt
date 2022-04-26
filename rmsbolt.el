@@ -1389,7 +1389,7 @@ Argument OVERRIDE-BUFFER use this buffer instead of reading from the output file
                  (run-with-timer rmsbolt-overlay-delay nil
                                  (lambda ()
                                    (with-current-buffer src-buffer
-                                     (rmsbolt-move-overlays)))))))
+                                     (rmsbolt-update-overlays)))))))
             ((not rmsbolt--automated-compile)
              ;; Display compilation output
              (display-buffer buffer)
@@ -1632,8 +1632,8 @@ Are you running two compilations at the same time?"))
                     (get-buffer-window-list))
     t))
 
-(cl-defun rmsbolt-move-overlays (&key (force nil))
-  "Function for moving overlays for rmsbolt.
+(cl-defun rmsbolt-update-overlays (&key (force nil))
+  "Update overlays to highlight the currently selected source and asm lines.
   If FORCE, always scroll overlay, even when one is visible.
   FORCE also scrolls to the first line, instead of the first line
   of the last block."
@@ -1763,7 +1763,7 @@ This mode is enabled in both src and assembly output buffers."
     (unless rmsbolt--idle-timer
       (setq rmsbolt--idle-timer (run-with-idle-timer
                                  rmsbolt-overlay-delay t
-                                 #'rmsbolt-move-overlays))
+                                 #'rmsbolt-update-overlays))
       (add-hook 'kill-buffer-hook #'rmsbolt--kill-buffer-cleanup))
     (unless (or rmsbolt--compile-idle-timer
                 (not rmsbolt-automatic-recompile))
