@@ -1396,7 +1396,7 @@ Argument OVERRIDE-BUFFER use this buffer instead of reading from the output file
              ;; TODO find a cleaner way to disable overlays.
              (with-current-buffer src-buffer
                (setq rmsbolt-line-mapping nil))
-             (rmsbolt--cleanup-overlays)))
+             (rmsbolt--remove-overlays)))
       ;; Reset automated recompile
       (setq rmsbolt--automated-compile nil))
     ;; Clear out default-set variables
@@ -1666,7 +1666,7 @@ Are you running two compilations at the same time?"))
                                  (with-current-buffer src-buffer
                                    (rmsbolt--point-visible (cl-first src-pts)))))))
           ;; Remove existing overlays
-          (rmsbolt--cleanup-overlays)
+          (rmsbolt--remove-overlays)
           (push (rmsbolt--setup-overlay (cl-first src-pts) (cl-second src-pts) src-buffer)
                 rmsbolt-overlays)
           (with-current-buffer output-buffer
@@ -1703,11 +1703,11 @@ Are you running two compilations at the same time?"))
                   (rmsbolt--goto-line line-scroll)
                   ;; If we scrolled, recenter
                   (recenter))))))
-      (rmsbolt--cleanup-overlays))
+      (rmsbolt--remove-overlays))
     ;; If not in rmsbolt-mode, don't do anything
     ))
 
-(defun rmsbolt--cleanup-overlays ()
+(defun rmsbolt--remove-overlays ()
   "Clean up overlays, assuming they are no longer needed."
   (mapc #'delete-overlay rmsbolt-overlays)
   (setq rmsbolt-overlays nil))
@@ -1715,7 +1715,7 @@ Are you running two compilations at the same time?"))
 (defun rmsbolt--kill-buffer-cleanup ()
   "A simple hook to listen for the output buffer close so we can clean up overlays."
   (when (eq (current-buffer) (get-buffer rmsbolt-output-buffer))
-    (rmsbolt--cleanup-overlays)))
+    (rmsbolt--remove-overlays)))
 
 (defun rmsbolt-hot-recompile ()
   "Recompile source buffer if we need to."
@@ -1772,7 +1772,7 @@ This mode is enabled in both src and assembly output buffers."
                                          #'rmsbolt-hot-recompile)))
     (rmsbolt--gen-temp))
    (t ;; Cleanup
-    (rmsbolt--cleanup-overlays))))
+    (rmsbolt--remove-overlays))))
 
 ;;;###autoload
 (defun rmsbolt ()
