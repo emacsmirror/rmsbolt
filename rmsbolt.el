@@ -219,11 +219,11 @@ may not be cleared to default as variables are usually."
   "Line mapping hashtable from source lines -> asm lines")
 (defvar-local rmsbolt-current-line nil
   "Current line for fontifier.")
+(defvar-local rmsbolt--last-point nil
+  "Used to detect when the point has moved.")
 
 (defvar rmsbolt-overlays nil
   "List of overlays to use.")
-(defvar rmsbolt-overlay-delay 0.125
-  "Time in seconds to delay before showing overlays.")
 (defvar rmsbolt-compile-delay 1
   "Time in seconds to delay before recompiling if there is a change.")
 (defvar rmsbolt--automated-compile nil
@@ -1384,12 +1384,7 @@ Argument OVERRIDE-BUFFER use this buffer instead of reading from the output file
                  (rmsbolt-mode 1)
                  (setq rmsbolt-src-buffer src-buffer)
                  (display-buffer (current-buffer))
-                 ;; Attempt to replace overlays.
-                 ;; TODO find a way to do this without a timer hack
-                 (run-with-timer rmsbolt-overlay-delay nil
-                                 (lambda ()
-                                   (with-current-buffer src-buffer
-                                     (rmsbolt-update-overlays)))))))
+                 (run-at-time 0 nil (lambda () (rmsbolt-update-overlays))))))
             ((not rmsbolt--automated-compile)
              ;; Display compilation output
              (display-buffer buffer)
@@ -1713,6 +1708,13 @@ Are you running two compilations at the same time?"))
   (mapc #'delete-overlay rmsbolt-overlays)
   (setq rmsbolt-overlays nil))
 
+(defun rmsbolt--post-command-hook ()
+  ;; Use (point) instead of (line-number-at-pos) to track movements because
+  ;; the former is faster (constant runtime)
+  (unless (eq (point) rmsbolt--last-point)
+    (setq rmsbolt--last-point (point))
+    (rmsbolt-update-overlays)))
+
 (defun rmsbolt--on-kill-buffer ()
   (let ((output-buffer (get-buffer rmsbolt-output-buffer)))
     (when (or (eq (current-buffer) output-buffer)
@@ -1760,13 +1762,12 @@ This mode is enabled in both src and assembly output buffers."
   ;; Init
   (cond
    (rmsbolt-mode
+    (setq rmsbolt--last-point (point))
+    (add-hook 'post-command-hook #'rmsbolt--post-command-hook nil t)
     (add-hook 'kill-buffer-hook #'rmsbolt--on-kill-buffer nil t)
+
     ;; This idle timer always runs, even when we aren't in rmsbolt-mode
     ;; It won't do anything unless we are in rmsbolt-mode
-    (unless rmsbolt--idle-timer
-      (setq rmsbolt--idle-timer (run-with-idle-timer
-                                 rmsbolt-overlay-delay t
-                                 #'rmsbolt-update-overlays)))
     (unless (or rmsbolt--compile-idle-timer
                 (not rmsbolt-automatic-recompile))
       (setq rmsbolt--compile-idle-timer (run-with-idle-timer
@@ -1782,10 +1783,9 @@ This mode is enabled in both src and assembly output buffers."
   "Start a rmsbolt compilation and enable `rmsbolt-mode' for code region
 highlighting and automatic recompilation."
   (interactive)
-  (if rmsbolt-mode
-      (rmsbolt-compile)
-    (rmsbolt-mode)
-    (run-at-time 0 nil (lambda () (rmsbolt-compile)))))
+  (unless rmsbolt-mode
+    (rmsbolt-mode))
+  (rmsbolt-compile))
 
 (provide 'rmsbolt)
 
