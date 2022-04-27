@@ -1639,12 +1639,13 @@ Are you running two compilations at the same time?"))
   of the last block."
   (when rmsbolt-mode
     (if-let ((should-run rmsbolt-use-overlays)
-             (src-buffer
-              (buffer-local-value 'rmsbolt-src-buffer (current-buffer)))
-             ;; Don't run on unsaved buffers
-             (should-run (and (not (buffer-modified-p src-buffer))
-                              (buffer-local-value 'rmsbolt-mode src-buffer)))
              (output-buffer (get-buffer rmsbolt-output-buffer))
+             (src-buffer (buffer-local-value 'rmsbolt-src-buffer output-buffer))
+             (should-run (and (or (eq (current-buffer) src-buffer)
+                                  (eq (current-buffer) output-buffer))
+                              ;; Don't run on unsaved buffers
+                              (not (buffer-modified-p src-buffer))
+                              (buffer-local-value 'rmsbolt-mode src-buffer)))
              (current-line (line-number-at-pos))
              (src-current-line
               (if (eq (current-buffer) src-buffer)
