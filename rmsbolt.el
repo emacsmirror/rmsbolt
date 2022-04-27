@@ -1713,10 +1713,11 @@ Are you running two compilations at the same time?"))
   (mapc #'delete-overlay rmsbolt-overlays)
   (setq rmsbolt-overlays nil))
 
-(defun rmsbolt--kill-buffer-cleanup ()
-  "A simple hook to listen for the output buffer close so we can clean up overlays."
-  (when (eq (current-buffer) (get-buffer rmsbolt-output-buffer))
-    (rmsbolt--remove-overlays)))
+(defun rmsbolt--on-kill-buffer ()
+  (let ((output-buffer (get-buffer rmsbolt-output-buffer)))
+    (when (or (eq (current-buffer) output-buffer)
+              (eq (current-buffer) (buffer-local-value 'rmsbolt-src-buffer output-buffer)))
+      (rmsbolt--remove-overlays))))
 
 (defun rmsbolt-hot-recompile ()
   "Recompile source buffer if we need to."
@@ -1759,13 +1760,13 @@ This mode is enabled in both src and assembly output buffers."
   ;; Init
   (cond
    (rmsbolt-mode
+    (add-hook 'kill-buffer-hook #'rmsbolt--on-kill-buffer nil t)
     ;; This idle timer always runs, even when we aren't in rmsbolt-mode
     ;; It won't do anything unless we are in rmsbolt-mode
     (unless rmsbolt--idle-timer
       (setq rmsbolt--idle-timer (run-with-idle-timer
                                  rmsbolt-overlay-delay t
-                                 #'rmsbolt-update-overlays))
-      (add-hook 'kill-buffer-hook #'rmsbolt--kill-buffer-cleanup))
+                                 #'rmsbolt-update-overlays)))
     (unless (or rmsbolt--compile-idle-timer
                 (not rmsbolt-automatic-recompile))
       (setq rmsbolt--compile-idle-timer (run-with-idle-timer
@@ -1773,7 +1774,8 @@ This mode is enabled in both src and assembly output buffers."
                                          #'rmsbolt-hot-recompile)))
     (rmsbolt--gen-temp))
    (t ;; Cleanup
-    (rmsbolt--remove-overlays))))
+    (rmsbolt--remove-overlays)
+    (remove-hook 'kill-buffer-hook #'rmsbolt--on-kill-buffer t))))
 
 ;;;###autoload
 (defun rmsbolt ()
