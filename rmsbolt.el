@@ -1716,7 +1716,7 @@ Are you running two compilations at the same time?"))
     (rmsbolt-update-overlays)))
 
 (defun rmsbolt--on-kill-buffer ()
-  (let ((output-buffer (get-buffer rmsbolt-output-buffer)))
+  (when-let (output-buffer (get-buffer rmsbolt-output-buffer))
     (when (or (eq (current-buffer) output-buffer)
               (eq (current-buffer) (buffer-local-value 'rmsbolt-src-buffer output-buffer)))
       (rmsbolt--remove-overlays))))
