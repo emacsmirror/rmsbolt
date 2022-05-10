@@ -1388,7 +1388,7 @@ Argument OVERRIDE-BUFFER asm src buffer to use instead of reading
                  (rmsbolt-mode 1)
                  (setq rmsbolt-src-buffer src-buffer)
                  (display-buffer (current-buffer))
-                 (run-at-time 0 nil (lambda () (rmsbolt-update-overlays))))))
+                 (run-at-time 0 nil #'rmsbolt-update-overlays))))
             ((not rmsbolt--automated-compile)
              ;; Display compilation output
              (display-buffer buffer)
