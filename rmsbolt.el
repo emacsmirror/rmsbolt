@@ -1389,9 +1389,13 @@ Argument OVERRIDE-BUFFER asm src buffer to use instead of reading
                  (setq rmsbolt-src-buffer src-buffer)
                  (display-buffer (current-buffer))
                  (run-at-time 0 nil #'rmsbolt-update-overlays))))
-            ((not rmsbolt--automated-compile)
-             ;; Display compilation output
-             (display-buffer buffer)
+            (t ; Compilation failed
+             ;; Display compilation buffer
+             (if rmsbolt--automated-compile
+                 (display-buffer buffer)
+               ;; If the compilation was directly started by the user,
+               ;; select the compilation buffer.
+               (pop-to-buffer buffer))
              ;; TODO find a cleaner way to disable overlays.
              (with-current-buffer src-buffer
                (setq rmsbolt-line-mapping nil))
@@ -1536,10 +1540,13 @@ and return it."
       (setq cmd (rmsbolt--demangle-command cmd lang src-buffer))
       (with-current-buffer ; With compilation buffer
           (let ((shell-file-name (or (executable-find rmsbolt--shell)
-                                     shell-file-name)))
+                                     shell-file-name))
+                (compilation-auto-jump-to-first-error t))
             ;; TODO should this be configurable?
             (rmsbolt-with-display-buffer-no-window
              (compilation-start cmd nil (lambda (&rest _) "*rmsbolt-compilation*"))))
+        ;; Only jump to errors, skip over warnings
+        (setq-local compilation-skip-threshold 2)
         (add-hook 'compilation-finish-functions
                   #'rmsbolt--handle-finish-compile nil t)
         (setq rmsbolt-src-buffer src-buffer))))))
