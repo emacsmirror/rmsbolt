@@ -239,7 +239,8 @@ Used to work around inconsistencies in alternative shells.")
 (defvar rmsbolt--temp-dir nil
   "Temporary directory to use for compilation and other reasons.
 
-Please DO NOT modify this blindly, as this directory will get deleted on Emacs exit.")
+Please DO NOT modify this blindly, as this directory will get
+deleted on Emacs exit.")
 
 (defvar rmsbolt-dir (when load-file-name
                       (file-name-directory load-file-name))
@@ -356,7 +357,8 @@ This function does NOT quote the return value for use in inferior shells."
   (demangler
    nil
    :type 'string
-   :documentation "The command of the demangler to use for this source code. If nil, don't demangle.")
+   :documentation "The command of the demangler to use for this source code.
+If nil, don't demangle.")
   (disass-hidden-funcs
    nil
    :type 'string
@@ -1315,7 +1317,8 @@ Argument ASM-LINES input lines."
   "Finish hook for compilations.
 Argument BUFFER compilation buffer.
 Argument STR compilation finish status.
-Argument OVERRIDE-BUFFER use this buffer instead of reading from the output filename."
+Argument OVERRIDE-BUFFER asm src buffer to use instead of reading
+   `rmsbolt-output-filename'."
   (when (not (buffer-live-p buffer))
     (error "Dead buffer passed to compilation-finish-function! RMSBolt cannot continue."))
   (let ((compilation-fail
@@ -1443,7 +1446,8 @@ Are you running two compilations at the same time?"))
     src-buffer))
 
 (defun rmsbolt--demangle-command (existing-cmd lang src-buffer)
-  "Append a demangler routine to EXISTING-CMD with LANG and SRC-BUFFER and return it."
+  "Append a demangler routine to EXISTING-CMD with LANG and SRC-BUFFER
+and return it."
   (if-let ((to-demangle (buffer-local-value 'rmsbolt-demangle src-buffer))
            (demangler (rmsbolt-l-demangler lang))
            (demangler-exists (executable-find demangler)))
