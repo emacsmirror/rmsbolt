@@ -100,11 +100,14 @@
   :type 'integer
   :group 'rmsbolt)
 (defcustom rmsbolt-automatic-recompile t
-  "Whether to automatically recompile on source buffer changes.
-Emacs-lisp does not support automatic-recompilation currently.
-This setting is automatically disabled on large buffers, use
-'force to force-enable it."
-  :type 'boolean
+  "Whether to automatically save and recompile the source buffer.
+This setting is automatically disabled on large buffers, set
+'force to force-enable it.
+To only recompile when the buffer is manually saved, set 'on-save."
+  :type '(choice (const :tag "Off" nil)
+                 (const :tag "On save" on-save)
+                 (const :tag "On" t)
+                 (const :tag "Always" force))
   :group 'rmsbolt)
 
 ;;;;; Buffer Local Tweakables
@@ -224,7 +227,7 @@ may not be cleared to default as variables are usually."
 
 (defvar rmsbolt-overlays nil
   "List of overlays to use.")
-(defvar rmsbolt-compile-delay 1
+(defvar rmsbolt-compile-delay 0.4
   "Time in seconds to delay before recompiling if there is a change.")
 (defvar rmsbolt--automated-compile nil
   "Whether this compile was automated or not.")
@@ -232,18 +235,16 @@ may not be cleared to default as variables are usually."
   "Which shell to prefer if available.
 Used to work around inconsistencies in alternative shells.")
 
-(defvar rmsbolt--idle-timer nil
-  "Idle timer for rmsbolt overlays.")
-(defvar rmsbolt--compile-idle-timer nil
-  "Idle timer for rmsbolt overlays.")
 (defvar rmsbolt--temp-dir nil
   "Temporary directory to use for compilation and other reasons.
 
-Please DO NOT modify this blindly, as this directory will get deleted on Emacs exit.")
+Please DO NOT modify this blindly, as this directory will get
+deleted on Emacs exit.")
 
-(defvar rmsbolt-dir (when load-file-name
-                      (file-name-directory load-file-name))
+(defvar rmsbolt-dir nil
   "The directory which rmsbolt is installed to.")
+(when load-file-name
+  (setq rmsbolt-dir (file-name-directory load-file-name)))
 
 (defvar-local rmsbolt-src-buffer nil)
 
@@ -356,7 +357,8 @@ This function does NOT quote the return value for use in inferior shells."
   (demangler
    nil
    :type 'string
-   :documentation "The command of the demangler to use for this source code. If nil, don't demangle.")
+   :documentation "The command of the demangler to use for this source code.
+If nil, don't demangle.")
   (disass-hidden-funcs
    nil
    :type 'string
@@ -1311,11 +1313,13 @@ Argument ASM-LINES input lines."
     (nreverse result)))
 
 ;;;;; Handlers
-(cl-defun rmsbolt--handle-finish-compile (buffer str &key override-buffer)
+(cl-defun rmsbolt--handle-finish-compile (buffer str &key override-buffer stopped)
   "Finish hook for compilations.
 Argument BUFFER compilation buffer.
 Argument STR compilation finish status.
-Argument OVERRIDE-BUFFER use this buffer instead of reading from the output filename."
+Argument OVERRIDE-BUFFER asm src buffer to use instead of reading
+   `rmsbolt-output-filename'.
+Argument STOPPED The compilation was stopped to start another compilation."
   (when (not (buffer-live-p buffer))
     (error "Dead buffer passed to compilation-finish-function! RMSBolt cannot continue."))
   (let ((compilation-fail
@@ -1326,7 +1330,8 @@ Argument OVERRIDE-BUFFER use this buffer instead of reading from the output file
 
     (with-current-buffer (get-buffer-create rmsbolt-output-buffer)
       ;; Store src buffer value for later linking
-      (cond ((not compilation-fail)
+      (cond (stopped) ; Do nothing
+            ((not compilation-fail)
              (if (and (not override-buffer)
                       (not (file-exists-p (rmsbolt-output-filename src-buffer t))))
                  (message "Error reading from output file.")
@@ -1384,10 +1389,14 @@ Argument OVERRIDE-BUFFER use this buffer instead of reading from the output file
                  (rmsbolt-mode 1)
                  (setq rmsbolt-src-buffer src-buffer)
                  (display-buffer (current-buffer))
-                 (run-at-time 0 nil (lambda () (rmsbolt-update-overlays))))))
-            ((not rmsbolt--automated-compile)
-             ;; Display compilation output
-             (display-buffer buffer)
+                 (run-at-time 0 nil #'rmsbolt-update-overlays))))
+            (t ; Compilation failed
+             ;; Display compilation buffer
+             (if rmsbolt--automated-compile
+                 (display-buffer buffer)
+               ;; If the compilation was directly started by the user,
+               ;; select the compilation buffer.
+               (pop-to-buffer buffer))
              ;; TODO find a cleaner way to disable overlays.
              (with-current-buffer src-buffer
                (setq rmsbolt-line-mapping nil))
@@ -1443,7 +1452,8 @@ Are you running two compilations at the same time?"))
     src-buffer))
 
 (defun rmsbolt--demangle-command (existing-cmd lang src-buffer)
-  "Append a demangler routine to EXISTING-CMD with LANG and SRC-BUFFER and return it."
+  "Append a demangler routine to EXISTING-CMD with LANG and SRC-BUFFER
+and return it."
   (if-let ((to-demangle (buffer-local-value 'rmsbolt-demangle src-buffer))
            (demangler (rmsbolt-l-demangler lang))
            (demangler-exists (executable-find demangler)))
@@ -1463,7 +1473,9 @@ Are you running two compilations at the same time?"))
 (defun rmsbolt-compile ()
   "Compile the current rmsbolt buffer."
   (interactive)
-  (save-some-buffers nil (lambda () rmsbolt-mode))
+  (when (and (buffer-modified-p)
+             (yes-or-no-p (format "Save buffer %s? " (buffer-name))))
+    (save-buffer))
   (rmsbolt--gen-temp)
   ;; Current buffer = src-buffer at this point
   (setq rmsbolt-src-buffer (current-buffer))
@@ -1477,6 +1489,7 @@ Are you running two compilations at the same time?"))
        (rmsbolt-l-elisp-compile-override (rmsbolt--get-lang))
        :src-buffer (current-buffer))))
    (t
+    (rmsbolt--stop-running-compilation)
     (rmsbolt--parse-options)
     (let* ((src-buffer (current-buffer))
            (lang (rmsbolt--get-lang))
@@ -1527,15 +1540,29 @@ Are you running two compilations at the same time?"))
            (error "Objdumper not recognized"))))
       ;; Convert to demangle if we need to
       (setq cmd (rmsbolt--demangle-command cmd lang src-buffer))
-      (let ((shell-file-name (or (executable-find rmsbolt--shell)
-                                 shell-file-name)))
-        (with-current-buffer
+      (with-current-buffer ; With compilation buffer
+          (let ((shell-file-name (or (executable-find rmsbolt--shell)
+                                     shell-file-name))
+                (compilation-auto-jump-to-first-error t))
             ;; TODO should this be configurable?
             (rmsbolt-with-display-buffer-no-window
-             (compilation-start cmd nil (lambda (&rest _) "*rmsbolt-compilation*")))
-          (add-hook 'compilation-finish-functions
-                    #'rmsbolt--handle-finish-compile nil t)
-          (setq rmsbolt-src-buffer src-buffer)))))))
+             (compilation-start cmd nil (lambda (&rest _) "*rmsbolt-compilation*"))))
+        ;; Only jump to errors, skip over warnings
+        (setq-local compilation-skip-threshold 2)
+        (add-hook 'compilation-finish-functions
+                  #'rmsbolt--handle-finish-compile nil t)
+        (setq rmsbolt-src-buffer src-buffer))))))
+
+(defun rmsbolt--stop-running-compilation ()
+  (when-let* ((compilation-buffer (get-buffer "*rmsbolt-compilation*"))
+              (proc (get-buffer-process compilation-buffer)))
+    (when (eq (process-status proc) 'run)
+      (set-process-sentinel proc nil)
+      (interrupt-process proc)
+      (rmsbolt--handle-finish-compile compilation-buffer nil :stopped t)
+      ;; Wait a short while for the process to exit cleanly
+      (sit-for 0.2)
+      (delete-process proc))))
 
 ;;;; Keymap
 (defvar rmsbolt-mode-map
@@ -1721,32 +1748,43 @@ Are you running two compilations at the same time?"))
               (eq (current-buffer) (buffer-local-value 'rmsbolt-src-buffer output-buffer)))
       (rmsbolt--remove-overlays))))
 
-(defun rmsbolt-hot-recompile ()
-  "Recompile source buffer if we need to."
-  (when-let ((should-hot-compile rmsbolt-mode)
-             (should-hot-recompile rmsbolt-automatic-recompile)
-             (output-buffer (get-buffer rmsbolt-output-buffer))
-             (src-buffer (buffer-local-value 'rmsbolt-src-buffer output-buffer))
-             (src-buffer-live (buffer-live-p src-buffer))
-             (is-not-elisp (not (eq 'emacs-lisp-mode
-                                    (with-current-buffer src-buffer
-                                      major-mode))))
-             (is-not-large (or (< (with-current-buffer src-buffer
-                                    (line-number-at-pos (point-max)))
-                                  rmsbolt-large-buffer-size)
-                               (eq rmsbolt-automatic-recompile 'force)))
-             (modified (buffer-modified-p src-buffer)))
-    (with-current-buffer src-buffer
-      ;; Clear `before-save-hook' to prevent things like whitespace cleanup or
-      ;; aggressive indent from running (this is a hot recompile):
-      ;; https://github.com/syl20bnr/spacemacs/blob/c7a103a772d808101d7635ec10f292ab9202d9ee/layers/%2Bspacemacs/spacemacs-editing/local/spacemacs-whitespace-cleanup/spacemacs-whitespace-cleanup.el#L72
-      ;; TODO does anyone want before-save-hook to run on a hot recompile?
-      (let ((before-save-hook nil))
-        ;; Write to disk
-        (save-buffer))
-      ;; Recompile
-      (setq rmsbolt--automated-compile t)
-      (rmsbolt-compile))))
+(defun rmsbolt--is-active-src-buffer ()
+  (when-let (output-buffer (get-buffer rmsbolt-output-buffer))
+    (eq (current-buffer) (buffer-local-value 'rmsbolt-src-buffer output-buffer))))
+
+(defun rmsbolt--after-save ()
+  (when (and (rmsbolt--is-active-src-buffer)
+             rmsbolt-automatic-recompile)
+    (setq rmsbolt--automated-compile t)
+    (rmsbolt-compile)))
+
+;; Auto-save the src buffer after it has been unchanged for `rmsbolt-compile-delay' seconds.
+;; The buffer is then automatically recompiled via `rmsbolt--after-save'.
+(defvar rmsbolt--change-timer nil)
+(defvar rmsbolt--buffer-to-auto-save nil)
+
+(defun rmsbolt--after-change (&rest _)
+  (when (and (rmsbolt--is-active-src-buffer)
+             rmsbolt-automatic-recompile
+             (not (eq rmsbolt-automatic-recompile 'on-save)))
+    (when rmsbolt--change-timer
+      (cancel-timer rmsbolt--change-timer))
+    (setq rmsbolt--buffer-to-auto-save (current-buffer)
+          rmsbolt--change-timer (run-with-timer rmsbolt-compile-delay nil #'rmsbolt--on-change-timer))))
+
+(defun rmsbolt--on-change-timer ()
+  (setq rmsbolt--change-timer nil)
+  (when (buffer-live-p rmsbolt--buffer-to-auto-save)
+    (with-current-buffer rmsbolt--buffer-to-auto-save
+      (setq rmsbolt--buffer-to-auto-save nil)
+      (when (or (< (line-number-at-pos (point-max)) rmsbolt-large-buffer-size)
+                (eq rmsbolt-automatic-recompile 'force))
+        ;; Clear `before-save-hook' to prevent things like whitespace cleanup
+        ;; (e.g., set by spacemacs in `spacemacs-whitespace-cleanup.el`)
+        ;; and aggressive indenting from running (this is a hot recompile).
+        ;; TODO does anyone want before-save-hook to run on a hot recompile?
+        (let ((before-save-hook nil))
+          (save-buffer))))))
 
 ;;;; Mode Definition:
 
@@ -1766,17 +1804,20 @@ This mode is enabled in both src and assembly output buffers."
     (add-hook 'post-command-hook #'rmsbolt--post-command-hook nil t)
     (add-hook 'kill-buffer-hook #'rmsbolt--on-kill-buffer nil t)
 
-    ;; This idle timer always runs, even when we aren't in rmsbolt-mode
-    ;; It won't do anything unless we are in rmsbolt-mode
-    (unless (or rmsbolt--compile-idle-timer
-                (not rmsbolt-automatic-recompile))
-      (setq rmsbolt--compile-idle-timer (run-with-idle-timer
-                                         rmsbolt-compile-delay t
-                                         #'rmsbolt-hot-recompile)))
+    (when (and rmsbolt-automatic-recompile
+               ;; Only turn on auto-save in src buffers
+               (not (eq (current-buffer) (get-buffer rmsbolt-output-buffer))))
+      (add-hook 'after-save-hook #'rmsbolt--after-save nil t)
+      (when (eq rmsbolt-automatic-recompile t)
+        (add-hook 'after-change-functions #'rmsbolt--after-change nil t)))
+
     (rmsbolt--gen-temp))
    (t ;; Cleanup
     (rmsbolt--remove-overlays)
-    (remove-hook 'kill-buffer-hook #'rmsbolt--on-kill-buffer t))))
+    (remove-hook 'after-change-functions #'rmsbolt--after-change t)
+    (remove-hook 'after-save-hook #'rmsbolt--after-save t)
+    (remove-hook 'kill-buffer-hook #'rmsbolt--on-kill-buffer t)
+    (remove-hook 'post-command-hook #'rmsbolt--post-command-hook t))))
 
 ;;;###autoload
 (defun rmsbolt ()
