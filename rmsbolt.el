@@ -242,9 +242,10 @@ Used to work around inconsistencies in alternative shells.")
 Please DO NOT modify this blindly, as this directory will get
 deleted on Emacs exit.")
 
-(defvar rmsbolt-dir (when load-file-name
-                      (file-name-directory load-file-name))
+(defvar rmsbolt-dir nil
   "The directory which rmsbolt is installed to.")
+(when load-file-name
+  (setq rmsbolt-dir (file-name-directory load-file-name)))
 
 (defvar-local rmsbolt-src-buffer nil)
 
