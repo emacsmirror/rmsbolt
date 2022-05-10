@@ -1314,12 +1314,13 @@ Argument ASM-LINES input lines."
     (nreverse result)))
 
 ;;;;; Handlers
-(cl-defun rmsbolt--handle-finish-compile (buffer str &key override-buffer)
+(cl-defun rmsbolt--handle-finish-compile (buffer str &key override-buffer stopped)
   "Finish hook for compilations.
 Argument BUFFER compilation buffer.
 Argument STR compilation finish status.
 Argument OVERRIDE-BUFFER asm src buffer to use instead of reading
-   `rmsbolt-output-filename'."
+   `rmsbolt-output-filename'.
+Argument STOPPED The compilation was stopped to start another compilation."
   (when (not (buffer-live-p buffer))
     (error "Dead buffer passed to compilation-finish-function! RMSBolt cannot continue."))
   (let ((compilation-fail
@@ -1330,7 +1331,8 @@ Argument OVERRIDE-BUFFER asm src buffer to use instead of reading
 
     (with-current-buffer (get-buffer-create rmsbolt-output-buffer)
       ;; Store src buffer value for later linking
-      (cond ((not compilation-fail)
+      (cond (stopped) ; Do nothing
+            ((not compilation-fail)
              (if (and (not override-buffer)
                       (not (file-exists-p (rmsbolt-output-filename src-buffer t))))
                  (message "Error reading from output file.")
@@ -1488,6 +1490,7 @@ and return it."
        (rmsbolt-l-elisp-compile-override (rmsbolt--get-lang))
        :src-buffer (current-buffer))))
    (t
+    (rmsbolt--stop-running-compilation)
     (rmsbolt--parse-options)
     (let* ((src-buffer (current-buffer))
            (lang (rmsbolt--get-lang))
@@ -1550,6 +1553,17 @@ and return it."
         (add-hook 'compilation-finish-functions
                   #'rmsbolt--handle-finish-compile nil t)
         (setq rmsbolt-src-buffer src-buffer))))))
+
+(defun rmsbolt--stop-running-compilation ()
+  (when-let* ((compilation-buffer (get-buffer "*rmsbolt-compilation*"))
+              (proc (get-buffer-process compilation-buffer)))
+    (when (eq (process-status proc) 'run)
+      (set-process-sentinel proc nil)
+      (interrupt-process proc)
+      (rmsbolt--handle-finish-compile compilation-buffer nil :stopped t)
+      ;; Wait a short while for the process to exit cleanly
+      (sit-for 0.2)
+      (delete-process proc))))
 
 ;;;; Keymap
 (defvar rmsbolt-mode-map
