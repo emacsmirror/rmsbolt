@@ -1468,7 +1468,9 @@ and return it."
 (defun rmsbolt-compile ()
   "Compile the current rmsbolt buffer."
   (interactive)
-  (save-some-buffers nil (lambda () rmsbolt-mode))
+  (when (and (buffer-modified-p)
+             (yes-or-no-p (format "Save buffer %s? " (buffer-name))))
+    (save-buffer))
   (rmsbolt--gen-temp)
   ;; Current buffer = src-buffer at this point
   (setq rmsbolt-src-buffer (current-buffer))
