@@ -100,11 +100,14 @@
   :type 'integer
   :group 'rmsbolt)
 (defcustom rmsbolt-automatic-recompile t
-  "Whether to automatically recompile on source buffer changes.
-Emacs-lisp does not support automatic-recompilation currently.
-This setting is automatically disabled on large buffers, use
-'force to force-enable it."
-  :type 'boolean
+  "Whether to automatically save and recompile the source buffer.
+This setting is automatically disabled on large buffers, set
+'force to force-enable it.
+To only recompile when the buffer is manually saved, set 'on-save."
+  :type '(choice (const :tag "Off" nil)
+                 (const :tag "On save" on-save)
+                 (const :tag "On" t)
+                 (const :tag "Always" force))
   :group 'rmsbolt)
 
 ;;;;; Buffer Local Tweakables
@@ -224,7 +227,7 @@ may not be cleared to default as variables are usually."
 
 (defvar rmsbolt-overlays nil
   "List of overlays to use.")
-(defvar rmsbolt-compile-delay 1
+(defvar rmsbolt-compile-delay 0.4
   "Time in seconds to delay before recompiling if there is a change.")
 (defvar rmsbolt--automated-compile nil
   "Whether this compile was automated or not.")
@@ -232,10 +235,6 @@ may not be cleared to default as variables are usually."
   "Which shell to prefer if available.
 Used to work around inconsistencies in alternative shells.")
 
-(defvar rmsbolt--idle-timer nil
-  "Idle timer for rmsbolt overlays.")
-(defvar rmsbolt--compile-idle-timer nil
-  "Idle timer for rmsbolt overlays.")
 (defvar rmsbolt--temp-dir nil
   "Temporary directory to use for compilation and other reasons.
 
@@ -1749,32 +1748,43 @@ and return it."
               (eq (current-buffer) (buffer-local-value 'rmsbolt-src-buffer output-buffer)))
       (rmsbolt--remove-overlays))))
 
-(defun rmsbolt-hot-recompile ()
-  "Recompile source buffer if we need to."
-  (when-let ((should-hot-compile rmsbolt-mode)
-             (should-hot-recompile rmsbolt-automatic-recompile)
-             (output-buffer (get-buffer rmsbolt-output-buffer))
-             (src-buffer (buffer-local-value 'rmsbolt-src-buffer output-buffer))
-             (src-buffer-live (buffer-live-p src-buffer))
-             (is-not-elisp (not (eq 'emacs-lisp-mode
-                                    (with-current-buffer src-buffer
-                                      major-mode))))
-             (is-not-large (or (< (with-current-buffer src-buffer
-                                    (line-number-at-pos (point-max)))
-                                  rmsbolt-large-buffer-size)
-                               (eq rmsbolt-automatic-recompile 'force)))
-             (modified (buffer-modified-p src-buffer)))
-    (with-current-buffer src-buffer
-      ;; Clear `before-save-hook' to prevent things like whitespace cleanup or
-      ;; aggressive indent from running (this is a hot recompile):
-      ;; https://github.com/syl20bnr/spacemacs/blob/c7a103a772d808101d7635ec10f292ab9202d9ee/layers/%2Bspacemacs/spacemacs-editing/local/spacemacs-whitespace-cleanup/spacemacs-whitespace-cleanup.el#L72
-      ;; TODO does anyone want before-save-hook to run on a hot recompile?
-      (let ((before-save-hook nil))
-        ;; Write to disk
-        (save-buffer))
-      ;; Recompile
-      (setq rmsbolt--automated-compile t)
-      (rmsbolt-compile))))
+(defun rmsbolt--is-active-src-buffer ()
+  (when-let (output-buffer (get-buffer rmsbolt-output-buffer))
+    (eq (current-buffer) (buffer-local-value 'rmsbolt-src-buffer output-buffer))))
+
+(defun rmsbolt--after-save ()
+  (when (and (rmsbolt--is-active-src-buffer)
+             rmsbolt-automatic-recompile)
+    (setq rmsbolt--automated-compile t)
+    (rmsbolt-compile)))
+
+;; Auto-save the src buffer after it has been unchanged for `rmsbolt-compile-delay' seconds.
+;; The buffer is then automatically recompiled via `rmsbolt--after-save'.
+(defvar rmsbolt--change-timer nil)
+(defvar rmsbolt--buffer-to-auto-save nil)
+
+(defun rmsbolt--after-change (&rest _)
+  (when (and (rmsbolt--is-active-src-buffer)
+             rmsbolt-automatic-recompile
+             (not (eq rmsbolt-automatic-recompile 'on-save)))
+    (when rmsbolt--change-timer
+      (cancel-timer rmsbolt--change-timer))
+    (setq rmsbolt--buffer-to-auto-save (current-buffer)
+          rmsbolt--change-timer (run-with-timer rmsbolt-compile-delay nil #'rmsbolt--on-change-timer))))
+
+(defun rmsbolt--on-change-timer ()
+  (setq rmsbolt--change-timer nil)
+  (when (buffer-live-p rmsbolt--buffer-to-auto-save)
+    (with-current-buffer rmsbolt--buffer-to-auto-save
+      (setq rmsbolt--buffer-to-auto-save nil)
+      (when (or (< (line-number-at-pos (point-max)) rmsbolt-large-buffer-size)
+                (eq rmsbolt-automatic-recompile 'force))
+        ;; Clear `before-save-hook' to prevent things like whitespace cleanup
+        ;; (e.g., set by spacemacs in `spacemacs-whitespace-cleanup.el`)
+        ;; and aggressive indenting from running (this is a hot recompile).
+        ;; TODO does anyone want before-save-hook to run on a hot recompile?
+        (let ((before-save-hook nil))
+          (save-buffer))))))
 
 ;;;; Mode Definition:
 
@@ -1794,16 +1804,18 @@ This mode is enabled in both src and assembly output buffers."
     (add-hook 'post-command-hook #'rmsbolt--post-command-hook nil t)
     (add-hook 'kill-buffer-hook #'rmsbolt--on-kill-buffer nil t)
 
-    ;; This idle timer always runs, even when we aren't in rmsbolt-mode
-    ;; It won't do anything unless we are in rmsbolt-mode
-    (unless (or rmsbolt--compile-idle-timer
-                (not rmsbolt-automatic-recompile))
-      (setq rmsbolt--compile-idle-timer (run-with-idle-timer
-                                         rmsbolt-compile-delay t
-                                         #'rmsbolt-hot-recompile)))
+    (when (and rmsbolt-automatic-recompile
+               ;; Only turn on auto-save in src buffers
+               (not (eq (current-buffer) (get-buffer rmsbolt-output-buffer))))
+      (add-hook 'after-save-hook #'rmsbolt--after-save nil t)
+      (when (eq rmsbolt-automatic-recompile t)
+        (add-hook 'after-change-functions #'rmsbolt--after-change nil t)))
+
     (rmsbolt--gen-temp))
    (t ;; Cleanup
     (rmsbolt--remove-overlays)
+    (remove-hook 'after-change-functions #'rmsbolt--after-change t)
+    (remove-hook 'after-save-hook #'rmsbolt--after-save t)
     (remove-hook 'kill-buffer-hook #'rmsbolt--on-kill-buffer t)
     (remove-hook 'post-command-hook #'rmsbolt--post-command-hook t))))
 
