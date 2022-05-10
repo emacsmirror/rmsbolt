@@ -1781,7 +1781,8 @@ This mode is enabled in both src and assembly output buffers."
     (rmsbolt--gen-temp))
    (t ;; Cleanup
     (rmsbolt--remove-overlays)
-    (remove-hook 'kill-buffer-hook #'rmsbolt--on-kill-buffer t))))
+    (remove-hook 'kill-buffer-hook #'rmsbolt--on-kill-buffer t)
+    (remove-hook 'post-command-hook #'rmsbolt--post-command-hook t))))
 
 ;;;###autoload
 (defun rmsbolt ()
