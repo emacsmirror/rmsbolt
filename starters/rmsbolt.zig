@@ -16,19 +16,32 @@ export fn isRMS(a: u8) u8 {
     };
 }
 
-// Functions marked with `export` use the C calling convention, so its parameters and
-// return value can only have C types.
-// To export a native Zig fn, use the following pattern:
-fn zigFn(xs: []u8) []u8 {
+// Exported by `exportFns` below
+pub fn zigFn(xs: []u8) []u8 {
     for (xs) |*x| {
         x.* *= 2;
     }
     return xs;
 }
 
-export fn exportZigFn() usize {
-    return @ptrToInt(zigFn);
+// Export all public, non-generic functions in this file.
+// This is needed because functions that accept or return Zig-specific types can't be marked
+// with `export`.
+// `export` is limited to functions that only accept or return C types, which makes them
+// compatible with the C calling convention.
+export fn exportPubFns() usize {
+    var fns: usize = 0;
+    inline for (@typeInfo((@This())).Struct.decls) |decl| {
+        if (!decl.is_pub) continue;
+        const field = @field(@This(), decl.name);
+        const info = @typeInfo(@TypeOf(field));
+        if (info == .Fn and !info.Fn.is_generic) {
+            fns += @ptrToInt(field);
+        }
+    }
+    return fns;
 }
+
 
 // In some cases, Zig embeds a panic handler that prints stack traces, causing a
 // disassembly much larger than normal.
