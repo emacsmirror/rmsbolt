@@ -13,8 +13,7 @@
   "Check to see if a LETTER is RMS."
   (pcase letter
     ((or "R" "M" "S") t)
-    (_ nil)
-    (_ "I will never run!")))
+    (_ nil)))
 
 (defun main ()
   "Main entrypoint."
