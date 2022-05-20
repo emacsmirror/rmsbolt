@@ -672,6 +672,30 @@ https://github.com/derickr/vld"
       (rmsbolt--disassemble-file file-name (current-buffer))
       (rmsbolt--handle-finish-compile src-buffer nil :override-buffer (current-buffer)))))
 
+(cl-defun rmsbolt--nim-compile-cmd (&key src-buffer)
+  "Process a compile command for nim."
+  (rmsbolt--with-files
+   src-buffer
+   (let* ((disass (buffer-local-value 'rmsbolt-disassemble src-buffer))
+          (cmd (buffer-local-value 'rmsbolt-command src-buffer))
+	  (cmd
+	   (let* ((outdir (expand-file-name "nim-cache" rmsbolt--temp-dir)))
+		  (string-join
+		   (list cmd
+			 "--debugger:native"
+			 "--noLinking"
+			 "--colors:off"
+			 (concat "--nimcache:" outdir)
+			 src-filename
+			 (concat "&& cp "
+				 (expand-file-name (concat "@m"
+							   (ff-basename src-filename)
+							   (if (string-match (rx "nim cpp") cmd) ".cpp.o" ".c.o"))
+							   outdir)
+				 " " output-filename))
+		   " "))))
+     cmd)))
+
 (cl-defun rmsbolt--zig-compile-cmd (&key src-buffer)
   "Process a compile command for zig."
   (rmsbolt--with-files
@@ -902,6 +926,13 @@ return t if successful."
                           :process-asm-custom-fn (lambda (_src-buffer lines)
                                                    lines)
                           :elisp-compile-override #'rmsbolt--elisp-compile-override))
+   (nim-mode
+    . ,(make-rmsbolt-lang :compile-cmd "nim c"
+                          :supports-disass t
+                          :objdumper 'objdump
+                          :demangler "c++filt"
+                          :compile-cmd-function #'rmsbolt--nim-compile-cmd
+                          :disass-hidden-funcs rmsbolt--hidden-func-c))
    (zig-mode
     . ,(make-rmsbolt-lang :compile-cmd "zig build-obj -O ReleaseFast"
                           :supports-asm t
