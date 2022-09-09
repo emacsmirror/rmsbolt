@@ -1639,7 +1639,8 @@ and return it."
     ("swift" . "rmsbolt.swift")
     ;; Rmsbolt is capitalized here because of Java convention of Capitalized
     ;; class names.
-    ("java" . "Rmsbolt.java")))
+    ("java" . "Rmsbolt.java")
+    ("nim" . "rmsbolt.nim")))
 
 ;;;###autoload
 (defun rmsbolt-starter (lang-name)
