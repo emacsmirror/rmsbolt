@@ -16,7 +16,7 @@ export fn isRMS(a: u8) u8 {
     };
 }
 
-// Exported by `exportFns` below
+// Exported by `exportPubFns` below
 pub fn zigFn(xs: []u8) []u8 {
     for (xs) |*x| {
         x.* *= 2;
@@ -36,18 +36,18 @@ export fn exportPubFns() usize {
         const field = @field(@This(), decl.name);
         const info = @typeInfo(@TypeOf(field));
         if (info == .Fn and !info.Fn.is_generic) {
-            fns += @ptrToInt(field);
+            fns += @ptrToInt(&field);
         }
     }
     return fns;
 }
 
-
 // In some cases, Zig embeds a panic handler that prints stack traces, causing a
 // disassembly much larger than normal.
 // You can optionally place this function in files you disassemble to make them easier to digest.
-pub fn panic(msg: []const u8, error_return_trace: ?*std.builtin.StackTrace) noreturn {
+pub fn panic(msg: []const u8, error_return_trace: ?*std.builtin.StackTrace, ret_addr: ?usize) noreturn {
     _ = msg;
     _ = error_return_trace;
+    _ = ret_addr;
     while (true) {}
 }
