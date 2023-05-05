@@ -462,8 +462,7 @@ this."
 
     (setq rmsbolt-disassemble t)
     (let* ((old-cmd (rmsbolt--c-compile-cmd :src-buffer src-buffer))
-           (binary-out (prog1
-                           (rmsbolt-output-filename src-buffer)))
+           (binary-out (rmsbolt-output-filename src-buffer))
            (asm-out (progn
                       (setq rmsbolt-disassemble nil)
                       (rmsbolt-output-filename src-buffer)))
