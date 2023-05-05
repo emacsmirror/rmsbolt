@@ -451,6 +451,28 @@ Use SRC-BUFFER as buffer for local variables."
           (cmd (rmsbolt--c-quirks cmd :src-buffer src-buffer)))
      cmd)))
 
+(cl-defun rmsbolt--c-dwarf-compile-cmd (&key src-buffer)
+  "Process a compile command for c dwarf.
+
+We use a hack where we overwrite the asm setting to trick the
+rest of the code into doing what we want. In this case, setting
+this value dosen't make sense anyway, so it should be fine to do
+this."
+  (with-current-buffer src-buffer
+
+    (setq rmsbolt-disassemble t)
+    (let* ((old-cmd (rmsbolt--c-compile-cmd :src-buffer src-buffer))
+           (binary-out (prog1
+                           (rmsbolt-output-filename src-buffer)))
+           (asm-out (progn
+                      (setq rmsbolt-disassemble nil)
+                      (rmsbolt-output-filename src-buffer)))
+           (full-cmd (mapconcat #'identity
+                                (list old-cmd
+                                      "&&" "eu-readelf" "--debug-dump=info" binary-out ">" asm-out)
+                                " ")))
+      full-cmd)))
+
 (cl-defun rmsbolt--ocaml-compile-cmd (&key src-buffer)
   "Process a compile command for ocaml.
 
@@ -954,6 +976,14 @@ return t if successful."
                           :demangler (rmsbolt--path-to-swift-demangler)
                           :compile-cmd-function #'rmsbolt--swift-compile-cmd))
    ))
+
+(defvar rmsbolt-c-dwarf-language
+  (make-rmsbolt-lang :compile-cmd "gcc"
+                     :supports-asm t
+                     :supports-disass t
+                     :demangler "c++filt"
+                     :compile-cmd-function #'rmsbolt--c-dwarf-compile-cmd
+                     :process-asm-custom-fn #'rmsbolt--process-dwarf-readelf))
 (make-obsolete-variable 'rmsbolt-languages
                         'rmsbolt-language-descriptor "RMSBolt-0.2")
 
@@ -1342,6 +1372,54 @@ Argument ASM-LINES input lines."
         (push line result)))
     (nreverse result)))
 
+(cl-defun rmsbolt--process-dwarf-readelf (src-buffer asm-lines)
+  "Process dwarf output from eu-readelf"
+  (let ((result nil)
+        (die nil)
+        (filename nil)
+        (linum nil)
+        (comp-dir nil)
+        (src-file-name (or (buffer-local-value 'rmsbolt--real-src-file src-buffer)
+                           (buffer-file-name src-buffer))))
+    (dolist (line asm-lines)
+      (if (string-match (rx bol space
+                            (group "[" (0+ space) (1+ hex) "]"))
+                        line)
+          ;; We have seen the next die - let's commit the previous one
+          (progn
+            (when (and linum filename (file-equal-p src-file-name (expand-file-name filename comp-dir)))
+              (dolist (dieline die)
+                (add-text-properties 0 (length dieline)
+                                     `(rmsbolt-src-line ,linum) dieline)))
+            (setq
+             result (nconc die result)
+             die nil
+             linum nil
+             filename nil))
+        ;; Collect information on an entire die before committing it.
+        (when-let* ((match-result
+                     (string-match (rx bol (1+ space)
+                                       (group (or "decl_file" "decl_line" "comp_dir")) (1+ space)
+                                       (group "(" (1+ alnum) ")") (1+ space)
+                                       (group (1+ (or alnum "."))))
+                                   line))
+                    (indicator (match-string 1 line))
+                    (payload (match-string 3 line)))
+          (message payload)
+          (pcase indicator
+            ("decl_file" (setq filename payload))
+            ("decl_line" (setq linum (string-to-number payload)))
+            ("comp_dir" (setq comp-dir payload)))))
+      (push line die))
+
+    ;; Final iteration of the die
+    (when (and linum (file-equal-p src-file-name (expand-file-name filename comp-dir)))
+      (dolist (dieline die)
+        (add-text-properties 0 (length dieline)
+                             `(rmsbolt-src-line ,linum) dieline)))
+    (setq result (nconc die result))
+    (nreverse result)))
+
 ;;;;; Handlers
 (cl-defun rmsbolt--handle-finish-compile (buffer str &key override-buffer stopped)
   "Finish hook for compilations.
@@ -1442,7 +1520,9 @@ Argument STOPPED The compilation was stopped to start another compilation."
 ;;;;; Parsing Options
 (defun rmsbolt--get-lang ()
   "Helper function to get lang def for LANGUAGE."
-  (or rmsbolt-language-descriptor
+  (or (if (symbolp rmsbolt-language-descriptor)
+          (symbol-value rmsbolt-language-descriptor)
+        rmsbolt-language-descriptor)
       (cdr-safe (assoc major-mode rmsbolt-languages))))
 
 (defun rmsbolt--parse-options ()
