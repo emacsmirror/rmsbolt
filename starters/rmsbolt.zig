@@ -32,11 +32,10 @@ pub fn zigFn(xs: []u8) []u8 {
 export fn exportPubFns() usize {
     var fns: usize = 0;
     inline for (@typeInfo((@This())).Struct.decls) |decl| {
-        if (!decl.is_pub) continue;
         const field = @field(@This(), decl.name);
         const info = @typeInfo(@TypeOf(field));
         if (info == .Fn and !info.Fn.is_generic) {
-            fns += @ptrToInt(&field);
+            fns += @intFromPtr(&field);
         }
     }
     return fns;
