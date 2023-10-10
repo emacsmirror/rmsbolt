@@ -1,5 +1,5 @@
 #+TITLE: RMSbolt User Manual
-:PREAMBLE:
+
 #+AUTHOR: Jay Kamat
 #+EMAIL: jaygkamat@gmail.com
 #+DATE: <2018-10-27 Sat>
