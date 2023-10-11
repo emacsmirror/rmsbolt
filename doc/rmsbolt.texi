@@ -23,7 +23,6 @@
 @node Top
 @top RMSbolt User Manual
 
-:PREAMBLE:
 RMSbolt is a compiler output viewer in Emacs.
 
 RMSbolt tries to make it easy to see what your compiler is doing. It does this
