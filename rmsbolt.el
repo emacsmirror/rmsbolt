@@ -1522,7 +1522,16 @@ Argument STOPPED The compilation was stopped to start another compilation."
   (or (if (symbolp rmsbolt-language-descriptor)
           (symbol-value rmsbolt-language-descriptor)
         rmsbolt-language-descriptor)
-      (cdr-safe (assoc major-mode rmsbolt-languages))))
+      (cdr-safe (or
+                 (assoc major-mode rmsbolt-languages)
+                 ;; If the normal major mode cannot be found, try converting
+                 ;; from a tree-sitter to a non-tree-sitter mode name
+                 ;; https://github.com/renzmann/treesit-auto/blob/d32617b5edb660b8a046053af3b92cf14f9b978e/treesit-auto.el#L89
+                 (assoc (thread-last
+                          (symbol-name major-mode)
+                          (replace-regexp-in-string "ts-mode$" "mode")
+                          (intern))
+                        rmsbolt-languages)))))
 
 (defun rmsbolt--parse-options ()
   "Parse RMS options from file."
