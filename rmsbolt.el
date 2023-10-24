@@ -1749,7 +1749,8 @@ and return it."
     (if (not src-file-exists)
         (error "Could not find starter files! Are you sure the starter/ folder is available? If you want to overide, set `rmsbolt-dir' to your install path")
       (unless exists
-        (copy-file src-file-name file-name))
+        (copy-file src-file-name file-name)
+        (set-file-modes file-name #o644))
       (find-file file-name)
       (unless rmsbolt-mode
         (rmsbolt-mode 1)))))
