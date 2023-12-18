@@ -1307,9 +1307,13 @@ Argument SRC-BUFFER source buffer."
                 (string-to-number (match-string 1 line))))
         ;; Reformat line to be more like assembly
         (setq line (mapconcat #'identity
-                              (list (match-string 5 line)
-                                    (match-string 6 line)
-                                    (match-string 7 line))
+                              (list
+                               ;; Register
+                               (match-string 4 line)
+                               ;; Command
+                               (match-string 5 line)
+                               (match-string 6 line)
+                               (match-string 7 line))
                               "\t"))
         (when source-linum
           (add-text-properties 0 (length line)
