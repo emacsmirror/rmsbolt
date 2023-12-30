@@ -395,15 +395,26 @@ Please be careful when setting this, as it bypasses most logic and is
 generally not useful."))
 
 ;;;; Helper Functions
+(defun rmsbolt--convert-file-name-to-system-type (file-name)
+  "Convert the argument FILE-NAME to windows format if `system-type' is equal to `cygwin'.
+Additional escaping with double quotes included to avoid backslashes loss in cygwin environment.
+If not `cygwin' then bypass the FILE-NAME."
+  (if (eq system-type 'cygwin)
+      (concat "\"" (cygwin-convert-file-name-to-windows file-name) "\"")
+    file-name))
+
 (defmacro rmsbolt--with-files (src-buffer &rest body)
   "Execute BODY with `src-filename' and `output-filename' defined.
 Args taken from SRC-BUFFER.
 Return value is quoted for passing to the shell."
-  `(let ((src-filename (shell-quote-argument
-                        (buffer-file-name)))
+  `(let ((src-filename
+          (rmsbolt--convert-file-name-to-system-type
+           (shell-quote-argument
+            (buffer-file-name))))
          (output-filename
-          (shell-quote-argument
-           (rmsbolt-output-filename ,src-buffer))))
+          (rmsbolt--convert-file-name-to-system-type
+           (shell-quote-argument
+            (rmsbolt-output-filename ,src-buffer)))))
      ,@body))
 
 (defmacro rmsbolt--set-local (var val)
@@ -1583,8 +1594,10 @@ and return it."
               (mapconcat
                #'identity
                (list "&&" demangler
-                     "<" (rmsbolt-output-filename src-buffer t)
-                     ">" (expand-file-name "tmp.s" rmsbolt--temp-dir)
+                     "<" (rmsbolt--convert-file-name-to-system-type
+                          (rmsbolt-output-filename src-buffer t))
+                     ">" (rmsbolt--convert-file-name-to-system-type
+                          (expand-file-name "tmp.s" rmsbolt--temp-dir))
                      "&&" "mv"
                      (expand-file-name "tmp.s" rmsbolt--temp-dir)
                      (rmsbolt-output-filename src-buffer t))
