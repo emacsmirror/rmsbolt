@@ -62,6 +62,17 @@
 ;; Please see the readme at https://gitlab.com/jgkamat/rmsbolt for
 ;; more information!
 ;;
+;; Tramp support notes:
+;; - Compilation occurs on a remote system, via Tramp, when default-directory is
+;;   a remote path.  default-directory will be remote when rmsbolt is invoked on
+;;   a buffer backed by a remote path.
+;; - Paths used in externally-run command lines must use the local component of a
+;;   path so they can run on a remote system.  `rmsbolt--with-local-files` takes
+;;   care of commonly used paths that typically need to be local (`src-filename` and
+;;   `output-filename`), though `file-local-name` should be used in other cases.
+;; - One temporary directory exists per remote so that intermediate files are
+;;   created on the system performing the compilation.
+;;
 ;; Thanks:
 ;; Inspiration and some assembly parsing logic was adapted from Matt Godbolt's
 ;; compiler-explorer: https://github.com/mattgodbolt/compiler-explorer and
@@ -269,6 +280,9 @@ This list of variables will automatically be restored to nil.")
   "A binary to use for objdumping when using `rmsbolt-disassemble'.
 Useful if you have multiple objdumpers and want to select between them")
 
+(defvar rmsbolt--temp-dirs-hash (make-hash-table :test #'equal)
+  "Hash table mapping file path remote components to a 'local' temporary directory.")
+
 ;;;; Variable-like funcs
 (defun rmsbolt-output-filename (src-buffer &optional asm)
   "Function for generating an output filename for SRC-BUFFER.
@@ -412,24 +426,42 @@ bypass the FILE-NAME."
       (concat "\"" (cygwin-convert-file-name-to-windows file-name) "\"")
     file-name))
 
-(defmacro rmsbolt--with-files (src-buffer &rest body)
-  "Execute BODY with `src-filename' and `output-filename' defined.
-Args taken from SRC-BUFFER.
+(defmacro rmsbolt--with-local-files (src-buffer &rest body)
+  "Execute BODY with `src-filename' and `output-filename' defined as the local
+components of the args taken from SRC-BUFFER.
 Return value is quoted for passing to the shell."
+  ;; Both src-filename and output-filename are local components so
+  ;; they can be used in commands on a remote system.
   `(let ((src-filename
           (rmsbolt--convert-file-name-to-system-type
            (shell-quote-argument
-            (buffer-file-name))))
+            (file-local-name
+             (buffer-file-name)))))
          (output-filename
           (rmsbolt--convert-file-name-to-system-type
            (shell-quote-argument
-            (rmsbolt-output-filename ,src-buffer)))))
+            (file-local-name
+             (rmsbolt-output-filename ,src-buffer))))))
      ,@body))
 
 (defmacro rmsbolt--set-local (var val)
   "Set unquoted variable VAR to value VAL in current buffer."
   (declare (debug (symbolp form)))
   `(set (make-local-variable ,var) ,val))
+
+(defun rmsbolt--file-equal-p (src-path target-path)
+  "Determine if SRC-PATH and TARGET-PATH refer to the same file.
+Checks the existence of the file when the paths are either both local or remote,
+otherwise returns whether the paths are equal and does not check whether they
+point to a file that exists."
+  ;; When possible verify the file's existence, otherwise fall back to comparing
+  ;; paths.  The fallback is necessary when the paths provided are the local
+  ;; components of remote paths that don't exist on the current system.
+  (or (and (equal (file-remote-p src-path)
+                  (file-remote-p target-path))
+           (file-equal-p src-path target-path))
+      (equal (file-local-name src-path)
+             (file-local-name target-path))))
 
 ;;;; Language Functions
 ;;;;; Compile Commands
@@ -449,7 +481,7 @@ Use SRC-BUFFER as buffer for local variables."
 
 Use SRC-BUFFER as buffer containing local variables."
 
-  (rmsbolt--with-files
+  (rmsbolt--with-local-files
    src-buffer
    (let* ( ;; Turn off passing the source file if we find compile_commands
           (no-src-filename (rmsbolt--handle-c-compile-cmd src-buffer))
@@ -486,7 +518,7 @@ this."
 
     (setq rmsbolt-disassemble t)
     (let* ((old-cmd (rmsbolt--c-compile-cmd :src-buffer src-buffer))
-           (binary-out (rmsbolt-output-filename src-buffer))
+           (binary-out (file-local-name (rmsbolt-output-filename src-buffer)))
            (asm-out (progn
                       (setq rmsbolt-disassemble nil)
                       (rmsbolt-output-filename src-buffer)))
@@ -502,11 +534,11 @@ this."
 Use SRC-BUFFER as buffer for local variables.
 
 Needed as ocaml cannot output asm to a non-hardcoded file"
-  (rmsbolt--with-files
+  (rmsbolt--with-local-files
    src-buffer
    (let* ((diss (buffer-local-value 'rmsbolt-disassemble src-buffer))
           (predicted-asm-filename (shell-quote-argument
-                                   (concat (file-name-sans-extension (buffer-file-name)) ".s")))
+                                   (concat (file-name-sans-extension src-filename) ".s")))
           (cmd (buffer-local-value 'rmsbolt-command src-buffer))
           (cmd (string-join
                 (list cmd
@@ -535,7 +567,7 @@ Needed as ocaml cannot output asm to a non-hardcoded file"
 Use SRC-BUFFER as buffer for local variables.
 
 Assumes function name to disassemble is \\='main\\='."
-  (rmsbolt--with-files
+  (rmsbolt--with-local-files
    src-buffer
    (let* ((cmd (buffer-local-value 'rmsbolt-command src-buffer))
           (interpreter (cl-first (split-string cmd nil t)))
@@ -565,7 +597,7 @@ Assumes function name to disassemble is \\='main\\='."
   "Process a compile command for rustc.
 
 Use SRC-BUFFER as buffer for local variables."
-  (rmsbolt--with-files
+  (rmsbolt--with-local-files
    src-buffer
    (let* ((asm-format (buffer-local-value 'rmsbolt-asm-format src-buffer))
           (disass (buffer-local-value 'rmsbolt-disassemble src-buffer))
@@ -589,7 +621,7 @@ Use SRC-BUFFER as buffer for local variables."
   "Process a compile command for go.
 
 Use SRC-BUFFER as buffer for local variables."
-  (rmsbolt--with-files
+  (rmsbolt--with-local-files
    src-buffer
    (let* ((cmd (buffer-local-value 'rmsbolt-command src-buffer))
           (cmd (string-join
@@ -605,7 +637,7 @@ Use SRC-BUFFER as buffer for local variables."
   "Process a compile command for d.
 
 Use SRC-BUFFER as buffer for local variables."
-  (rmsbolt--with-files
+  (rmsbolt--with-local-files
    src-buffer
    (let* ((compiler (buffer-local-value 'rmsbolt-command src-buffer))
           (cmd (string-join
@@ -649,7 +681,7 @@ Use SRC-BUFFER as buffer for local variables."
     (with-current-buffer src-buffer
       (setq rmsbolt--real-src-file
             (expand-file-name (file-name-nondirectory
-                               (buffer-file-name))
+                               (file-local-name (buffer-file-name)))
                               dir)))
     cmd))
 
@@ -657,7 +689,7 @@ Use SRC-BUFFER as buffer for local variables."
   "Process a compile command for python3.
 
 Use SRC-BUFFER as buffer for local variables."
-  (rmsbolt--with-files
+  (rmsbolt--with-local-files
    src-buffer
    (let* ((cmd (buffer-local-value 'rmsbolt-command src-buffer)))
      (string-join
@@ -686,7 +718,7 @@ Use SRC-BUFFER as buffer for local variables.
 In order to disassemble opcdoes, we need to have the vld.so
 extension to php on.
 https://github.com/derickr/vld"
-  (rmsbolt--with-files
+  (rmsbolt--with-local-files
    src-buffer
    (if (rmsbolt--hack-p src-buffer)
        (concat (buffer-local-value 'rmsbolt-command src-buffer)
@@ -699,7 +731,7 @@ https://github.com/derickr/vld"
   "Process a compile command for ghc.
 
 Use SRC-BUFFER as buffer for local variables."
-  (rmsbolt--with-files
+  (rmsbolt--with-local-files
    src-buffer
    (let* ((cmd (buffer-local-value 'rmsbolt-command src-buffer))
           (cmd (string-join
@@ -719,10 +751,10 @@ Use SRC-BUFFER as buffer for local variables."
 Use SRC-BUFFER as buffer for local variables.
 
 Needed as ocaml cannot output asm to a non-hardcoded file"
-  (rmsbolt--with-files
+  (rmsbolt--with-local-files
    src-buffer
    (let* ((class-filename (shell-quote-argument
-                           (concat (file-name-sans-extension (buffer-file-name)) ".class")))
+                           (concat (file-name-sans-extension src-filename) ".class")))
           (cmd (buffer-local-value 'rmsbolt-command src-buffer))
           (cmd (string-join
                 (list cmd
@@ -741,7 +773,7 @@ Needed as ocaml cannot output asm to a non-hardcoded file"
   "Handle elisp overrides - this is a special case.
 
 Use SRC-BUFFER as buffer for local variables."
-  (let ((file-name (buffer-file-name)))
+  (let ((file-name (file-local-name (buffer-file-name))))
     (with-temp-buffer
       (rmsbolt--disassemble-file file-name (current-buffer))
       (rmsbolt--handle-finish-compile src-buffer nil :override-buffer (current-buffer)))))
@@ -750,7 +782,7 @@ Use SRC-BUFFER as buffer for local variables."
   "Process a compile command for nim.
 
 Use SRC-BUFFER as buffer for local variables."
-  (rmsbolt--with-files
+  (rmsbolt--with-local-files
    src-buffer
    (let* ((cmd (buffer-local-value 'rmsbolt-command src-buffer))
           (cmd
@@ -777,7 +809,7 @@ Use SRC-BUFFER as buffer for local variables."
   "Process a compile command for zig.
 
 Use SRC-BUFFER as buffer for local variables."
-  (rmsbolt--with-files
+  (rmsbolt--with-local-files
    src-buffer
    (let* ((disass (buffer-local-value 'rmsbolt-disassemble src-buffer))
           (cmd (buffer-local-value 'rmsbolt-command src-buffer))
@@ -796,7 +828,7 @@ Use SRC-BUFFER as buffer for local variables."
   "Process a compile command for swiftc.
 
 Use SRC-BUFFER as buffer for local variables."
-  (rmsbolt--with-files
+  (rmsbolt--with-local-files
    src-buffer
    (let* ((asm-format (buffer-local-value 'rmsbolt-asm-format src-buffer))
           (cmd (buffer-local-value 'rmsbolt-command src-buffer))
@@ -884,7 +916,7 @@ Depends on the active toolchain."
              (cmds (json-read-file comp-cmds))
              (entry (cl-find-if
                      (lambda (elt)
-                       (file-equal-p
+                       (rmsbolt--file-equal-p
                         file
                         (expand-file-name
                          (alist-get 'file elt "")
@@ -902,13 +934,16 @@ return t if successful."
              (default-dir (cl-find 'rmsbolt-default-directory defaults))
              (default-cmd (cl-find 'rmsbolt-command defaults))
              (ccj "compile_commands.json")
+             ;; XXX: verify this is correct with a compile_commands.json test case.
+             ;; XXX: can get rid of one of the three file-local-name's (the
+             ;;      first two?) below since we're building the command up.
              (compile-cmd-file
               (locate-dominating-file
-               (buffer-file-name src-buffer)
+               (file-local-name (buffer-file-name src-buffer))
                ccj))
-             (compile-cmd-file (expand-file-name ccj compile-cmd-file))
+             (compile-cmd-file (file-local-name (expand-file-name ccj compile-cmd-file)))
              (to-ret (rmsbolt--parse-compile-commands
-                      compile-cmd-file (buffer-file-name src-buffer))))
+                      compile-cmd-file (file-local-name (buffer-file-name src-buffer)))))
     (with-current-buffer src-buffer
       (setq-local rmsbolt-default-directory (file-name-as-directory (cl-first to-ret)))
       (setq-local rmsbolt-command
@@ -1196,7 +1231,7 @@ Argument SRC-BUFFER source buffer."
   "Process and filter disassembled ASM-LINES from SRC-BUFFER."
   (let* ((src-file-name
           (or (buffer-local-value 'rmsbolt--real-src-file src-buffer)
-              (buffer-file-name src-buffer)))
+              (file-local-name (buffer-file-name src-buffer))))
          (result nil)
          (func nil)
          (source-linum nil)
@@ -1215,7 +1250,7 @@ Argument SRC-BUFFER source buffer."
           ;; have a default dir. If not, treat it like we are in the
           ;; src directory.
           (let ((default-directory def-dir))
-            (if (file-equal-p src-file-name
+            (if (rmsbolt--file-equal-p src-file-name
                               (match-string 1 line))
                 (setq source-linum (string-to-number (match-string 2 line)))
               (setq source-linum nil)))
@@ -1246,6 +1281,7 @@ Argument SRC-BUFFER source buffer."
   (let* ((used-labels (rmsbolt--find-used-labels src-buffer asm-lines))
          (src-file-name (or (buffer-local-value 'rmsbolt--real-src-file src-buffer)
                             (buffer-file-name src-buffer)))
+         (local-src-file-name (file-local-name src-file-name))
          (result nil)
          (prev-label nil)
          (source-linum nil)
@@ -1278,12 +1314,12 @@ Argument SRC-BUFFER source buffer."
                     ;; have a default dir. If not, treat it like we are in the
                     ;; src directory.
                     (let ((default-directory def-dir))
-                      (file-equal-p src-file-name
-                                    (gethash
-                                     (string-to-number (match-string 1 line))
-                                     source-file-map
-                                     ;; Assume we never will compile dev null :P
-                                     "/dev/null"))))
+                      (rmsbolt--file-equal-p local-src-file-name
+                             (gethash
+                              (string-to-number (match-string 1 line))
+                              source-file-map
+                              ;; Assume we never will compile dev null :P
+                              "/dev/null"))))
                 (setq source-linum (string-to-number
                                     (match-string 2 line)))
               (setq source-linum nil)))
@@ -1456,15 +1492,18 @@ Tuned to Elfutils's implementation of readelf"
         (filename nil)
         (linum nil)
         (comp-dir nil)
+        ;; XXX: double check this is correct - likely is correct since we are
+        ;;      comparing paths from the compilation artifacts against the
+        ;;      buffer's file name.
         (src-file-name (or (buffer-local-value 'rmsbolt--real-src-file src-buffer)
-                           (buffer-file-name src-buffer))))
+                           (file-local-name (buffer-file-name src-buffer)))))
     (dolist (line asm-lines)
       (if (string-match (rx bol space
                             (group "[" (0+ space) (1+ hex) "]"))
                         line)
           ;; We have seen the next die - let's commit the previous one
           (progn
-            (when (and linum filename (file-equal-p src-file-name (expand-file-name filename comp-dir)))
+            (when (and linum filename (rmsbolt--file-equal-p src-file-name (expand-file-name filename comp-dir)))
               (dolist (dieline die)
                 (add-text-properties 0 (length dieline)
                                      `(rmsbolt-src-line ,linum) dieline)))
@@ -1490,7 +1529,7 @@ Tuned to Elfutils's implementation of readelf"
       (push line die))
 
     ;; Final iteration of the die
-    (when (and linum (file-equal-p src-file-name (expand-file-name filename comp-dir)))
+    (when (and linum (rmsbolt--file-equal-p src-file-name (expand-file-name filename comp-dir)))
       (dolist (dieline die)
         (add-text-properties 0 (length dieline)
                              `(rmsbolt-src-line ,linum) dieline)))
@@ -1510,10 +1549,11 @@ Argument STOPPED The compilation was stopped to start another compilation."
   (let ((compilation-fail
          (and str
               (not (string-match "^finished" str))))
-        (default-directory (buffer-local-value 'default-directory buffer))
+        (src-default-directory (buffer-local-value 'default-directory buffer))
         (src-buffer (buffer-local-value 'rmsbolt-src-buffer buffer)))
 
     (with-current-buffer (get-buffer-create rmsbolt-output-buffer)
+      (setq default-directory src-default-directory)
       ;; Store src buffer value for later linking
       (cond (stopped) ; Do nothing
             ((not compilation-fail)
@@ -1650,17 +1690,19 @@ Are you running two compilations at the same time?"))
   "Add a demangler routine to EXISTING-CMD with LANG and SRC-BUFFER and return."
   (if-let ((to-demangle (buffer-local-value 'rmsbolt-demangle src-buffer))
            (demangler (rmsbolt-l-demangler lang))
-           (demangler-exists (executable-find demangler)))
+           (demangler-exists (executable-find demangler))
+           (output-filename (rmsbolt--convert-file-name-to-system-type
+                             (file-local-name (rmsbolt-output-filename src-buffer t))))
+           (assembly-filename (rmsbolt--convert-file-name-to-system-type
+                               (file-local-name (expand-file-name "tmp.s" rmsbolt--temp-dir)))))
       (concat existing-cmd " "
               (string-join
                (list "&&" demangler
-                     "<" (rmsbolt--convert-file-name-to-system-type
-                          (rmsbolt-output-filename src-buffer t))
-                     ">" (rmsbolt--convert-file-name-to-system-type
-                          (expand-file-name "tmp.s" rmsbolt--temp-dir))
+                     "<" output-filename
+                     ">" assembly-filename
                      "&&" "mv"
-                     (expand-file-name "tmp.s" rmsbolt--temp-dir)
-                     (rmsbolt-output-filename src-buffer t))
+                     assembly-filename
+                     output-filename)
                " "))
     existing-cmd))
 
@@ -1698,8 +1740,12 @@ Are you running two compilations at the same time?"))
               (funcall func :src-buffer src-buffer)))
            (asm-format
             (buffer-local-value 'rmsbolt-asm-format src-buffer))
-           (default-directory (or rmsbolt-default-directory
-                                  rmsbolt--temp-dir)))
+           ;; Directory where we generate files, while respecting a buffer's
+           ;; remoteness.  We keep this as a separate variable since
+           ;; default-directory is local for each buffer.
+           (src-default-directory (or rmsbolt-default-directory
+                                  rmsbolt--temp-dir))
+           (default-directory src-default-directory))
       (run-hooks 'rmsbolt-after-parse-hook)
       (when (buffer-local-value 'rmsbolt-disassemble src-buffer)
         (pcase
@@ -1709,11 +1755,11 @@ Are you running two compilations at the same time?"))
                  (string-join
                   (list cmd
                         "&&"
-                        rmsbolt-objdump-binary "-d" (rmsbolt-output-filename src-buffer)
+                        rmsbolt-objdump-binary "-d" (file-local-name (rmsbolt-output-filename src-buffer))
                         "-C" "--insn-width=16" "-l"
                         (when (not (booleanp asm-format))
                           (concat "-M " asm-format))
-                        ">" (rmsbolt-output-filename src-buffer t))
+                        ">" (file-local-name (rmsbolt-output-filename src-buffer t)))
                   " ")))
           ('go-objdump
            (setq cmd
@@ -1721,16 +1767,16 @@ Are you running two compilations at the same time?"))
                   (list cmd
                         "&&"
                         "go" "tool"
-                        "objdump" (rmsbolt-output-filename src-buffer)
-                        ">" (rmsbolt-output-filename src-buffer t))
+                        "objdump" (file-local-name (rmsbolt-output-filename src-buffer))
+                        ">" (file-local-name (rmsbolt-output-filename src-buffer t)))
                   " ")))
           ('cat
            (setq cmd
                  (string-join
                   (list cmd
                         "&&" "mv"
-                        (rmsbolt-output-filename src-buffer)
-                        (rmsbolt-output-filename src-buffer t))
+                        (file-local-name (rmsbolt-output-filename src-buffer))
+                        (file-local-name (rmsbolt-output-filename src-buffer t)))
                   " ")))
           (_
            (error "Objdumper not recognized"))))
@@ -1743,6 +1789,9 @@ Are you running two compilations at the same time?"))
             ;; TODO should this be configurable?
             (rmsbolt-with-display-buffer-no-window
              (compilation-start cmd nil (lambda (&rest _) "*rmsbolt-compilation*"))))
+        ;; Make sure the compilation hooks use the same temporary directory as
+        ;; the buffer being compiled.
+        (setq-local default-directory src-default-directory)
         ;; Only jump to errors, skip over warnings
         (setq-local compilation-skip-threshold 2)
         (add-hook 'compilation-finish-functions
@@ -1771,18 +1820,26 @@ Are you running two compilations at the same time?"))
 ;;;; Init commands
 
 (defun rmsbolt--gen-temp ()
-  "Generate rmsbolt temp dir if needed."
-  (unless (and rmsbolt--temp-dir
-               (file-exists-p rmsbolt--temp-dir))
-    (setq rmsbolt--temp-dir
-          (make-temp-file "rmsbolt-" t))
-    (add-hook 'kill-emacs-hook
-              (lambda ()
-                (when (and (boundp 'rmsbolt--temp-dir)
-                           rmsbolt--temp-dir
-                           (file-directory-p rmsbolt--temp-dir))
-                  (delete-directory rmsbolt--temp-dir t))
-                (setq rmsbolt--temp-dir nil)))))
+  "Get a temporary directory close to the current buffer.  A new directory is
+created if needed.  Only one temporary directory exists per host so as to support
+compilation of remote files."
+  ;; Get this buffer's temporary directory.  Use the buffer's default directory
+  ;; if the current buffer isn't backed by a file.
+  (let* ((remote-components (file-remote-p (or (buffer-file-name)
+                                               default-directory)))
+        (temp-directory (gethash remote-components rmsbolt--temp-dirs-hash)))
+    ;; Create a temporary directory if we haven't already for this remote.
+    (if (not temp-directory)
+        (progn
+          (puthash remote-components (make-nearby-temp-file "rmsbolt-" t) rmsbolt--temp-dirs-hash)
+          (setq temp-directory (gethash remote-components rmsbolt--temp-dirs-hash))
+          ;; Make sure this directory is removed when we exit.
+          (add-hook 'kill-emacs-hook
+                    (lambda ()
+                      (when (and temp-directory
+                                 (file-directory-p temp-directory))
+                        (delete-directory temp-directory t))))))
+    (setq rmsbolt--temp-dir temp-directory)))
 
 ;;;;; Starter Definitions
 
