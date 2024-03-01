@@ -456,20 +456,20 @@ Use SRC-BUFFER as buffer containing local variables."
           (asm-format (buffer-local-value 'rmsbolt-asm-format src-buffer))
           (disass (buffer-local-value 'rmsbolt-disassemble src-buffer))
           (cmd (buffer-local-value 'rmsbolt-command src-buffer))
-          (cmd (mapconcat #'identity
-                          (list cmd
-                                "-g"
-                                (if disass
-                                    "-c"
-                                  "-S")
-                                (if no-src-filename
-                                    ""
-                                  src-filename)
-                                "-o" output-filename
-                                (when (and (not (booleanp asm-format))
-                                           (not disass))
-                                  (concat "-masm=" asm-format)))
-                          " "))
+          (cmd (string-join
+                (list cmd
+                      "-g"
+                      (if disass
+                          "-c"
+                        "-S")
+                      (if no-src-filename
+                          ""
+                        src-filename)
+                      "-o" output-filename
+                      (when (and (not (booleanp asm-format))
+                                 (not disass))
+                        (concat "-masm=" asm-format)))
+                " "))
           (cmd (rmsbolt--c-quirks cmd :src-buffer src-buffer)))
      cmd)))
 
@@ -490,10 +490,10 @@ this."
            (asm-out (progn
                       (setq rmsbolt-disassemble nil)
                       (rmsbolt-output-filename src-buffer)))
-           (full-cmd (mapconcat #'identity
-                                (list old-cmd
-                                      "&&" "eu-readelf" "--debug-dump=info" binary-out ">" asm-out)
-                                " ")))
+           (full-cmd (string-join
+                      (list old-cmd
+                            "&&" "eu-readelf" "--debug-dump=info" binary-out ">" asm-out)
+                      " ")))
       full-cmd)))
 
 (cl-defun rmsbolt--ocaml-compile-cmd (&key src-buffer)
@@ -508,25 +508,25 @@ Needed as ocaml cannot output asm to a non-hardcoded file"
           (predicted-asm-filename (shell-quote-argument
                                    (concat (file-name-sans-extension (buffer-file-name)) ".s")))
           (cmd (buffer-local-value 'rmsbolt-command src-buffer))
-          (cmd (mapconcat #'identity
-                          (list cmd
-                                "-g"
-                                (if (buffer-local-value 'rmsbolt-disassemble src-buffer)
-                                    ""
-                                  "-S")
-                                src-filename
-                                (mapconcat #'identity
-                                           (cond
-                                            (diss
-                                             (list "-o" output-filename))
-                                            ((equal predicted-asm-filename output-filename)
-                                             nil)
-                                            (t
-                                             (list "&&" "mv"
-                                                   predicted-asm-filename
-                                                   output-filename)))
-                                           " "))
-                          " ")))
+          (cmd (string-join
+                (list cmd
+                      "-g"
+                      (if (buffer-local-value 'rmsbolt-disassemble src-buffer)
+                          ""
+                        "-S")
+                      src-filename
+                      (string-join
+                       (cond
+                        (diss
+                         (list "-o" output-filename))
+                        ((equal predicted-asm-filename output-filename)
+                         nil)
+                        (t
+                         (list "&&" "mv"
+                               predicted-asm-filename
+                               output-filename)))
+                       " "))
+                " ")))
      cmd)))
 
 (cl-defun rmsbolt--lisp-compile-cmd (&key src-buffer)
@@ -543,21 +543,21 @@ Assumes function name to disassemble is \\='main\\='."
           (disass-eval-unquoted "(disassemble 'main)"))
      (pcase interpreter
        ("sbcl"
-        (mapconcat #'identity
-                   (list cmd "--noinform" "--load"
-                         src-filename
-                         "--eval" disass-eval "--non-interactive"
-                         ;; Remove leading comments
-                         "|" "sed" "'s/^;\s//'" ">"
-                         output-filename)
-                   " "))
+        (string-join
+         (list cmd "--noinform" "--load"
+               src-filename
+               "--eval" disass-eval "--non-interactive"
+               ;; Remove leading comments
+               "|" "sed" "'s/^;\s//'" ">"
+               output-filename)
+         " "))
        ("clisp"
-        (mapconcat #'identity
-                   (list cmd "-q" "-x"
-                         (concat
-                          "\"(load \\\"" src-filename "\\\") " disass-eval-unquoted "\"")
-                         ">" output-filename)
-                   " "))
+        (string-join
+         (list cmd "-q" "-x"
+               (concat
+                "\"(load \\\"" src-filename "\\\") " disass-eval-unquoted "\"")
+               ">" output-filename)
+         " "))
        (_
         (error "This Common Lisp interpreter is not supported"))))))
 
@@ -570,19 +570,19 @@ Use SRC-BUFFER as buffer for local variables."
    (let* ((asm-format (buffer-local-value 'rmsbolt-asm-format src-buffer))
           (disass (buffer-local-value 'rmsbolt-disassemble src-buffer))
           (cmd (buffer-local-value 'rmsbolt-command src-buffer))
-          (cmd (mapconcat #'identity
-                          (list cmd
-                                "-g"
-                                "--emit"
-                                (if disass
-                                    "link"
-                                  "asm")
-                                src-filename
-                                "-o" output-filename
-                                (when (and (not (booleanp asm-format))
-                                           (not disass))
-                                  (concat "-Cllvm-args=--x86-asm-syntax=" asm-format)))
-                          " ")))
+          (cmd (string-join
+                (list cmd
+                      "-g"
+                      "--emit"
+                      (if disass
+                          "link"
+                        "asm")
+                      src-filename
+                      "-o" output-filename
+                      (when (and (not (booleanp asm-format))
+                                 (not disass))
+                        (concat "-Cllvm-args=--x86-asm-syntax=" asm-format)))
+                " ")))
      cmd)))
 
 (cl-defun rmsbolt--go-compile-cmd (&key src-buffer)
@@ -592,13 +592,13 @@ Use SRC-BUFFER as buffer for local variables."
   (rmsbolt--with-files
    src-buffer
    (let* ((cmd (buffer-local-value 'rmsbolt-command src-buffer))
-          (cmd (mapconcat #'identity
-                          (list cmd
-                                "tool" "compile"
-                                "-S"
-                                "-o" output-filename
-                                src-filename)
-                          " ")))
+          (cmd (string-join
+                (list cmd
+                      "tool" "compile"
+                      "-S"
+                      "-o" output-filename
+                      src-filename)
+                " ")))
      cmd)))
 
 (cl-defun rmsbolt--d-compile-cmd (&key src-buffer)
@@ -608,8 +608,7 @@ Use SRC-BUFFER as buffer for local variables."
   (rmsbolt--with-files
    src-buffer
    (let* ((compiler (buffer-local-value 'rmsbolt-command src-buffer))
-          (cmd (mapconcat		;you have `string-join' in subr-x
-                #'identity
+          (cmd (string-join
                 (list compiler "-g" "-output-s" src-filename "-of" output-filename)
                 " ")))
      cmd)))
@@ -632,21 +631,21 @@ Use SRC-BUFFER as buffer for local variables."
          (_ (copy-file (buffer-file-name)
                        (expand-file-name dir) t))
          (dis (buffer-local-value 'rmsbolt-disassemble src-buffer))
-         (cmd (mapconcat #'identity
-                         (list
-                          "cd" dir "&&"
-                          cmd
-                          "-g"
-                          ;; FIXME: test this properly and use rmsbolt-asm-format to expose it.
-                          (if dis
-                              "-r=obj"
-                            "-r=asm")
-                          dir
-                          "&&" "mv"
-                          (if dis object-filename asm-filename)
-                          (shell-quote-argument
-                           (rmsbolt-output-filename src-buffer)))
-                         " ")))
+         (cmd (string-join
+               (list
+                "cd" dir "&&"
+                cmd
+                "-g"
+                ;; FIXME: test this properly and use rmsbolt-asm-format to expose it.
+                (if dis
+                    "-r=obj"
+                  "-r=asm")
+                dir
+                "&&" "mv"
+                (if dis object-filename asm-filename)
+                (shell-quote-argument
+                 (rmsbolt-output-filename src-buffer)))
+               " ")))
     (with-current-buffer src-buffer
       (setq rmsbolt--real-src-file
             (expand-file-name (file-name-nondirectory
@@ -661,10 +660,10 @@ Use SRC-BUFFER as buffer for local variables."
   (rmsbolt--with-files
    src-buffer
    (let* ((cmd (buffer-local-value 'rmsbolt-command src-buffer)))
-     (mapconcat #'identity
-                (list cmd "-m" "dis" src-filename
-                      ">" output-filename)
-                " "))))
+     (string-join
+      (list cmd "-m" "dis" src-filename
+            ">" output-filename)
+      " "))))
 
 (defun rmsbolt--hack-p (src-buffer)
   "Return non-nil if SRC-BUFFER should should use hhvm instead of php."
@@ -703,15 +702,15 @@ Use SRC-BUFFER as buffer for local variables."
   (rmsbolt--with-files
    src-buffer
    (let* ((cmd (buffer-local-value 'rmsbolt-command src-buffer))
-          (cmd (mapconcat #'identity
-                          (list cmd
-                                "-g"
-                                (if (buffer-local-value 'rmsbolt-disassemble src-buffer)
-                                    ""
-                                  "-S")
-                                src-filename
-                                "-o" output-filename)
-                          " ")))
+          (cmd (string-join
+                (list cmd
+                      "-g"
+                      (if (buffer-local-value 'rmsbolt-disassemble src-buffer)
+                          ""
+                        "-S")
+                      src-filename
+                      "-o" output-filename)
+                " ")))
      cmd)))
 
 (cl-defun rmsbolt--java-compile-cmd (&key src-buffer)
@@ -725,17 +724,17 @@ Needed as ocaml cannot output asm to a non-hardcoded file"
    (let* ((class-filename (shell-quote-argument
                            (concat (file-name-sans-extension (buffer-file-name)) ".class")))
           (cmd (buffer-local-value 'rmsbolt-command src-buffer))
-          (cmd (mapconcat #'identity
-                          (list cmd
-                                "-g"
-                                src-filename
-                                "&&"
-                                "javap"
-                                "-c" "-l"
-                                class-filename
-                                ">"
-                                output-filename)
-                          " ")))
+          (cmd (string-join
+                (list cmd
+                      "-g"
+                      src-filename
+                      "&&"
+                      "javap"
+                      "-c" "-l"
+                      class-filename
+                      ">"
+                      output-filename)
+                " ")))
      cmd)))
 
 (cl-defun rmsbolt--elisp-compile-override (&key src-buffer)
@@ -799,15 +798,15 @@ Use SRC-BUFFER as buffer for local variables."
    src-buffer
    (let* ((asm-format (buffer-local-value 'rmsbolt-asm-format src-buffer))
           (cmd (buffer-local-value 'rmsbolt-command src-buffer))
-          (cmd (mapconcat #'identity
-                          (list cmd
-                                "-g"
-                                "-emit-assembly"
-                                src-filename
-                                "-o" output-filename
-                                (when (not (booleanp asm-format))
-                                  (concat "-Xllvm --x86-asm-syntax=" asm-format)))
-                          " ")))
+          (cmd (string-join
+                (list cmd
+                      "-g"
+                      "-emit-assembly"
+                      src-filename
+                      "-o" output-filename
+                      (when (not (booleanp asm-format))
+                        (concat "-Xllvm --x86-asm-syntax=" asm-format)))
+                " ")))
      cmd)))
 
 ;;;;; Hidden Function Definitions
@@ -1373,15 +1372,15 @@ Argument SRC-BUFFER source buffer."
           (setq source-linum
                 (string-to-number (match-string 1 line))))
         ;; Reformat line to be more like assembly
-        (setq line (mapconcat #'identity
-                              (list
-                               ;; Register
-                               (match-string 4 line)
-                               ;; Command
-                               (match-string 5 line)
-                               (match-string 6 line)
-                               (match-string 7 line))
-                              "\t"))
+        (setq line (string-join
+                    (list
+                     ;; Register
+                     (match-string 4 line)
+                     ;; Command
+                     (match-string 5 line)
+                     (match-string 6 line)
+                     (match-string 7 line))
+                    "\t"))
         (when source-linum
           (add-text-properties 0 (length line)
                                `(rmsbolt-src-line ,source-linum) line))
@@ -1433,11 +1432,11 @@ Essentially a switch that chooses which processing function to use."
           (setq source-linum
                 (string-to-number (match-string 2 line))))
         ;; Reformat line to be more like assembly
-        (setq line (mapconcat #'identity
-                              (list (match-string 3 line)
-                                    (match-string 4 line)
-                                    (match-string 5 line))
-                              "\t"))
+        (setq line (string-join
+                    (list (match-string 3 line)
+                          (match-string 4 line)
+                          (match-string 5 line))
+                    "\t"))
         (when source-linum
           (add-text-properties 0 (length line)
                                `(rmsbolt-src-line ,source-linum) line))
@@ -1563,7 +1562,7 @@ Argument STOPPED The compilation was stopped to start another compilation."
                         (old-point (window-point window))
                         (old-window-start (window-start window)))
                    (erase-buffer)
-                   (insert (mapconcat #'identity lines "\n"))
+                   (insert (string-join lines "\n"))
                    (when window
                      (set-window-start window old-window-start)
                      (set-window-point window old-point)))
@@ -1650,8 +1649,7 @@ Are you running two compilations at the same time?"))
            (demangler (rmsbolt-l-demangler lang))
            (demangler-exists (executable-find demangler)))
       (concat existing-cmd " "
-              (mapconcat
-               #'identity
+              (string-join
                (list "&&" demangler
                      "<" (rmsbolt--convert-file-name-to-system-type
                           (rmsbolt-output-filename src-buffer t))
@@ -1705,32 +1703,32 @@ Are you running two compilations at the same time?"))
             (rmsbolt-l-objdumper lang)
           ('objdump
            (setq cmd
-                 (mapconcat #'identity
-                            (list cmd
-                                  "&&"
-                                  rmsbolt-objdump-binary "-d" (rmsbolt-output-filename src-buffer)
-                                  "-C" "--insn-width=16" "-l"
-                                  (when (not (booleanp asm-format))
-                                    (concat "-M " asm-format))
-                                  ">" (rmsbolt-output-filename src-buffer t))
-                            " ")))
+                 (string-join
+                  (list cmd
+                        "&&"
+                        rmsbolt-objdump-binary "-d" (rmsbolt-output-filename src-buffer)
+                        "-C" "--insn-width=16" "-l"
+                        (when (not (booleanp asm-format))
+                          (concat "-M " asm-format))
+                        ">" (rmsbolt-output-filename src-buffer t))
+                  " ")))
           ('go-objdump
            (setq cmd
-                 (mapconcat #'identity
-                            (list cmd
-                                  "&&"
-                                  "go" "tool"
-                                  "objdump" (rmsbolt-output-filename src-buffer)
-                                  ">" (rmsbolt-output-filename src-buffer t))
-                            " ")))
+                 (string-join
+                  (list cmd
+                        "&&"
+                        "go" "tool"
+                        "objdump" (rmsbolt-output-filename src-buffer)
+                        ">" (rmsbolt-output-filename src-buffer t))
+                  " ")))
           ('cat
            (setq cmd
-                 (mapconcat #'identity
-                            (list cmd
-                                  "&&" "mv"
-                                  (rmsbolt-output-filename src-buffer)
-                                  (rmsbolt-output-filename src-buffer t))
-                            " ")))
+                 (string-join
+                  (list cmd
+                        "&&" "mv"
+                        (rmsbolt-output-filename src-buffer)
+                        (rmsbolt-output-filename src-buffer t))
+                  " ")))
           (_
            (error "Objdumper not recognized"))))
       ;; Convert to demangle if we need to
