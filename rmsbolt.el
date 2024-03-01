@@ -1,6 +1,7 @@
 ;;; rmsbolt.el --- A compiler output viewer -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2018-2021 Jay Kamat
+;; Copyright (C) 2018-2023 Jay Kamat
+
 ;; Author: Jay Kamat <jaygkamat@gmail.com>
 ;; Version: 0.1.2
 ;; Keywords: compilation, tools
@@ -40,8 +41,10 @@
 ;; 4. Provide an interface for highlighting the matched assembly/bytecode line
 ;; to the source and vice versa
 ;;
-;; Tweakables:
-;; RMSBolt is primarily configured with Emacs local variables. This lets you
+
+;;;; Tweakables:
+
+;; RMSBolt is primarily configured with Emacs local variables.  This lets you
 ;; change compiler and rmsbolt options simply by editing a local variable block.
 ;;
 ;; Notable options:
@@ -80,7 +83,7 @@
 ;;; Code:
 ;;;; Customize:
 (defgroup rmsbolt nil
-  "rmsbolt customization options"
+  "Customization for rmsbolt."
   :group 'applications)
 
 (defcustom rmsbolt-use-overlays t
@@ -91,45 +94,50 @@
   "Whether we should goto the match in the other buffer if it is non visible."
   :type 'boolean
   :group 'rmsbolt)
-(defcustom rmsbolt-mode-lighter " RMS🗲"
+
+(defcustom rmsbolt-mode-lighter " RMSB"
   "Lighter displayed in mode line when function `rmsbolt-mode' is active."
   :type 'string
   :group 'rmsbolt)
+
 (defcustom rmsbolt-large-buffer-size 500
   "Number of lines past which a buffer is considred large."
-  :type 'integer
+  :type 'natnum
   :group 'rmsbolt)
+
 (defcustom rmsbolt-automatic-recompile t
   "Whether to automatically save and recompile the source buffer.
 This setting is automatically disabled on large buffers, set to
 `force' to force-enable it.  To only recompile when the buffer is
 manually saved, set to `on-save'."
+  :group 'rmsbolt
   :type '(choice (const :tag "Off" nil)
                  (const :tag "On save" on-save)
                  (const :tag "On" t)
-                 (const :tag "Always" force))
-  :group 'rmsbolt)
+                 (const :tag "Always" force)))
 
 ;;;;; Buffer Local Tweakables
 (defcustom rmsbolt-disassemble nil
   "Whether we should disassemble an output binary."
+  :group 'rmsbolt
   :type 'boolean
-  :safe 'booleanp
-  :group 'rmsbolt)
+  :safe 'booleanp)
+
 (defcustom rmsbolt-command nil
   "The base command to run rmsbolt from."
   :type 'string
+  :group 'rmsbolt
   ;; nil means use default command
-  :safe (lambda (v) (or (booleanp v) (stringp v)))
-  :group 'rmsbolt)
+  :safe (lambda (v) (or (booleanp v) (stringp v))))
+
 (defcustom rmsbolt-default-directory nil
   "The default directory to compile from.
 This must be an absolute path if set.
 Some exporters (such as pony) may not work with this set."
   :type 'string
   ;; nil means use default command
-  :safe (lambda (v) (or (booleanp v) (stringp v)))
-  :group 'rmsbolt)
+  :safe (lambda (v) (or (booleanp v) (stringp v))))
+
 (define-obsolete-variable-alias 'rmsbolt-intel-x86
   'rmsbolt-asm-format "RMSBolt-0.2"
   "Sorry about not providing a proper migration for this variable.
@@ -142,6 +150,7 @@ tool defaults -> nil
 
 This means that if you had rmsbolt-intel-x86 set manually, you
 are now getting tool defaults.")
+
 (defcustom rmsbolt-asm-format "intel"
   "Which output assembly format to use.
 
@@ -186,8 +195,8 @@ being set (at worst falling back to nil if passed \"intel\")."
   "Whether to tweak flags to enable as many features as possible.
 
 In most cases, we will try to honor flags in rmsbolt-command as
-much as possible. However, some features may be disabled with
-some odd combinations of flags. This variable controls
+much as possible.  However, some features may be disabled with
+some odd combinations of flags.  This variable controls
 removing/adding flags to handle those cases.
 
 Note that basic flags to ensure basic usage are always modified."
@@ -241,10 +250,8 @@ Used to work around inconsistencies in alternative shells.")
 Please DO NOT modify this blindly, as this directory will get
 deleted on Emacs exit.")
 
-(defvar rmsbolt-dir nil
+(defvar rmsbolt-dir (and load-file-name (file-name-directory load-file-name))
   "The directory which rmsbolt is installed to.")
-(when load-file-name
-  (setq rmsbolt-dir (file-name-directory load-file-name)))
 
 (defvar-local rmsbolt-src-buffer nil)
 
@@ -513,6 +520,7 @@ this."
                                            " "))
                           " ")))
      cmd)))
+
 (cl-defun rmsbolt--lisp-compile-cmd (&key src-buffer)
   "Process a compile command for common lisp.
 
@@ -542,6 +550,7 @@ this."
                    " "))
        (_
         (error "This Common Lisp interpreter is not supported"))))))
+
 (cl-defun rmsbolt--rust-compile-cmd (&key src-buffer)
   "Process a compile command for rustc."
   (rmsbolt--with-files
@@ -563,6 +572,7 @@ this."
                                   (concat "-Cllvm-args=--x86-asm-syntax=" asm-format)))
                           " ")))
      cmd)))
+
 (cl-defun rmsbolt--go-compile-cmd (&key src-buffer)
   "Process a compile command for go."
   (rmsbolt--with-files
@@ -576,12 +586,13 @@ this."
                                 src-filename)
                           " ")))
      cmd)))
+
 (cl-defun rmsbolt--d-compile-cmd (&key src-buffer)
   "Process a compile command for d"
   (rmsbolt--with-files
    src-buffer
    (let* ((compiler (buffer-local-value 'rmsbolt-command src-buffer))
-          (cmd (mapconcat
+          (cmd (mapconcat		;you have `string-join' in subr-x
                 #'identity
                 (list compiler "-g" "-output-s" src-filename "-of" output-filename)
                 " ")))
@@ -624,6 +635,7 @@ this."
                                (buffer-file-name))
                               dir)))
     cmd))
+
 (cl-defun rmsbolt--py-compile-cmd (&key src-buffer)
   "Process a compile command for python3."
   (rmsbolt--with-files
@@ -676,6 +688,7 @@ https://github.com/derickr/vld"
                                 "-o" output-filename)
                           " ")))
      cmd)))
+
 (cl-defun rmsbolt--java-compile-cmd (&key src-buffer)
   "Process a compile command for ocaml.
 
@@ -771,6 +784,7 @@ https://github.com/derickr/vld"
               "frame_dummy"
               (and ".plt" (0+ any)))
       eol))
+
 (defvar rmsbolt--hidden-func-ocaml
   (rx bol
       (or (and "__" (0+ any))
@@ -782,11 +796,13 @@ https://github.com/derickr/vld"
           (and (or "caml_" "camlStd_") (0+ any))
           (and "caml" (or "Pervasives" "List" "Bytes"
                           "String" "Buffer" "Printf"
-                          "Char" "Sys") "__" (0+ any))
+                          "Char" "Sys")
+	       "__" (0+ any))
           ;; Ocaml likes to make labels following camlModule__,
           ;; filter out any lowercase
           (and (1+ (1+ lower) (opt (or "64" "32" "8" "16")) (opt "_"))))
       eol))
+
 (defvar rmsbolt--hidden-func-zig
   (rx bol (or (and "_" (0+ any))
               (and (opt "de") "register_tm_clones")
@@ -810,8 +826,7 @@ https://github.com/derickr/vld"
   (rmsbolt--path-to-swift-tool "swiftc"))
 
 (defun rmsbolt--path-to-swift-tool (swift-tool)
-  "Return the path to SWIFT-TOOL, depending on the active
-toolchain."
+  "Return the path to SWIFT-TOOL, depending on the active toolchain."
   (let* ((swift-tool-binary swift-tool)
          (swift-tool-toolchain-path (shell-command-to-string (format "echo -n `xcrun --find %s`" swift-tool-binary))))
     ;; If we have the Swift tool in PATH, just return it (this is the
@@ -821,8 +836,7 @@ toolchain."
      ((executable-find swift-tool-binary)
       swift-tool-binary)
      ((executable-find swift-tool-toolchain-path)
-      swift-tool-toolchain-path)
-     (t nil))))
+      swift-tool-toolchain-path))))
 
 (defun rmsbolt--parse-compile-commands (comp-cmds file)
   "Parse COMP-CMDS and extract a compilation dir and command for FILE."
@@ -840,6 +854,7 @@ toolchain."
              (dir (alist-get 'directory entry))
              (cmd (alist-get 'command entry)))
     (list dir cmd)))
+
 (defun rmsbolt--handle-c-compile-cmd (src-buffer)
   "Handle compile_commands.json for c/c++ for a given SRC-BUFFER.
 return t if successful."
@@ -866,6 +881,7 @@ return t if successful."
                     (rmsbolt-split-rm-single "-flto" #'string-prefix-p)
                     (rmsbolt-split-rm-double "-o")))
       t)))
+
 ;;;; Language Definitions
 (defvar rmsbolt-languages)
 (setq
@@ -1013,7 +1029,6 @@ This should be an object of type `rmsbolt-lang', normally set by the major mode"
               (list #'display-buffer-no-window)
             display-buffer-overriding-action)))
      ,@body))
-
 
 ;;;; Functions
 ;; Functions to parse and lint assembly were lifted almost directly from the compiler-explorer
@@ -1434,7 +1449,7 @@ Argument ASM-LINES input lines."
     (setq result (nconc die result))
     (nreverse result)))
 
-;;;;; Handlers
+;;;;; HANDLERS
 (cl-defun rmsbolt--handle-finish-compile (buffer str &key override-buffer stopped)
   "Finish hook for compilations.
 Argument BUFFER compilation buffer.
@@ -1476,23 +1491,22 @@ Argument STOPPED The compilation was stopped to start another compilation."
                    (let ((property
                           (get-text-property
                            0 'rmsbolt-src-line line)))
-                     (progn
-                       (cl-tagbody
-                        run-conditional
-                        (cond
-                         ((and in-match (eq in-match property))
-                          ;; We are continuing an existing match
-                          nil)
-                         (in-match
-                          ;; We are in a match that has just expired
-                          (push (cons start-match (1- linum))
-                                (gethash in-match ht))
-                          (setq in-match nil
-                                start-match nil)
-                          (go run-conditional))
-                         (property
-                          (setq in-match property
-                                start-match linum))))))
+                     (cl-tagbody
+                      run-conditional
+                      (cond
+                       ((and in-match (eq in-match property))
+                        ;; We are continuing an existing match
+                        nil)
+                       (in-match
+                        ;; We are in a match that has just expired
+                        (push (cons start-match (1- linum))
+                              (gethash in-match ht))
+                        (setq in-match nil
+                              start-match nil)
+                        (go run-conditional))
+                       (property
+                        (setq in-match property
+                              start-match linum)))))
                    (cl-incf linum))
 
                  (with-current-buffer src-buffer
@@ -1615,7 +1629,7 @@ and return it."
   ;; Current buffer = src-buffer at this point
   (setq rmsbolt-src-buffer (current-buffer))
   (cond
-   ((eq major-mode 'asm-mode)
+   ((derived-mode-p 'asm-mode)
     ;; We cannot compile asm-mode files
     (message "Cannot compile assembly files. Are you sure you are not in the output buffer?"))
    ((rmsbolt-l-elisp-compile-override (rmsbolt--get-lang))
@@ -1778,24 +1792,23 @@ and return it."
   (when line
     (let ((cur (line-number-at-pos)))
       (forward-line (- line cur)))))
+
 (defun rmsbolt--setup-overlay (start end buf)
   "Setup overlay with START and END in BUF."
   (let ((o (make-overlay start end buf)))
     (overlay-put o 'face 'rmsbolt-current-line-face)
     o))
+
 (cl-defun rmsbolt--point-visible (point)
   "Check if the current point is visible in a window in the current buffer."
-  (when (cl-find-if (lambda (w)
-                      (and (>= point (window-start w))
-                           (<= point (window-end w))))
-                    (get-buffer-window-list))
-    t))
+  (cl-find-if (lambda (w)
+		(<= (window-start w) point (window-end w)))
+              (get-buffer-window-list)))
 
 (cl-defun rmsbolt-update-overlays (&key (force nil))
   "Update overlays to highlight the currently selected source and asm lines.
-  If FORCE, always scroll overlay, even when one is visible.
-  FORCE also scrolls to the first line, instead of the first line
-  of the last block."
+If FORCE, always scroll overlay, even when one is visible.  FORCE also
+scrolls to the first line, instead of the first line of the last block."
   (when rmsbolt-mode
     (if-let ((should-run rmsbolt-use-overlays)
              (output-buffer (get-buffer rmsbolt-output-buffer))
@@ -1841,8 +1854,7 @@ and return it."
                                          (not scroll-src-buffer-p))
                                 (setq line-visible (or (rmsbolt--point-visible start-pt)
                                                        (rmsbolt--point-visible end-pt)
-                                                       (and (> saved-pt start-pt)
-                                                            (< saved-pt end-pt)))))
+                                                       (< start-pt saved-pt end-pt))))
                               (push (rmsbolt--setup-overlay start-pt end-pt output-buffer)
                                     rmsbolt-overlays)))))
             (when (or (not line-visible) force)
