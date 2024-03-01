@@ -753,22 +753,24 @@ Use SRC-BUFFER as buffer for local variables."
   (rmsbolt--with-files
    src-buffer
    (let* ((cmd (buffer-local-value 'rmsbolt-command src-buffer))
-	  (cmd
-	   (let* ((outdir (expand-file-name "nim-cache" rmsbolt--temp-dir)))
-		  (string-join
-		   (list cmd
-			 "--debugger:native"
-			 "--noLinking"
-			 "--colors:off"
-			 (concat "--nimcache:" outdir)
-			 src-filename
-			 (concat "&& cp "
-				 (expand-file-name (concat "@m"
-							   (file-name-nondirectory src-filename)
-							   (if (string-match (rx "nim cpp") cmd) ".cpp.o" ".c.o"))
-							   outdir)
-				 " " output-filename))
-		   " "))))
+          (cmd
+           (let* ((outdir (expand-file-name "nim-cache" rmsbolt--temp-dir)))
+             (string-join
+              (list cmd
+                    "--debugger:native"
+                    "--noLinking"
+                    "--colors:off"
+                    (concat "--nimcache:" outdir)
+                    src-filename
+                    (concat
+                     "&& cp "
+                     (expand-file-name
+                      (concat "@m"
+                              (file-name-nondirectory src-filename)
+                              (if (string-match (rx "nim cpp") cmd) ".cpp.o" ".c.o"))
+                      outdir)
+                     " " output-filename))
+              " "))))
      cmd)))
 
 (cl-defun rmsbolt--zig-compile-cmd (&key src-buffer)
@@ -832,7 +834,7 @@ Use SRC-BUFFER as buffer for local variables."
           (and "caml" (or "Pervasives" "List" "Bytes"
                           "String" "Buffer" "Printf"
                           "Char" "Sys")
-	       "__" (0+ any))
+               "__" (0+ any))
           ;; Ocaml likes to make labels following camlModule__,
           ;; filter out any lowercase
           (and (1+ (1+ lower) (opt (or "64" "32" "8" "16")) (opt "_"))))
@@ -913,10 +915,10 @@ return t if successful."
                   ;; as we will add them back
                   ;; Remove args starting with -flto, as -flto breaks asm output.
                   (thread-first (cl-second to-ret)
-                    (rmsbolt-split-rm-single "-c")
-                    (rmsbolt-split-rm-single "-S")
-                    (rmsbolt-split-rm-single "-flto" #'string-prefix-p)
-                    (rmsbolt-split-rm-double "-o")))
+                                (rmsbolt-split-rm-single "-c")
+                                (rmsbolt-split-rm-single "-S")
+                                (rmsbolt-split-rm-single "-flto" #'string-prefix-p)
+                                (rmsbolt-split-rm-double "-o")))
       t)))
 
 ;;;; Language Definitions
@@ -1026,11 +1028,11 @@ return t if successful."
                           :disass-hidden-funcs rmsbolt--hidden-func-zig))
    (go-mode
     . ,(make-rmsbolt-lang :compile-cmd "go"
-			                    :supports-asm nil
-			                    :supports-disass t
-			                    :objdumper 'go-objdump
-			                    :compile-cmd-function #'rmsbolt--go-compile-cmd
-			                    :process-asm-custom-fn #'rmsbolt--process-go-asm-lines))
+                          :supports-asm nil
+                          :supports-disass t
+                          :objdumper 'go-objdump
+                          :compile-cmd-function #'rmsbolt--go-compile-cmd
+                          :process-asm-custom-fn #'rmsbolt--process-go-asm-lines))
    (swift-mode
     . ,(make-rmsbolt-lang :compile-cmd (rmsbolt--path-to-swift-compiler)
                           :supports-asm t
@@ -1418,13 +1420,13 @@ Essentially a switch that chooses which processing function to use."
         (result nil))
     (dolist (line asm-lines)
       (if (not
-	         (string-match (rx bol (repeat 2 space)
-			                       (group (opt (0+ any))) ":"
-			                       (group (opt (1+ digit)) (1+ "\t"))
-			                       (group (opt "0x" (0+ hex)) (1+ "\t"))
-			                       (group (1+ xdigit) (1+ "\t"))
-			                       (group (opt (0+ any)) (1+ "\t")))
-			                   line))
+           (string-match (rx bol (repeat 2 space)
+                             (group (opt (0+ any))) ":"
+                             (group (opt (1+ digit)) (1+ "\t"))
+                             (group (opt "0x" (0+ hex)) (1+ "\t"))
+                             (group (1+ xdigit) (1+ "\t"))
+                             (group (opt (0+ any)) (1+ "\t")))
+                         line))
           ;; just push the var with no linum
           (push line result)
         ;; Grab line numbers
@@ -1849,7 +1851,7 @@ Uses LANG-NAME to determine the language."
 (cl-defun rmsbolt--point-visible (point)
   "Check if the current POINT is visible in a window in the current buffer."
   (cl-find-if (lambda (w)
-		            (<= (window-start w) point (window-end w)))
+                (<= (window-start w) point (window-end w)))
               (get-buffer-window-list)))
 
 (cl-defun rmsbolt-update-overlays (&key (force nil))
