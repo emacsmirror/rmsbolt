@@ -192,7 +192,7 @@ being set (at worst falling back to nil if passed \"intel\")."
   :safe 'booleanp
   :group 'rmsbolt)
 (defcustom rmsbolt-flag-quirks t
-  "Whether to tweak flags to enable as many features as possible.
+  "Whether to tweak flags to enable as many features as possible.
 
 In most cases, we will try to honor flags in rmsbolt-command as
 much as possible.  However, some features may be disabled with
@@ -228,7 +228,7 @@ may not be cleared to default as variables are usually."
 (defvar rmsbolt-hide-compile t)
 (defvar rmsbolt-binary-asm-limit 10000)
 (defvar-local rmsbolt-line-mapping nil
-  "Line mapping hashtable from source lines -> asm lines")
+  "Line mapping hashtable from source lines -> asm lines.")
 (defvar-local rmsbolt-current-line nil
   "Current line for fontifier.")
 (defvar-local rmsbolt--last-point nil
@@ -256,8 +256,8 @@ deleted on Emacs exit.")
 (defvar-local rmsbolt-src-buffer nil)
 
 (defvar-local rmsbolt--real-src-file nil
-  "If set, the real filename that we compiled from,
-probably due to a copy from this file.")
+  "The real filename that we compiled from.
+If this is set, it is probably due to a copy from this file.")
 ;; FIXME should we be unbinding the list here, or is setting nil good enough.
 (defvar-local rmsbolt--default-variables nil
   "A list of the buffer-local variables we filled in with defaults.
@@ -402,10 +402,12 @@ Please be careful when setting this, as it bypasses most logic and is
 generally not useful."))
 
 ;;;; Helper Functions
-(defun rmsbolt--convert-file-name-to-system-type (file-name)
-  "Convert the argument FILE-NAME to windows format if `system-type' is equal to `cygwin'.
-Additional escaping with double quotes included to avoid backslashes loss in cygwin environment.
-If not `cygwin' then bypass the FILE-NAME."
+(defun rmsbolt--convert-file-name-to-system-type (file-name) ;perhaps use `convert-standard-filename'?
+  "Convert FILE-NAME to windows format if `system-type' is equal to `cygwin'.
+
+Additional escaping with double quotes included to avoid
+backslashes loss in cygwin environment. If not `cygwin' then
+bypass the FILE-NAME."
   (if (eq system-type 'cygwin)
       (concat "\"" (cygwin-convert-file-name-to-windows file-name) "\"")
     file-name))
@@ -443,7 +445,9 @@ Use SRC-BUFFER as buffer for local variables."
     cmd))
 
 (cl-defun rmsbolt--c-compile-cmd (&key src-buffer)
-  "Process a compile command for gcc/clang."
+  "Process a compile command for gcc/clang.
+
+Use SRC-BUFFER as buffer containing local variables."
 
   (rmsbolt--with-files
    src-buffer
@@ -472,6 +476,8 @@ Use SRC-BUFFER as buffer for local variables."
 (cl-defun rmsbolt--c-dwarf-compile-cmd (&key src-buffer)
   "Process a compile command for c dwarf.
 
+Use SRC-BUFFER as buffer for local variables.
+
 We use a hack where we overwrite the asm setting to trick the
 rest of the code into doing what we want. In this case, setting
 this value dosen't make sense anyway, so it should be fine to do
@@ -493,7 +499,9 @@ this."
 (cl-defun rmsbolt--ocaml-compile-cmd (&key src-buffer)
   "Process a compile command for ocaml.
 
-  Needed as ocaml cannot output asm to a non-hardcoded file"
+Use SRC-BUFFER as buffer for local variables.
+
+Needed as ocaml cannot output asm to a non-hardcoded file"
   (rmsbolt--with-files
    src-buffer
    (let* ((diss (buffer-local-value 'rmsbolt-disassemble src-buffer))
@@ -522,9 +530,11 @@ this."
      cmd)))
 
 (cl-defun rmsbolt--lisp-compile-cmd (&key src-buffer)
-  "Process a compile command for common lisp.
+  "Process a compile command for common LISP.
 
-   Assumes function name to disassemble is \\='main\\='."
+Use SRC-BUFFER as buffer for local variables.
+
+Assumes function name to disassemble is \\='main\\='."
   (rmsbolt--with-files
    src-buffer
    (let* ((cmd (buffer-local-value 'rmsbolt-command src-buffer))
@@ -552,7 +562,9 @@ this."
         (error "This Common Lisp interpreter is not supported"))))))
 
 (cl-defun rmsbolt--rust-compile-cmd (&key src-buffer)
-  "Process a compile command for rustc."
+  "Process a compile command for rustc.
+
+Use SRC-BUFFER as buffer for local variables."
   (rmsbolt--with-files
    src-buffer
    (let* ((asm-format (buffer-local-value 'rmsbolt-asm-format src-buffer))
@@ -574,7 +586,9 @@ this."
      cmd)))
 
 (cl-defun rmsbolt--go-compile-cmd (&key src-buffer)
-  "Process a compile command for go."
+  "Process a compile command for go.
+
+Use SRC-BUFFER as buffer for local variables."
   (rmsbolt--with-files
    src-buffer
    (let* ((cmd (buffer-local-value 'rmsbolt-command src-buffer))
@@ -588,7 +602,9 @@ this."
      cmd)))
 
 (cl-defun rmsbolt--d-compile-cmd (&key src-buffer)
-  "Process a compile command for d"
+  "Process a compile command for d.
+
+Use SRC-BUFFER as buffer for local variables."
   (rmsbolt--with-files
    src-buffer
    (let* ((compiler (buffer-local-value 'rmsbolt-command src-buffer))
@@ -599,7 +615,9 @@ this."
      cmd)))
 
 (cl-defun rmsbolt--pony-compile-cmd (&key src-buffer)
-  "Process a compile command for ponyc."
+  "Process a compile command for ponyc.
+
+Use SRC-BUFFER as buffer for local variables."
   (let* ((cmd (buffer-local-value 'rmsbolt-command src-buffer))
          (dir (expand-file-name "pony/" rmsbolt--temp-dir))
          (_ (make-directory dir t))
@@ -637,7 +655,9 @@ this."
     cmd))
 
 (cl-defun rmsbolt--py-compile-cmd (&key src-buffer)
-  "Process a compile command for python3."
+  "Process a compile command for python3.
+
+Use SRC-BUFFER as buffer for local variables."
   (rmsbolt--with-files
    src-buffer
    (let* ((cmd (buffer-local-value 'rmsbolt-command src-buffer)))
@@ -661,6 +681,9 @@ this."
 
 (cl-defun rmsbolt--php-compile-cmd (&key src-buffer)
   "Process a compile command for PHP.
+
+Use SRC-BUFFER as buffer for local variables.
+
 In order to disassemble opcdoes, we need to have the vld.so
 extension to php on.
 https://github.com/derickr/vld"
@@ -674,7 +697,9 @@ https://github.com/derickr/vld"
              src-filename " 2> " output-filename " > /dev/null"))))
 
 (cl-defun rmsbolt--hs-compile-cmd (&key src-buffer)
-  "Process a compile command for ghc."
+  "Process a compile command for ghc.
+
+Use SRC-BUFFER as buffer for local variables."
   (rmsbolt--with-files
    src-buffer
    (let* ((cmd (buffer-local-value 'rmsbolt-command src-buffer))
@@ -692,7 +717,9 @@ https://github.com/derickr/vld"
 (cl-defun rmsbolt--java-compile-cmd (&key src-buffer)
   "Process a compile command for ocaml.
 
-  Needed as ocaml cannot output asm to a non-hardcoded file"
+Use SRC-BUFFER as buffer for local variables.
+
+Needed as ocaml cannot output asm to a non-hardcoded file"
   (rmsbolt--with-files
    src-buffer
    (let* ((class-filename (shell-quote-argument
@@ -712,13 +739,18 @@ https://github.com/derickr/vld"
      cmd)))
 
 (cl-defun rmsbolt--elisp-compile-override (&key src-buffer)
+  "Handle elisp overrides - this is a special case.
+
+Use SRC-BUFFER as buffer for local variables."
   (let ((file-name (buffer-file-name)))
     (with-temp-buffer
       (rmsbolt--disassemble-file file-name (current-buffer))
       (rmsbolt--handle-finish-compile src-buffer nil :override-buffer (current-buffer)))))
 
 (cl-defun rmsbolt--nim-compile-cmd (&key src-buffer)
-  "Process a compile command for nim."
+  "Process a compile command for nim.
+
+Use SRC-BUFFER as buffer for local variables."
   (rmsbolt--with-files
    src-buffer
    (let* ((cmd (buffer-local-value 'rmsbolt-command src-buffer))
@@ -741,7 +773,9 @@ https://github.com/derickr/vld"
      cmd)))
 
 (cl-defun rmsbolt--zig-compile-cmd (&key src-buffer)
-  "Process a compile command for zig."
+  "Process a compile command for zig.
+
+Use SRC-BUFFER as buffer for local variables."
   (rmsbolt--with-files
    src-buffer
    (let* ((disass (buffer-local-value 'rmsbolt-disassemble src-buffer))
@@ -758,7 +792,9 @@ https://github.com/derickr/vld"
      cmd)))
 
 (cl-defun rmsbolt--swift-compile-cmd (&key src-buffer)
-  "Process a compile command for swiftc."
+  "Process a compile command for swiftc.
+
+Use SRC-BUFFER as buffer for local variables."
   (rmsbolt--with-files
    src-buffer
    (let* ((asm-format (buffer-local-value 'rmsbolt-asm-format src-buffer))
@@ -814,15 +850,17 @@ https://github.com/derickr/vld"
 ;;;;; Demangling Functions
 
 (defun rmsbolt--path-to-swift-demangler ()
-  "Return the path to the configured Swift demangler, depending
-  on the active toolchain."
+  "Return the path to the configured Swift demangler.
+
+Depends on the active toolchain."
   (rmsbolt--path-to-swift-tool "swift-demangle"))
 
 ;;;;; Language Integrations
 
 (defun rmsbolt--path-to-swift-compiler ()
-  "Return the path to the configured Swift compiler, depending on
-  the active toolchain."
+  "Return the path to the configured Swift compiler.
+
+Depends on the active toolchain."
   (rmsbolt--path-to-swift-tool "swiftc"))
 
 (defun rmsbolt--path-to-swift-tool (swift-tool)
@@ -1202,6 +1240,7 @@ Argument SRC-BUFFER source buffer."
     (nreverse result)))
 
 (cl-defun rmsbolt--process-src-asm-lines (src-buffer asm-lines)
+  "Process and filter compiler-generated ASM-LINES from SRC-BUFFER."
   (let* ((used-labels (rmsbolt--find-used-labels src-buffer asm-lines))
          (src-file-name (or (buffer-local-value 'rmsbolt--real-src-file src-buffer)
                             (buffer-file-name src-buffer)))
@@ -1287,6 +1326,7 @@ Argument SRC-BUFFER source buffer."
     (nreverse result)))
 
 (cl-defun rmsbolt--process-php-bytecode (src-buffer asm-lines)
+  "Process and filter php ASM-LINES from SRC-BUFFER."
   (if (rmsbolt--hack-p src-buffer)
       asm-lines
     (let ((state 'useless)
@@ -1313,6 +1353,7 @@ Argument SRC-BUFFER source buffer."
       (nreverse result))))
 
 (cl-defun rmsbolt--process-python-bytecode (_src-buffer asm-lines)
+  "Process and filter python ASM-LINES from SRC-BUFFER."
   (let ((source-linum nil)
         (result nil))
     (dolist (line asm-lines)
@@ -1357,7 +1398,9 @@ Argument ASM-LINES input lines."
    (buffer-local-value 'rmsbolt-filter-directives src-buffer)))
 
 (cl-defun rmsbolt--process-asm-lines (src-buffer asm-lines)
-  "Process and filter a set of asm lines."
+  "Process and filter a set of ASM-LINES from SRC-BUFFER.
+
+Essentially a switch that chooses which processing function to use."
   (let* ((lang (with-current-buffer src-buffer
                  (rmsbolt--get-lang)))
          (process-asm-fn (when lang
@@ -1371,17 +1414,18 @@ Argument ASM-LINES input lines."
       (rmsbolt--process-src-asm-lines src-buffer asm-lines)))))
 
 (cl-defun rmsbolt--process-go-asm-lines (_src-buffer asm-lines)
+  "Process and filter go ASM-LINES from SRC-BUFFER."
   (let ((source-linum nil)
         (result nil))
     (dolist (line asm-lines)
       (if (not
-	   (string-match (rx bol (repeat 2 space)
-			     (group (opt (0+ any))) ":"
-			     (group (opt (1+ digit)) (1+ "\t"))
-			     (group (opt "0x" (0+ hex)) (1+ "\t"))
-			     (group (1+ xdigit) (1+ "\t"))
-			     (group (opt (0+ any)) (1+ "\t")))
-			 line))
+	         (string-match (rx bol (repeat 2 space)
+			                       (group (opt (0+ any))) ":"
+			                       (group (opt (1+ digit)) (1+ "\t"))
+			                       (group (opt "0x" (0+ hex)) (1+ "\t"))
+			                       (group (1+ xdigit) (1+ "\t"))
+			                       (group (opt (0+ any)) (1+ "\t")))
+			                   line))
           ;; just push the var with no linum
           (push line result)
         ;; Grab line numbers
@@ -1402,7 +1446,9 @@ Argument ASM-LINES input lines."
     (nreverse result)))
 
 (cl-defun rmsbolt--process-dwarf-readelf (src-buffer asm-lines)
-  "Process dwarf output from eu-readelf"
+  "Process and filter DWARF ASM-LINES from SRC-BUFFER.
+
+Tuned to Elfutils's implementation of readelf"
   (let ((result nil)
         (die nil)
         (filename nil)
@@ -1458,7 +1504,7 @@ Argument OVERRIDE-BUFFER asm src buffer to use instead of reading
    `rmsbolt-output-filename'.
 Argument STOPPED The compilation was stopped to start another compilation."
   (when (not (buffer-live-p buffer))
-    (error "Dead buffer passed to compilation-finish-function! RMSBolt cannot continue."))
+    (error "Dead buffer passed to compilation-finish-function! RMSBolt cannot continue"))
   (let ((compilation-fail
          (and str
               (not (string-match "^finished" str))))
@@ -1599,8 +1645,7 @@ Are you running two compilations at the same time?"))
     src-buffer))
 
 (defun rmsbolt--demangle-command (existing-cmd lang src-buffer)
-  "Append a demangler routine to EXISTING-CMD with LANG and SRC-BUFFER
-and return it."
+  "Add a demangler routine to EXISTING-CMD with LANG and SRC-BUFFER and return."
   (if-let ((to-demangle (buffer-local-value 'rmsbolt-demangle src-buffer))
            (demangler (rmsbolt-l-demangler lang))
            (demangler-exists (executable-find demangler)))
@@ -1622,6 +1667,7 @@ and return it."
 (defun rmsbolt-compile ()
   "Compile the current rmsbolt buffer."
   (interactive)
+  ;; perhaps use `save-some-buffers'?
   (when (and (buffer-modified-p)
              (yes-or-no-p (format "Save buffer %s? " (buffer-name))))
     (save-buffer))
@@ -1703,6 +1749,7 @@ and return it."
         (setq rmsbolt-src-buffer src-buffer))))))
 
 (defun rmsbolt--stop-running-compilation ()
+  "Cancel a compilation."
   (when-let* ((compilation-buffer (get-buffer "*rmsbolt-compilation*"))
               (proc (get-buffer-process compilation-buffer)))
     (when (eq (process-status proc) 'run)
@@ -1763,7 +1810,9 @@ and return it."
 
 ;;;###autoload
 (defun rmsbolt-starter (lang-name)
-  "Setup new file based on the sample STARTER-FILE-NAME."
+  "Setup new file based on the sample for the language provided.
+
+Uses LANG-NAME to determine the language."
   (interactive
    (list (completing-read "Language: " rmsbolt-starter-files nil t)))
   (rmsbolt--gen-temp)
@@ -1800,9 +1849,9 @@ and return it."
     o))
 
 (cl-defun rmsbolt--point-visible (point)
-  "Check if the current point is visible in a window in the current buffer."
+  "Check if the current POINT is visible in a window in the current buffer."
   (cl-find-if (lambda (w)
-		(<= (window-start w) point (window-end w)))
+		            (<= (window-start w) point (window-end w)))
               (get-buffer-window-list)))
 
 (cl-defun rmsbolt-update-overlays (&key (force nil))
@@ -1885,6 +1934,7 @@ scrolls to the first line, instead of the first line of the last block."
   (setq rmsbolt-overlays nil))
 
 (defun rmsbolt--post-command-hook ()
+  "Update overlays and perform book-keeping post-compile."
   ;; Use (point) instead of (line-number-at-pos) to track movements because
   ;; the former is faster (constant runtime)
   (unless (eq (point) rmsbolt--last-point)
@@ -1892,16 +1942,19 @@ scrolls to the first line, instead of the first line of the last block."
     (rmsbolt-update-overlays)))
 
 (defun rmsbolt--on-kill-buffer ()
+  "Perform cleanup if the user deletes the buffer."
   (when-let (output-buffer (get-buffer rmsbolt-output-buffer))
     (when (or (eq (current-buffer) output-buffer)
               (eq (current-buffer) (buffer-local-value 'rmsbolt-src-buffer output-buffer)))
       (rmsbolt--remove-overlays))))
 
 (defun rmsbolt--is-active-src-buffer ()
+  "Helper to see if our src buffer is active."
   (when-let (output-buffer (get-buffer rmsbolt-output-buffer))
     (eq (current-buffer) (buffer-local-value 'rmsbolt-src-buffer output-buffer))))
 
 (defun rmsbolt--after-save ()
+  "Handle automated compile and other after-safe functions."
   (when (and (rmsbolt--is-active-src-buffer)
              rmsbolt-automatic-recompile)
     (setq rmsbolt--automated-compile t)
@@ -1913,6 +1966,7 @@ scrolls to the first line, instead of the first line of the last block."
 (defvar rmsbolt--buffer-to-auto-save nil)
 
 (defun rmsbolt--after-change (&rest _)
+  "Handle automatic recompile and other functions after edit."
   (when (and (rmsbolt--is-active-src-buffer)
              rmsbolt-automatic-recompile
              (not (eq rmsbolt-automatic-recompile 'on-save)))
@@ -1922,6 +1976,7 @@ scrolls to the first line, instead of the first line of the last block."
           rmsbolt--change-timer (run-with-timer rmsbolt-compile-delay nil #'rmsbolt--on-change-timer))))
 
 (defun rmsbolt--on-change-timer ()
+  "Hook to run on automatic recompile timer."
   (setq rmsbolt--change-timer nil)
   (when (buffer-live-p rmsbolt--buffer-to-auto-save)
     (with-current-buffer rmsbolt--buffer-to-auto-save
@@ -1940,7 +1995,7 @@ scrolls to the first line, instead of the first line of the last block."
 ;;;###autoload
 ;; TODO handle more modes than c-mode
 (define-minor-mode rmsbolt-mode
-  "Toggle rmsbolt-mode.
+  "Toggle `rmsbolt-mode'.
 
 This mode is enabled in both src and assembly output buffers."
   :global nil
@@ -1970,8 +2025,9 @@ This mode is enabled in both src and assembly output buffers."
 
 ;;;###autoload
 (defun rmsbolt ()
-  "Start a rmsbolt compilation and enable `rmsbolt-mode' for code region
-highlighting and automatic recompilation."
+  "Start a rmsbolt compilation and enable `rmsbolt-mode'.
+
+Provides code region highlighting and automatic recompilation."
   (interactive)
   (unless rmsbolt-mode
     (rmsbolt-mode))
