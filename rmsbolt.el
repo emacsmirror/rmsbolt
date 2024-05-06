@@ -891,7 +891,8 @@ Depends on the active toolchain."
                          (alist-get 'directory elt ""))))
                      cmds))
              (dir (alist-get 'directory entry))
-             (cmd (alist-get 'command entry)))
+             (cmd (or (alist-get 'command entry)
+                      (string-join (alist-get 'arguments entry) " "))))
     (list dir cmd)))
 
 (defun rmsbolt--handle-c-compile-cmd (src-buffer)
