@@ -521,7 +521,7 @@ this."
            (binary-out (file-local-name (rmsbolt-output-filename src-buffer)))
            (asm-out (progn
                       (setq rmsbolt-disassemble nil)
-                      (rmsbolt-output-filename src-buffer)))
+                      (file-local-name (rmsbolt-output-filename src-buffer))))
            (full-cmd (string-join
                       (list old-cmd
                             "&&" "eu-readelf" "--debug-dump=info" binary-out ">" asm-out)
@@ -651,37 +651,38 @@ Use SRC-BUFFER as buffer for local variables."
 Use SRC-BUFFER as buffer for local variables."
   (let* ((cmd (buffer-local-value 'rmsbolt-command src-buffer))
          (dir (expand-file-name "pony/" rmsbolt--temp-dir))
+         (local-dir (file-local-name dir))
          (_ (make-directory dir t))
          ;; (base-filename (file-name-sans-extension
          ;;                 (file-name-nondirectory
          ;;                  (buffer-file-name))))
          (base-filename "pony")
          (base-filename (expand-file-name base-filename dir))
-         (asm-filename (shell-quote-argument (concat base-filename ".s")))
-         (object-filename (shell-quote-argument (concat base-filename ".o")))
+         (asm-filename (shell-quote-argument (file-local-name (concat base-filename ".s"))))
+         (object-filename (shell-quote-argument (file-local-name (concat base-filename ".o"))))
          ;; TODO should we copy this in lisp here, or pass this to the compilation command?
          (_ (copy-file (buffer-file-name)
                        (expand-file-name dir) t))
          (dis (buffer-local-value 'rmsbolt-disassemble src-buffer))
          (cmd (string-join
                (list
-                "cd" dir "&&"
                 cmd
                 "-g"
                 ;; FIXME: test this properly and use rmsbolt-asm-format to expose it.
                 (if dis
                     "-r=obj"
                   "-r=asm")
-                dir
+                local-dir
+                "-o" local-dir
                 "&&" "mv"
                 (if dis object-filename asm-filename)
                 (shell-quote-argument
-                 (rmsbolt-output-filename src-buffer)))
+                 (file-local-name (rmsbolt-output-filename src-buffer))))
                " ")))
     (with-current-buffer src-buffer
       (setq rmsbolt--real-src-file
             (expand-file-name (file-name-nondirectory
-                               (file-local-name (buffer-file-name)))
+                               (buffer-file-name))
                               dir)))
     cmd))
 
@@ -773,7 +774,9 @@ Needed as ocaml cannot output asm to a non-hardcoded file"
   "Handle elisp overrides - this is a special case.
 
 Use SRC-BUFFER as buffer for local variables."
-  (let ((file-name (file-local-name (buffer-file-name))))
+  ;; We don't need the local path since Emacs lisp support handles remote paths
+  ;; natively.
+  (let ((file-name buffer-file-name))
     (with-temp-buffer
       (rmsbolt--disassemble-file file-name (current-buffer))
       (rmsbolt--handle-finish-compile src-buffer nil :override-buffer (current-buffer)))))
@@ -904,9 +907,9 @@ Depends on the active toolchain."
     ;; typical case in Linux systems). If it's not in PATH, look for a
     ;; toolchain-specific path.
     (cond
-     ((executable-find swift-tool-binary)
+     ((executable-find swift-tool-binary t)
       swift-tool-binary)
-     ((executable-find swift-tool-toolchain-path)
+     ((executable-find swift-tool-toolchain-path t)
       swift-tool-toolchain-path))))
 
 (defun rmsbolt--parse-compile-commands (comp-cmds file)
@@ -1229,9 +1232,9 @@ Argument SRC-BUFFER source buffer."
 ;; TODO godbolt does not handle disassembly with filter=off, but we should.
 (cl-defun rmsbolt--process-disassembled-lines (src-buffer asm-lines)
   "Process and filter disassembled ASM-LINES from SRC-BUFFER."
-  (let* ((src-file-name
-          (or (buffer-local-value 'rmsbolt--real-src-file src-buffer)
-              (file-local-name (buffer-file-name src-buffer))))
+  (let* ((src-file-name (or (buffer-local-value 'rmsbolt--real-src-file src-buffer)
+                            (buffer-file-name src-buffer)))
+         (local-src-file-name (file-local-name src-file-name))
          (result nil)
          (func nil)
          (source-linum nil)
@@ -1250,7 +1253,7 @@ Argument SRC-BUFFER source buffer."
           ;; have a default dir. If not, treat it like we are in the
           ;; src directory.
           (let ((default-directory def-dir))
-            (if (rmsbolt--file-equal-p src-file-name
+            (if (rmsbolt--file-equal-p local-src-file-name
                               (match-string 1 line))
                 (setq source-linum (string-to-number (match-string 2 line)))
               (setq source-linum nil)))
@@ -1492,11 +1495,8 @@ Tuned to Elfutils's implementation of readelf"
         (filename nil)
         (linum nil)
         (comp-dir nil)
-        ;; XXX: double check this is correct - likely is correct since we are
-        ;;      comparing paths from the compilation artifacts against the
-        ;;      buffer's file name.
-        (src-file-name (or (buffer-local-value 'rmsbolt--real-src-file src-buffer)
-                           (file-local-name (buffer-file-name src-buffer)))))
+        (src-file-name (file-local-name (or (buffer-local-value 'rmsbolt--real-src-file src-buffer)
+                                            (buffer-file-name src-buffer)))))
     (dolist (line asm-lines)
       (if (string-match (rx bol space
                             (group "[" (0+ space) (1+ hex) "]"))
