@@ -937,18 +937,14 @@ return t if successful."
              (default-dir (cl-find 'rmsbolt-default-directory defaults))
              (default-cmd (cl-find 'rmsbolt-command defaults))
              (ccj "compile_commands.json")
-             ;; XXX: verify this is correct with a compile_commands.json test case.
-             ;; XXX: can get rid of one of the three file-local-name's (the
-             ;;      first two?) below since we're building the command up.
-             (compile-cmd-file
-              (locate-dominating-file
-               (file-local-name (buffer-file-name src-buffer))
-               ccj))
-             (compile-cmd-file (file-local-name (expand-file-name ccj compile-cmd-file)))
+             (compile-cmd-file (locate-dominating-file (buffer-file-name src-buffer) ccj))
+             (compile-cmd-file (expand-file-name ccj compile-cmd-file))
+             ;; We need a remote path to the compilation JSON so that it is
+             ;; properly parsed, but a local source file path to match the
+             ;; JSON's contents.
              (to-ret (rmsbolt--parse-compile-commands
                       compile-cmd-file (file-local-name (buffer-file-name src-buffer)))))
     (with-current-buffer src-buffer
-      (setq-local rmsbolt-default-directory (file-name-as-directory (cl-first to-ret)))
       (setq-local rmsbolt-command
                   ;; Remove -c, -S, and -o <arg> if present,
                   ;; as we will add them back
