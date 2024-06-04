@@ -26,7 +26,7 @@
 ;; RMSBolt is a package to provide assembly or bytecode output for a source
 ;; code input file.
 ;;
-;; It currently supports: C/C++, OCaml, Haskell, Python, Java, Go, PHP, D,
+;; It currently supports: C/C++, Fortran, OCaml, Haskell, Python, Java, Go, PHP, D,
 ;; Pony, Zig, Swift, Emacs Lisp, and (limited) Common Lisp.
 ;;
 ;; Adding support for more languages, if they have an easy manual compilation
@@ -980,6 +980,20 @@ return t if successful."
                           :supports-disass nil
                           :demangler "ddemangle"
                           :compile-cmd-function #'rmsbolt--d-compile-cmd))
+   (fortran-mode
+    . ,(make-rmsbolt-lang :compile-cmd "gfortran"
+                          :supports-asm t
+                          :supports-disass t
+                          :demangler "c++filt"
+                          :compile-cmd-function #'rmsbolt--c-compile-cmd
+                          :disass-hidden-funcs rmsbolt--hidden-func-c))
+   (f90-mode
+    . ,(make-rmsbolt-lang :compile-cmd "gfortran"
+                          :supports-asm t
+                          :supports-disass t
+                          :demangler "c++filt"
+                          :compile-cmd-function #'rmsbolt--c-compile-cmd
+                          :disass-hidden-funcs rmsbolt--hidden-func-c))
    ;; In order to parse ocaml files, you need the emacs ocaml mode, tuareg
    (tuareg-mode
     . ,(make-rmsbolt-lang :compile-cmd "ocamlopt"
@@ -1849,6 +1863,8 @@ compilation of remote files."
     ("cl" . "rmsbolt.lisp")
     ("rust " . "rmsbolt.rs")
     ("python" . "rmsbolt.py")
+    ("fortran" . "rmsbolt.f")
+    ("fortran90" . "rmsbolt.f90")
     ("haskell" . "rmsbolt.hs")
     ("php" . "rmsbolt.php")
     ("pony" . "rmsbolt.pony")
