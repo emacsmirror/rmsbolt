@@ -15,17 +15,20 @@
 (defun test-asm-preprocessor (pre post)
   "Tests the asm preprocessor on the current buffer."
   (insert-file-contents pre)
-  (should
-   (string=
-    (string-trim
-     (mapconcat 'identity
-                (rmsbolt--process-asm-lines (current-buffer)
-                                            (split-string (buffer-string) "\n" t))
-                "\n"))
-    (with-temp-buffer
-      (insert-file-contents post)
-      (string-trim
-       (buffer-string))))))
+  (setq-local buffer-file-name (expand-file-name default-directory))
+  (let
+      ((source
+        (string-trim
+         (string-join
+          (rmsbolt--process-asm-lines (current-buffer)
+                                      (split-string (buffer-string) "\n" t))
+          "\n")))
+       (target
+        (with-temp-buffer
+          (insert-file-contents post)
+          (string-trim
+           (buffer-string)))))
+    (should (string= source target))))
 
 ;;;; Filtration tests
 
