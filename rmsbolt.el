@@ -789,7 +789,7 @@ Use SRC-BUFFER as buffer for local variables."
    src-buffer
    (let* ((cmd (buffer-local-value 'rmsbolt-command src-buffer))
           (cmd
-           (let* ((outdir (expand-file-name "nim-cache" rmsbolt--temp-dir)))
+           (let* ((outdir (file-local-name (expand-file-name "nim-cache" rmsbolt--temp-dir))))
              (string-join
               (list cmd
                     "--debugger:native"
