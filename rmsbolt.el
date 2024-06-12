@@ -1839,16 +1839,16 @@ compilation of remote files."
                                                default-directory)))
         (temp-directory (gethash remote-components rmsbolt--temp-dirs-hash)))
     ;; Create a temporary directory if we haven't already for this remote.
-    (if (not temp-directory)
-        (progn
-          (puthash remote-components (make-nearby-temp-file "rmsbolt-" t) rmsbolt--temp-dirs-hash)
-          (setq temp-directory (gethash remote-components rmsbolt--temp-dirs-hash))
-          ;; Make sure this directory is removed when we exit.
-          (add-hook 'kill-emacs-hook
-                    (lambda ()
-                      (when (and temp-directory
-                                 (file-directory-p temp-directory))
-                        (delete-directory temp-directory t))))))
+    (unless temp-directory
+      (puthash remote-components (make-nearby-temp-file "rmsbolt-" t) rmsbolt--temp-dirs-hash)
+      (setq temp-directory (gethash remote-components rmsbolt--temp-dirs-hash))
+      ;; Make sure this directory is removed when we exit.
+      (add-hook 'kill-emacs-hook
+                (lambda ()
+                  (when (and temp-directory
+                             (file-directory-p temp-directory)
+                             (string-match "rmsbolt" (file-name-nondirectory temp-directory)))
+                    (delete-directory temp-directory t)))))
     (setq rmsbolt--temp-dir temp-directory)))
 
 ;;;;; Starter Definitions
