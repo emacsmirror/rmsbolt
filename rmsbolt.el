@@ -593,6 +593,22 @@ Assumes function name to disassemble is \\='main\\='."
        (_
         (error "This Common Lisp interpreter is not supported"))))))
 
+(cl-defun rmsbolt--mlir-compile-cmd (&key src-buffer)
+  "Process a compile command for mlir.
+
+Use SRC-BUFFER as buffer containing local variables."
+
+  (rmsbolt--with-local-files
+   src-buffer
+   (let* ( ;; Turn off passing the source file if we find compile_commands
+          (cmd (buffer-local-value 'rmsbolt-command src-buffer))
+          (cmd (string-join
+                (list cmd
+                      src-filename
+                      "-o" output-filename)
+                " ")))
+     cmd)))
+
 (cl-defun rmsbolt--rust-compile-cmd (&key src-buffer)
   "Process a compile command for rustc.
 
@@ -1082,6 +1098,11 @@ return t if successful."
                           :objdumper 'go-objdump
                           :compile-cmd-function #'rmsbolt--go-compile-cmd
                           :process-asm-custom-fn #'rmsbolt--process-go-asm-lines))
+   (mlir-mode
+    . ,(make-rmsbolt-lang :compile-cmd "mlir-opt"
+                          :supports-asm t
+                          :supports-disass nil
+                          :compile-cmd-function #'rmsbolt--mlir-compile-cmd))
    (swift-mode
     . ,(make-rmsbolt-lang :compile-cmd (rmsbolt--path-to-swift-compiler)
                           :supports-asm t
@@ -1866,6 +1887,7 @@ compilation of remote files."
     ("fortran" . "rmsbolt.f")
     ("fortran90" . "rmsbolt.f90")
     ("haskell" . "rmsbolt.hs")
+    ("mlir" . "rmsbolt.mlir")
     ("php" . "rmsbolt.php")
     ("pony" . "rmsbolt.pony")
     ("emacs-lisp" . "rmsbolt-starter.el")
