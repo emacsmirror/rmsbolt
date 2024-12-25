@@ -375,6 +375,10 @@ This function does NOT quote the return value for use in inferior shells."
    'objdump
    :type 'symbol
    :documentation "The object dumper to use if disassembling binary.")
+  (demangling-style
+   nil
+   :type 'string
+   :documentation "The demangling style as interpreted by the objdumper, if applicable.")
   (demangler
    nil
    :type 'string
@@ -1014,6 +1018,7 @@ return t if successful."
     . ,(make-rmsbolt-lang :compile-cmd "gcc"
                           :supports-asm t
                           :supports-disass t
+                          :demangling-style "gnat"
                           :compile-cmd-function #'rmsbolt--c-compile-cmd
                           :disass-hidden-funcs rmsbolt--hidden-func-c))
    ;; In order to parse ocaml files, you need the emacs ocaml mode, tuareg
@@ -1793,7 +1798,10 @@ Are you running two compilations at the same time?"))
                   (list cmd
                         "&&"
                         rmsbolt-objdump-binary "-d" (file-local-name (rmsbolt-output-filename src-buffer))
-                        "-C" "--insn-width=16" "-l"
+                        (concat "--demangle"
+                                (when-let (style (rmsbolt-l-demangling-style lang))
+                                  (concat "=" style)))
+                        "--insn-width=16" "-l"
                         (when (not (booleanp asm-format))
                           (concat "-M " asm-format))
                         ">" (file-local-name (rmsbolt-output-filename src-buffer t)))
