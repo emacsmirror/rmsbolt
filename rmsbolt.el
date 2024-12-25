@@ -291,7 +291,7 @@ Outputs assembly file if ASM.
 This function does NOT quote the return value for use in inferior shells."
   (if (and (not asm)
            (buffer-local-value 'rmsbolt-disassemble src-buffer))
-      (expand-file-name "rmsbolt.out" rmsbolt--temp-dir)
+      (expand-file-name "rmsbolt.o" rmsbolt--temp-dir)
     (expand-file-name "rmsbolt.s" rmsbolt--temp-dir)))
 
 ;;;; Regexes
