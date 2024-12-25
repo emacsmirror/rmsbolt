@@ -1934,7 +1934,7 @@ Uses LANG-NAME to determine the language."
          (src-file-exists (when src-file-name
                             (file-exists-p src-file-name))))
     (if (not src-file-exists)
-        (error "Could not find starter files! Are you sure the starter/ folder is available? If you want to overide, set `rmsbolt-dir' to your install path")
+        (error "Could not find starter files! Are you sure the starters/ folder is available? If you want to overide, set `rmsbolt-dir' to your install path")
       (unless exists
         (copy-file src-file-name file-name)
         (set-file-modes file-name #o644))
