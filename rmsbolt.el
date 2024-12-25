@@ -1010,6 +1010,12 @@ return t if successful."
                           :demangler "c++filt"
                           :compile-cmd-function #'rmsbolt--c-compile-cmd
                           :disass-hidden-funcs rmsbolt--hidden-func-c))
+   (ada-mode
+    . ,(make-rmsbolt-lang :compile-cmd "gcc"
+                          :supports-asm t
+                          :supports-disass t
+                          :compile-cmd-function #'rmsbolt--c-compile-cmd
+                          :disass-hidden-funcs rmsbolt--hidden-func-c))
    ;; In order to parse ocaml files, you need the emacs ocaml mode, tuareg
    (tuareg-mode
     . ,(make-rmsbolt-lang :compile-cmd "ocamlopt"
@@ -1880,6 +1886,7 @@ compilation of remote files."
 (defvar rmsbolt-starter-files
   '(("c" . "rmsbolt.c")
     ("c++" . "rmsbolt.cpp")
+    ("ada" . "rmsbolt.adb")
     ("ocaml" . "rmsbolt.ml")
     ("cl" . "rmsbolt.lisp")
     ("rust " . "rmsbolt.rs")
