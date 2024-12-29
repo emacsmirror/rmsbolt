@@ -291,7 +291,7 @@ Outputs assembly file if ASM.
 This function does NOT quote the return value for use in inferior shells."
   (if (and (not asm)
            (buffer-local-value 'rmsbolt-disassemble src-buffer))
-      (expand-file-name "rmsbolt.out" rmsbolt--temp-dir)
+      (expand-file-name "rmsbolt.o" rmsbolt--temp-dir)
     (expand-file-name "rmsbolt.s" rmsbolt--temp-dir)))
 
 ;;;; Regexes
@@ -375,6 +375,10 @@ This function does NOT quote the return value for use in inferior shells."
    'objdump
    :type 'symbol
    :documentation "The object dumper to use if disassembling binary.")
+  (demangling-style
+   nil
+   :type 'string
+   :documentation "The demangling style as interpreted by the objdumper, if applicable.")
   (demangler
    nil
    :type 'string
@@ -1008,6 +1012,13 @@ return t if successful."
                           :supports-asm t
                           :supports-disass t
                           :demangler "c++filt"
+                          :compile-cmd-function #'rmsbolt--c-compile-cmd
+                          :disass-hidden-funcs rmsbolt--hidden-func-c))
+   (ada-mode
+    . ,(make-rmsbolt-lang :compile-cmd "gcc"
+                          :supports-asm t
+                          :supports-disass t
+                          :demangling-style "gnat"
                           :compile-cmd-function #'rmsbolt--c-compile-cmd
                           :disass-hidden-funcs rmsbolt--hidden-func-c))
    ;; In order to parse ocaml files, you need the emacs ocaml mode, tuareg
@@ -1787,7 +1798,10 @@ Are you running two compilations at the same time?"))
                   (list cmd
                         "&&"
                         rmsbolt-objdump-binary "-d" (file-local-name (rmsbolt-output-filename src-buffer))
-                        "-C" "--insn-width=16" "-l"
+                        (concat "--demangle"
+                                (when-let (style (rmsbolt-l-demangling-style lang))
+                                  (concat "=" style)))
+                        "--insn-width=16" "-l"
                         (when (not (booleanp asm-format))
                           (concat "-M " asm-format))
                         ">" (file-local-name (rmsbolt-output-filename src-buffer t)))
@@ -1880,6 +1894,7 @@ compilation of remote files."
 (defvar rmsbolt-starter-files
   '(("c" . "rmsbolt.c")
     ("c++" . "rmsbolt.cpp")
+    ("ada" . "rmsbolt.adb")
     ("ocaml" . "rmsbolt.ml")
     ("cl" . "rmsbolt.lisp")
     ("rust " . "rmsbolt.rs")
@@ -1919,7 +1934,7 @@ Uses LANG-NAME to determine the language."
          (src-file-exists (when src-file-name
                             (file-exists-p src-file-name))))
     (if (not src-file-exists)
-        (error "Could not find starter files! Are you sure the starter/ folder is available? If you want to overide, set `rmsbolt-dir' to your install path")
+        (error "Could not find starter files! Are you sure the starters/ folder is available? If you want to overide, set `rmsbolt-dir' to your install path")
       (unless exists
         (copy-file src-file-name file-name)
         (set-file-modes file-name #o644))
