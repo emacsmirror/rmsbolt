@@ -31,19 +31,19 @@ pub fn zigFn(xs: []u8) []u8 {
 // compatible with the C calling convention.
 export fn exportPubFns() usize {
     var fns: usize = 0;
-    inline for (@typeInfo((@This())).Struct.decls) |decl| {
+    inline for (@typeInfo((@This())).@"struct".decls) |decl| {
         const field = @field(@This(), decl.name);
         const info = @typeInfo(@TypeOf(field));
-        if (info == .Fn and !info.Fn.is_generic) {
+        if (info == .@"fn" and !info.@"fn".is_generic) {
             fns += @intFromPtr(&field);
         }
     }
     return fns;
 }
 
-// In some cases, Zig embeds a panic handler that prints stack traces, causing a
+// When @panic() is used, Zig embeds a panic handler that prints stack traces, causing a
 // disassembly much larger than normal.
-// You can optionally place this function in files you disassemble to make them easier to digest.
+// You can place this function in files you disassemble to make them easier to digest.
 pub fn panic(msg: []const u8, error_return_trace: ?*std.builtin.StackTrace, ret_addr: ?usize) noreturn {
     _ = msg;
     _ = error_return_trace;
